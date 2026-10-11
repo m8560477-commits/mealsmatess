@@ -250,10 +250,10 @@ function PremiumCard({
   const perMonth = formatPrice(annualUsd / 12, currency);
 
   const features = [
-    "Unlimited AI Recipe Generator",
-    "Unlimited AI Food Scanner",
-    "Unlimited AI Chat",
-    "Unlimited Meal Planner",
+    "Up to 100 Mia AI requests a day (fair use)",
+    
+    "Enhanced Mia AI assistance",
+    "Unlimited weekly meal plans",
     "Advanced Nutrition Analysis",
     "Barcode Scanner",
     "Unlimited Grocery Lists",

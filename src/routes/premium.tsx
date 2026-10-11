@@ -365,9 +365,9 @@ function PremiumHeroCard({
       : formatPrice(PRICES_USD.premium_monthly, currency);
   const perMonth = formatPrice(PRICES_USD.premium_annual / 12, currency);
   const features = [
-    "Unlimited AI Recipe Generator",
-    "Unlimited AI Food Scanner",
-    "Unlimited AI Chat",
+    "Up to 100 Mia AI requests a day (fair use)",
+    
+    "Enhanced Mia AI assistance",
     "Advanced Nutrition Analysis",
     "Barcode Scanner",
     "Personalized Meal Plans",
