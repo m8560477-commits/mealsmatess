@@ -42,9 +42,23 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
     {
       const { data: ok } = await supabaseAdmin.rpc("check_rate_limit", { _bucket: "recipe_image_ai", _identifier: context.userId, _max_per_minute: 6 });
       if (ok === false) return { imageUrl: null, source: null, confidence: null, searched: false, reason: "rate_limited" };
+      const { data: credit } = await supabaseAdmin.rpc("consume_image_credit", { _user_id: context.userId });
+      const c = credit as { allowed?: boolean; max?: number; resets_at?: string; premium?: boolean } | null;
+      if (c && c.allowed === false) {
+        return { imageUrl: null, source: null, confidence: null, searched: false, reason: "limit", limit: c.max ?? null, resetsAt: c.resets_at ?? null, premium: !!c.premium };
+      }
+      // Claim the recipe so simultaneous searches don't generate twice.
       await srv.markChecked(r.id, signature);
-      const url = await srv.generateAndSaveAiImage(r, signature);
+      let url: string | null = null;
+      for (let attempt = 0; attempt < 2 && !url; attempt++) {
+        try { url = await srv.generateAndSaveAiImage(r, signature); }
+        catch (e) { console.error("recipe image attempt failed", e); }
+        if (!url && attempt === 0) await new Promise((res) => setTimeout(res, 1500));
+      }
       if (url) return { imageUrl: url, source: "AI", confidence: 100, searched: true };
+      // Release the claim so a later search can retry.
+      await supabaseAdmin.from("recipes").update({ image_checked_at: null }).eq("id", r.id);
+      return { imageUrl: null, source: null, confidence: null, searched: true, reason: "failed" };
     }
     if (srv.configuredProviders().length === 0) {
       return { imageUrl: null, source: null, confidence: null, searched: false, reason: "no_provider" };

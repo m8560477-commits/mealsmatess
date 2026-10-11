@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { usePremium } from "@/hooks/use-premium";
 import { regenerateRecipeImage } from "@/lib/ai.functions";
+import { ensureRecipeImage } from "@/lib/recipe-images.functions";
 import { trackRecipeView } from "@/lib/engagement.functions";
 import { setContinueCooking } from "@/lib/continue-cooking";
 // Full-screen step-by-step mode — split out of the initial recipe page bundle.
@@ -73,6 +74,22 @@ function RecipePage() {
   const [regen, setRegen] = useState(false);
   const [cookingOpen, setCookingOpen] = useState(false);
   const cookingModeEnabled = useFeatureFlag("cooking_mode", true);
+  const [makingImage, setMakingImage] = useState(false);
+  const imageAsked = useRef<string | null>(null);
+
+  // Create this recipe's own photo once (in the background); afterwards it's reused for everyone.
+  useEffect(() => {
+    if (!user || !r.id || r.image_source || imageAsked.current === r.id) return;
+    imageAsked.current = r.id;
+    setMakingImage(true);
+    ensureRecipeImage({ data: { recipeId: r.id } })
+      .then(async (res) => {
+        if (res.imageUrl) await queryClient.invalidateQueries({ queryKey: ["recipe", r.slug] });
+        else if (res.reason === "limit") toast.message("Daily photo allowance reached", { description: "This recipe's photo will be created when your allowance resets. Premium includes more." });
+      })
+      .catch(() => undefined)
+      .finally(() => setMakingImage(false));
+  }, [user, r.id, r.image_source, r.slug, queryClient]);
 
   async function regenerateImage() {
     if (!user) {
@@ -189,6 +206,7 @@ function RecipePage() {
               recipe={r}
               size="hero"
               priority
+              generating={makingImage}
               className="aspect-square w-full object-cover"
             />
 
