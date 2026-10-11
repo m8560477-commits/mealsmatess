@@ -2259,6 +2259,7 @@ export type Database = {
         Returns: boolean
       }
       consume_ai_credit: { Args: { _user_id: string }; Returns: Json }
+      consume_image_credit: { Args: { _user_id: string }; Returns: Json }
       increment_dish_search: { Args: { _name: string }; Returns: number }
       is_premium: { Args: { _user_id: string }; Returns: boolean }
       my_ai_usage: { Args: never; Returns: Json }
