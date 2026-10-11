@@ -7,4 +7,10 @@
 - [ ] Verify main flows, photos, route metadata and tests.
 - [x] Restore the previous Home layout and set bottom navigation to Home, Dining, AI Chef, Planner, Profile only.
 - [x] Test all five tabs, back navigation, AI Chef controls, and Pantry access from AI Chef.
-- [x] Adapt the supplied personalized onboarding journey to MealMate’s existing account, preferences, and real subscription flow.
+- [x] Adapt the supplied personalized onboarding journey to MealMate’s existing account, preferences, and real subscription flow.- [x] Free/Premium limits enforced in database (AI 3/day + 12/month, 10 favourites, 2 active plans), configurable in app_settings.
+- [x] Admin allowlist for tatendamkhwanazi6@gmail.com (granted on verified sign-in).
+- [x] Black launch splash with logo + tagline, once per launch.
+- [ ] Hide "Edit with Lovable" badge — blocked: needs Pro plan.
+- [ ] Google sign-in without Lovable name — blocked: needs user's own Google OAuth client in Cloud auth settings.
+- [ ] Android AAB — blocked: no Android project in repo; needs local Android Studio build + signing key.
+- [ ] Recipe image audit — blocked: no recipes in database until data is imported.
