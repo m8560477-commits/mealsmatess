@@ -68,9 +68,9 @@ export const getMyUsage = createServerFn({ method: "GET" })
     const usage: Record<string, { count: number; max: number; period: string; label: string; resetsAt: string | null }> = {
       ai_day: { count: u.day_used, max: u.day_max, period: "day", label: "Mia AI today", resetsAt: u.day_resets_at },
     };
-    if (u.month_max != null) usage.ai_month = { count: u.month_used, max: u.month_max, period: "month", label: "Mia AI this month", resetsAt: u.month_resets_at };
-    if (u.favorites_max != null) usage.favorites = { count: u.favorites_used, max: u.favorites_max, period: "total", label: "Saved favourites", resetsAt: null };
-    if (u.plans_max != null) usage.meal_plans = { count: u.plans_used, max: u.plans_max, period: "active", label: "Active meal plans", resetsAt: null };
+    if (u.month_max != null) usage["ai_month"] = { count: u.month_used, max: u.month_max, period: "month", label: "Mia AI this month", resetsAt: u.month_resets_at };
+    if (u.favorites_max != null) usage["favorites"] = { count: u.favorites_used, max: u.favorites_max, period: "total", label: "Saved favourites", resetsAt: null };
+    if (u.plans_max != null) usage["meal_plans"] = { count: u.plans_used, max: u.plans_max, period: "active", label: "Active meal plans", resetsAt: null };
     return usage;
   });
 
