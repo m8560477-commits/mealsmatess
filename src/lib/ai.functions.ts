@@ -147,7 +147,7 @@ export const surpriseMe = createServerFn({ method: "POST" })
       const { data, error } = await supabaseAdmin
         .from("recipes")
         .insert(row)
-        .select("slug")
+        .select("id,slug")
         .single();
       if (error) throw new Error(error.message);
       void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.surprise_me", latency_ms: Date.now() - t0, success: true, metadata: { theme, name: recipe.name } });
@@ -172,22 +172,22 @@ export const generateRecipe = createServerFn({ method: "POST" })
     try {
       const { data: exact } = await supabaseAdmin
         .from("recipes")
-        .select("slug,name")
+        .select("id,slug,name")
         .ilike("name", data.query)
         .limit(1);
       if (exact && exact.length > 0) {
         void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: true, metadata: { query: data.query, cached: true } });
-        return { slug: exact[0]?.slug ?? "", cached: true };
+        return { slug: exact[0]?.slug ?? "", id: exact[0]?.id ?? null, cached: true };
       }
 
       const { data: fuzzy } = await supabaseAdmin
         .from("recipes")
-        .select("slug,name")
+        .select("id,slug,name")
         .ilike("name", `%${data.query}%`)
         .limit(1);
       if (fuzzy && fuzzy.length > 0) {
         void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: true, metadata: { query: data.query, cached: true } });
-        return { slug: fuzzy[0]?.slug ?? "", cached: true };
+        return { slug: fuzzy[0]?.slug ?? "", id: fuzzy[0]?.id ?? null, cached: true };
       }
 
       const recipe = await callModel(
@@ -197,7 +197,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
       const { data: inserted, error } = await supabaseAdmin
         .from("recipes")
         .insert(row)
-        .select("slug")
+        .select("id,slug")
         .single();
       if (error) throw new Error(error.message);
       await auditLog({
@@ -208,7 +208,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
         metadata: { query: data.query, name: recipe.name },
       });
       void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: true, metadata: { query: data.query, cached: false, name: recipe.name } });
-      return { slug: inserted.slug, cached: false };
+      return { slug: inserted.slug, id: inserted.id as string | null, cached: false };
     } catch (e) {
       void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e), metadata: { query: data.query } });
       throw e;

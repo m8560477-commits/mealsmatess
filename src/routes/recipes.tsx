@@ -82,7 +82,12 @@ function RecipesPage() {
     if (!query.trim() || busy) return;
     setBusy(true);
     try {
-      const { slug } = await generateRecipe({ data: { query: query.trim() } });
+      const { slug, id } = await generateRecipe({ data: { query: query.trim() } });
+      if (id) {
+        // Creates the dish photo once; later searches reuse the saved one.
+        await findImage({ data: { recipeId: id } }).catch(() => undefined);
+        await queryClient.invalidateQueries({ queryKey: ["recipe"] });
+      }
       navigate({ to: "/recipe/$slug", params: { slug } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
