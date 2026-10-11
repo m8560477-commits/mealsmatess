@@ -50,6 +50,13 @@
       "when": 1791715952344,
       "tag": "0006_mealmate_free_limits_and_admin_allowlist",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791718670246,
+      "tag": "0007_recipe_image_credits",
+      "breakpoints": true
     }
   ]
 }

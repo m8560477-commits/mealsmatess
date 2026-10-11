@@ -18,7 +18,9 @@ export function RecipeImage({
   className,
   priority = false,
   alt,
+  generating = false,
 }: {
+  generating?: boolean;
   recipe: ImageRecipeLike;
   size?: ImageSize;
   className?: string;
@@ -37,6 +39,14 @@ export function RecipeImage({
     setFailed(false);
   }, [initial, stored, curated, recipe.id]);
 
+  if (generating && !stored) {
+    return (
+      <div role="img" aria-label={`Creating a photo of ${recipe.name}`} className={`relative flex animate-pulse flex-col items-center justify-center gap-2 bg-muted text-muted-foreground ${className ?? ""}`}>
+        <UtensilsCrossed className="h-8 w-8 opacity-40" />
+        <span className="text-xs font-medium">Plating your photo…</span>
+      </div>
+    );
+  }
   if (src === fallback || failed) return <div role="img" aria-label={`Photo not available for ${recipe.name}`} className={`flex items-center justify-center bg-muted text-muted-foreground ${className ?? ""}`}><UtensilsCrossed className="h-10 w-10 opacity-40" /></div>;
 
   return (

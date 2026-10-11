@@ -68,12 +68,17 @@ function RecipesPage() {
     try {
       await navigate({ to: "/recipes", search: { ...(active !== "All" ? { c: active } : {}), q: term } });
       const matches = await queryClient.fetchQuery(recipesByCategoryQuery(active !== "All" ? active : undefined, term));
-      for (const recipe of matches.slice(0, 6)) {
-        if (recipe.image_source && recipe.image_url) continue;
-        const result = await findImage({ data: { recipeId: recipe.id } });
-        if (result.reason === "no_provider" || result.reason === "rate_limited") break;
-      }
-      await queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      // Photos are created in the background so results show straight away.
+      void (async () => {
+        for (const recipe of matches.slice(0, 6)) {
+          if (recipe.image_source && recipe.image_url) continue;
+          const result = await findImage({ data: { recipeId: recipe.id } }).catch(() => null);
+          if (!result) continue;
+          if (result.imageUrl) await queryClient.invalidateQueries({ queryKey: ["recipes"] });
+          if (result.reason === "limit") { toast.message("Daily photo allowance reached", { description: "New recipe photos will be created again tomorrow. Upgrade to Premium for more." }); break; }
+          if (result.reason === "rate_limited") break;
+        }
+      })();
     } catch { toast.error("Couldn't complete the search. Please try again."); }
     finally { setBusy(false); }
   }
@@ -83,11 +88,7 @@ function RecipesPage() {
     setBusy(true);
     try {
       const { slug, id } = await generateRecipe({ data: { query: query.trim() } });
-      if (id) {
-        // Creates the dish photo once; later searches reuse the saved one.
-        await findImage({ data: { recipeId: id } }).catch(() => undefined);
-        await queryClient.invalidateQueries({ queryKey: ["recipe"] });
-      }
+      void id; // the recipe page creates its photo in the background
       navigate({ to: "/recipe/$slug", params: { slug } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
