@@ -54,34 +54,23 @@ export const getMyEntitlement = createServerFn({ method: "GET" })
   });
 
 // ---------- Usage ----------
+// Plan allowance summary (server-calculated from the database; limits are configurable in app_settings).
 export const getMyUsage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const keys = (Object.keys(FREE_LIMITS) as FeatureKey[]).map((k) => ({
-      feature: k,
-      period: FREE_LIMITS[k].period,
-      pk: periodKey(FREE_LIMITS[k].period),
-    }));
-    const { data } = await supabaseAdmin
-      .from("usage_limits")
-      .select("feature_key, period_key, count")
-      .eq("user_id", context.userId)
-      .in(
-        "feature_key",
-        keys.map((k) => k.feature),
-      );
-
-    const usage: Record<string, { count: number; max: number; period: string; label: string }> = {};
-    for (const k of keys) {
-      const row = data?.find((r) => r.feature_key === k.feature && r.period_key === k.pk);
-      usage[k.feature] = {
-        count: row?.count ?? 0,
-        max: FREE_LIMITS[k.feature].max,
-        period: k.period,
-        label: FREE_LIMITS[k.feature].label,
-      };
-    }
+    const { data, error } = await context.supabase.rpc("my_ai_usage");
+    if (error) throw new Error(error.message);
+    const u = data as {
+      day_used: number; day_max: number; month_used: number; month_max: number | null;
+      favorites_used: number; favorites_max: number | null; plans_used: number; plans_max: number | null;
+      day_resets_at: string; month_resets_at: string;
+    };
+    const usage: Record<string, { count: number; max: number; period: string; label: string; resetsAt: string | null }> = {
+      ai_day: { count: u.day_used, max: u.day_max, period: "day", label: "Mia AI today", resetsAt: u.day_resets_at },
+    };
+    if (u.month_max != null) usage.ai_month = { count: u.month_used, max: u.month_max, period: "month", label: "Mia AI this month", resetsAt: u.month_resets_at };
+    if (u.favorites_max != null) usage.favorites = { count: u.favorites_used, max: u.favorites_max, period: "total", label: "Saved favourites", resetsAt: null };
+    if (u.plans_max != null) usage.meal_plans = { count: u.plans_used, max: u.plans_max, period: "active", label: "Active meal plans", resetsAt: null };
     return usage;
   });
 
