@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -110,6 +111,7 @@ export const generateVisualExplanation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => VisualInput.parse(v))
   .handler(async ({ data, context }): Promise<VisualExplanation> => {
+    await requireAiCredit(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")

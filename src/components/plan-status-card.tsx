@@ -5,21 +5,27 @@ import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
 const FEATURE_META: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string }> = {
-  ai_chat: { icon: MessageCircleQuestion, label: "AI Chef chats" },
-  recipe_gen: { icon: ChefHat, label: "Recipe generations" },
-  meal_plan: { icon: Calendar, label: "Meal plans" },
+  ai_day: { icon: MessageCircleQuestion, label: "Mia AI today" },
+  ai_month: { icon: Sparkles, label: "Mia AI this month" },
+  favorites: { icon: ChefHat, label: "Saved favourites" },
+  meal_plans: { icon: Calendar, label: "Active meal plans" },
 };
 
 const PREMIUM_PERKS = [
-  "Unlimited AI recipe generation",
-  "Unlimited AI Chef chat",
-  "Unlimited food & kitchen scanning",
-  "Personalized AI meal plans",
+  "Up to 100 Mia AI requests a day (fair use)",
+  "Unlimited saved favourites",
+  "Unlimited weekly meal plans",
+  "Advanced personalised meal suggestions",
   "Auto grocery lists from your plan",
   "Ingredient substitutions & cooking mode",
   "Advanced nutrition tracking",
-  "Priority AI processing · No ads",
+  "Premium themes · No ads",
 ];
+
+function resetLabel(period: string, resetsAt: string | null): string {
+  if (!resetsAt) return period === "active" ? "this & future weeks" : "saved";
+  return `resets ${new Date(resetsAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`;
+}
 
 export function PlanStatusCard() {
   const { user } = useSession();
@@ -74,15 +80,15 @@ export function PlanStatusCard() {
   }
 
   const entries = usage
-    ? (Object.entries(usage) as [string, { count: number; max: number; period: string; label: string }][])
+    ? (Object.entries(usage) as [string, { count: number; max: number; period: string; label: string; resetsAt: string | null }][])
     : [];
 
   return (
     <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Free plan</p>
-          <h3 className="mt-1 font-display text-xl leading-tight">What's left today</h3>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">MealMate Free</p>
+          <h3 className="mt-1 font-display text-xl leading-tight">Your allowance</h3>
         </div>
         <Link
           to="/premium"
@@ -116,7 +122,7 @@ export function PlanStatusCard() {
                         outOf ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground",
                       )}
                     >
-                      {remaining}/{u.max} left · /{u.period}
+                      {u.count}/{u.max} · {resetLabel(u.period, u.resetsAt)}
                     </span>
                   </div>
                   <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">

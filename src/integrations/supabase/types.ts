@@ -65,6 +65,21 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_allowlist: {
+        Row: {
+          created_at: string
+          email: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           body: string
@@ -86,6 +101,30 @@ export type Database = {
           created_by?: string | null
           id?: string
           title?: string
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
@@ -2219,9 +2258,12 @@ export type Database = {
         Args: { _bucket: string; _identifier: string; _max_per_minute: number }
         Returns: boolean
       }
+      consume_ai_credit: { Args: { _user_id: string }; Returns: Json }
       increment_dish_search: { Args: { _name: string }; Returns: number }
       is_premium: { Args: { _user_id: string }; Returns: boolean }
+      my_ai_usage: { Args: never; Returns: Json }
       recalc_recipe_rating: { Args: { _recipe_id: string }; Returns: undefined }
+      setting_int: { Args: { _default: number; _key: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"

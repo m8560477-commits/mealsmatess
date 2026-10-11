@@ -43,6 +43,13 @@
       "when": 1791714548847,
       "tag": "0005_mealmate_apply_imported_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791715952344,
+      "tag": "0006_mealmate_free_limits_and_admin_allowlist",
+      "breakpoints": true
     }
   ]
 }
