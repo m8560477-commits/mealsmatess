@@ -36,6 +36,13 @@
       "when": 1791429601323,
       "tag": "0004_recipe_image_matching",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791714548847,
+      "tag": "0005_mealmate_apply_imported_schema",
+      "breakpoints": true
     }
   ]
 }

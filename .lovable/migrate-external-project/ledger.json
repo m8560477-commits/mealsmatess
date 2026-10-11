@@ -1,0 +1,8 @@
+[
+  {"capability":"code","source":"github taz2011tazz-cmyk/mealsmates","outcome":"migrate","status":"verified","next_action":null},
+  {"capability":"schema","source":"drizzle/migrations 0000-0004","outcome":"migrate","status":"verified","next_action":null},
+  {"capability":"records","source":"original Lovable Cloud database","outcome":"migrate","status":"pending","next_action":"User to export table CSVs"},
+  {"capability":"auth identities","source":"original Lovable Cloud users","outcome":"migrate","status":"pending","next_action":"User to export users (email + id)"},
+  {"capability":"auth methods","source":"email + Google","outcome":"migrate","status":"verified","next_action":null},
+  {"capability":"ai edge function","source":"supabase/functions/ai-gateway","outcome":"preserve","status":"implemented","next_action":"Exercise AI Chef in preview"}
+]
