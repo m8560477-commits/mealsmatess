@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
@@ -125,6 +126,7 @@ function toDbRecipe(r: GeneratedRecipe, userId: string | null) {
 export const surpriseMe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
     const themes = [
       "a comforting South African classic",
@@ -163,6 +165,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
     z.object({ query: z.string().trim().min(1).max(200) }).parse(v),
   )
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const t0 = Date.now();
@@ -219,6 +222,7 @@ export const scanKitchen = createServerFn({ method: "POST" })
     z.object({ imageDataUrl: z.string().startsWith("data:image/") }).parse(v),
   )
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_vision", context.userId, 10);
     const t0 = Date.now();
     try {
@@ -283,6 +287,7 @@ export const scanDish = createServerFn({ method: "POST" })
     z.object({ imageDataUrl: z.string().startsWith("data:image/") }).parse(v),
   )
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_vision", context.userId, 10);
     const t0 = Date.now();
     try {
@@ -324,6 +329,7 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ question: z.string().trim().min(1).max(500) }).parse(v))
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_chat", context.userId, 20);
     const t0 = Date.now();
     try {
@@ -358,6 +364,7 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => z.object({ slug: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Premium gate — check for an active subscription

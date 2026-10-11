@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -24,6 +25,7 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => PlanInput.parse(v))
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -155,6 +157,7 @@ export const aiPlanAndShop = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => PlanAndShopInput.parse(v))
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
     const { supabase, userId } = context;
 
@@ -330,6 +333,7 @@ export const suggestSubstitutions = createServerFn({ method: "POST" })
     z.object({ ingredient: z.string().min(1).max(120), context: z.string().max(300).optional() }).parse(v),
   )
   .handler(async ({ data, context }) => {
+    await requireAiCredit(context.userId);
     await enforceRateLimit("ai_substitute", context.userId, 20);
     const t0 = Date.now();
     try {
