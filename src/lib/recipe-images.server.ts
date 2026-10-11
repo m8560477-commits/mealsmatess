@@ -464,3 +464,78 @@ export function needsSearch(row: {
   }
   return true;
 }
+
+// ---------- AI-generated dish photo (cached per recipe) ----------
+const IMAGE_MODEL = "openai/gpt-image-2.5-sunburst";
+const IMAGE_BUCKET = "recipe-images";
+
+function stepText(steps: unknown, max = 6): string {
+  if (!Array.isArray(steps)) return "";
+  return steps
+    .slice(0, max)
+    .map((s, i) => `${i + 1}. ${typeof s === "string" ? s : (s as any)?.text ?? (s as any)?.instruction ?? (s as any)?.step ?? ""}`.slice(0, 160))
+    .join("\n");
+}
+
+function ingredientText(ingredients: unknown, max = 14): string {
+  if (!Array.isArray(ingredients)) return "";
+  return ingredients
+    .slice(0, max)
+    .map((x) => (typeof x === "string" ? x : [(x as any)?.quantity, (x as any)?.unit, (x as any)?.name ?? (x as any)?.item].filter(Boolean).join(" ")))
+    .filter(Boolean)
+    .join(", ");
+}
+
+/** Generates a photo of the finished dish from its ingredients + steps and stores it on the recipe. */
+export async function generateAndSaveAiImage(
+  r: RecipeForImage & { steps?: unknown },
+  signature: string,
+): Promise<string | null> {
+  const key = process.env["LOVABLE_API_KEY"];
+  if (!key) return null;
+  const prompt =
+    `Photorealistic food photograph of the finished dish "${r.name}"${r.cuisine ? ` (${r.cuisine} cuisine)` : ""}, exactly as made by this recipe.\n` +
+    `Ingredients: ${ingredientText(r.ingredients)}\n` +
+    `Method:\n${stepText((r as any).steps)}\n` +
+    `Show only the plated final dish so its key ingredients are visible. Natural light, shallow depth of field, real crockery, 3/4 angle. ` +
+    `No text, no labels, no people, no hands, not an illustration.`;
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      "Lovable-API-Key": key,
+      "X-Lovable-AIG-SDK": "fetch",
+    },
+    body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium" }),
+  });
+  if (!res.ok) {
+    console.error("recipe image generation failed", res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
+  const j = (await res.json()) as { data?: { b64_json?: string }[] };
+  const b64 = j.data?.[0]?.b64_json;
+  if (!b64) return null;
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const path = `${r.id}/${signature}.png`;
+  const { error: upErr } = await supabaseAdmin.storage.from(IMAGE_BUCKET).upload(path, bytes, { contentType: "image/png", upsert: true });
+  if (upErr) throw upErr;
+  const { data: signed, error: signErr } = await supabaseAdmin.storage
+    .from(IMAGE_BUCKET)
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+  if (signErr || !signed) throw signErr ?? new Error("Could not sign image URL");
+  const { error } = await supabaseAdmin
+    .from("recipes")
+    .update({
+      image_url: signed.signedUrl,
+      image_source: "AI",
+      image_query: r.name,
+      image_confidence: 100,
+      image_attribution: { generated: true, model: IMAGE_MODEL },
+      image_checked_at: new Date().toISOString(),
+      image_signature: signature,
+    })
+    .eq("id", r.id);
+  if (error) throw error;
+  return signed.signedUrl;
+}
