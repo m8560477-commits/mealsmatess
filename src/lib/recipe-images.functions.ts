@@ -58,7 +58,9 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
       if (url) return { imageUrl: url, source: "AI", confidence: 100, searched: true };
       // Release the claim so a later search can retry.
       await supabaseAdmin.from("recipes").update({ image_checked_at: null }).eq("id", r.id);
-      return { imageUrl: null, source: null, confidence: null, searched: true, reason: "failed" };
+      if (srv.configuredProviders().length === 0) {
+        return { imageUrl: null, source: null, confidence: null, searched: true, reason: "failed" };
+      }
     }
     if (srv.configuredProviders().length === 0) {
       return { imageUrl: null, source: null, confidence: null, searched: false, reason: "no_provider" };
