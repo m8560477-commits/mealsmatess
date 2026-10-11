@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791428030729,
+      "tag": "0000_mealmate_core_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791429314788,
+      "tag": "0001_mealmate_security_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791429371158,
+      "tag": "0002_mealmate_marketplace_upgrade",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791429465109,
+      "tag": "0003_mealmate_subscriptions_profiles_ads",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791429601323,
+      "tag": "0004_recipe_image_matching",
+      "breakpoints": true
+    }
+  ]
+}

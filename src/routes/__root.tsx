@@ -4,18 +4,32 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
-  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { supabase } from "@/integrations/supabase/client";
+import { AppHeader } from "@/components/app-header";
+import { BottomNav } from "@/components/bottom-nav";
+
+import { AuthGate } from "@/components/auth-gate";
+import { MascotThemeProvider } from "@/hooks/use-mascot-theme";
+import { THEME_BOOT_SCRIPT } from "@/lib/mascot-theme";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
+import { LocaleProvider } from "@/components/locale-provider";
+import { UpgradeModalProvider } from "@/components/upgrade-modal";
+import { hasSeenTour } from "@/lib/preferences";
+import { useSession } from "@/hooks/use-session";
+import { useShellMetrics } from "@/hooks/use-shell-metrics";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
@@ -35,7 +49,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: ErrorComponentProps) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -43,7 +57,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
@@ -77,22 +91,49 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
+      { name: "theme-color", content: "#0a0a0a" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "MealMate" },
+      { name: "application-name", content: "MealMate" },
+      { title: "MealMate — Cook the world, one recipe at a time" },
+      {
+        name: "description",
+        content:
+          "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics.",
+      },
+      { name: "author", content: "MealMate" },
+      { property: "og:title", content: "MealMate — Cook the world, one recipe at a time" },
+      {
+        property: "og:description",
+        content:
+          "AI-powered recipes, meal planning, and smart grocery lists rooted in South African and global cuisine.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "MealMate — Cook the world, one recipe at a time" },
+      { name: "description", content: "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics." },
+      { property: "og:description", content: "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics." },
+      { name: "twitter:description", content: "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics." },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/favicon.png", type: "image/png", id: "app-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180", id: "apple-touch-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+           // Only the weights actually used (400 body, 600 medium emphasis, 700 bold)
+      // plus the upright serif display face. swap keeps text visible immediately.
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -105,6 +146,7 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -117,11 +159,81 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user } = useSession();
+  const isMarketplace =
+    pathname === "/restaurants" || pathname.startsWith("/restaurant/");
+  const isFlow = pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
+  const showAppHeader = pathname !== "/" && !isMarketplace && !isFlow;
+  useShellMetrics(showAppHeader ? "with-header" : "no-header");
+
+  // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
+  useEffect(() => {
+    if (user || pathname !== "/") return;
+    if (!hasSeenTour()) void router.navigate({ to: "/welcome", replace: true });
+  }, [pathname, router, user]);
+
+  useEffect(() => {
+    if (!user || pathname === "/onboarding" || pathname.startsWith("/auth") || pathname === "/reset-password") return;
+    let active = true;
+    supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[onboarding] status check failed", error);
+          return;
+        }
+        if (active && data && !data.onboarding_completed) {
+          void router.navigate({ to: "/onboarding", replace: true });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, pathname, router]);
+
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED")
+        return;
+      router.invalidate();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ThemeProvider>
+        <MascotThemeProvider>
+        <LocaleProvider>
+          <UpgradeModalProvider>
+            <div className={`h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}>
+              {showAppHeader && <AppHeader />}
+              {/* The one scroll container. Header and nav are siblings, not children. */}
+              <div
+                id="app-scroll"
+                className="h-full overflow-y-auto overscroll-y-none pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"
+              >
+                <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col">
+                  <AuthGate>
+                    <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
+                      <Outlet />
+                    </div>
+                  </AuthGate>
+                </div>
+              </div>
+              {pathname === "/onboarding" ? null : <BottomNav />}
+            </div>
+            <Toaster position="top-center" />
+          </UpgradeModalProvider>
+        </LocaleProvider>
+        </MascotThemeProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

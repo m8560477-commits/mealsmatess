@@ -10,33 +10,439 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ChatRouteImport } from './routes/chat'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CoachRouteImport } from './routes/coach'
+import { Route as CookbookRouteImport } from './routes/cookbook'
+import { Route as GroceryRouteImport } from './routes/grocery'
+import { Route as ListRouteImport } from './routes/list'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as PantryRouteImport } from './routes/pantry'
+import { Route as PartnerRouteImport } from './routes/partner'
+import { Route as PlannerRouteImport } from './routes/planner'
+import { Route as PremiumRouteImport } from './routes/premium'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RecipesRouteImport } from './routes/recipes'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RestaurantsRouteImport } from './routes/restaurants'
+import { Route as ScanRouteImport } from './routes/scan'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as OrderIdRouteImport } from './routes/order.$id'
+import { Route as PartnerDashboardRouteImport } from './routes/partner.dashboard'
+import { Route as RecipeSlugRouteImport } from './routes/recipe.$slug'
+import { Route as RestaurantSlugRouteImport } from './routes/restaurant.$slug'
+import { Route as ApiPublicWebhooksRevenuecatRouteImport } from './routes/api/public/webhooks.revenuecat'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoachRoute = CoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookbookRoute = CookbookRouteImport.update({
+  id: '/cookbook',
+  path: '/cookbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GroceryRoute = GroceryRouteImport.update({
+  id: '/grocery',
+  path: '/grocery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListRoute = ListRouteImport.update({
+  id: '/list',
+  path: '/list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PantryRoute = PantryRouteImport.update({
+  id: '/pantry',
+  path: '/pantry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerRoute = PartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlannerRoute = PlannerRouteImport.update({
+  id: '/planner',
+  path: '/planner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PremiumRoute = PremiumRouteImport.update({
+  id: '/premium',
+  path: '/premium',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesRoute = RecipesRouteImport.update({
+  id: '/recipes',
+  path: '/recipes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RestaurantsRoute = RestaurantsRouteImport.update({
+  id: '/restaurants',
+  path: '/restaurants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanRoute = ScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrderIdRoute = OrderIdRouteImport.update({
+  id: '/order/$id',
+  path: '/order/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnerDashboardRoute = PartnerDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => PartnerRoute,
+} as any)
+const RecipeSlugRoute = RecipeSlugRouteImport.update({
+  id: '/recipe/$slug',
+  path: '/recipe/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RestaurantSlugRoute = RestaurantSlugRouteImport.update({
+  id: '/restaurant/$slug',
+  path: '/restaurant/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWebhooksRevenuecatRoute =
+  ApiPublicWebhooksRevenuecatRouteImport.update({
+    id: '/api/public/webhooks/revenuecat',
+    path: '/api/public/webhooks/revenuecat',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/chat': typeof ChatRoute
+  '/checkout': typeof CheckoutRoute
+  '/coach': typeof CoachRoute
+  '/cookbook': typeof CookbookRoute
+  '/grocery': typeof GroceryRoute
+  '/list': typeof ListRoute
+  '/onboarding': typeof OnboardingRoute
+  '/orders': typeof OrdersRoute
+  '/pantry': typeof PantryRoute
+  '/partner': typeof PartnerRouteWithChildren
+  '/planner': typeof PlannerRoute
+  '/premium': typeof PremiumRoute
+  '/profile': typeof ProfileRoute
+  '/recipes': typeof RecipesRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/restaurants': typeof RestaurantsRoute
+  '/scan': typeof ScanRoute
+  '/settings': typeof SettingsRoute
+  '/support': typeof SupportRoute
+  '/welcome': typeof WelcomeRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
+  '/order/$id': typeof OrderIdRoute
+  '/partner/dashboard': typeof PartnerDashboardRoute
+  '/recipe/$slug': typeof RecipeSlugRoute
+  '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/chat': typeof ChatRoute
+  '/checkout': typeof CheckoutRoute
+  '/coach': typeof CoachRoute
+  '/cookbook': typeof CookbookRoute
+  '/grocery': typeof GroceryRoute
+  '/list': typeof ListRoute
+  '/onboarding': typeof OnboardingRoute
+  '/orders': typeof OrdersRoute
+  '/pantry': typeof PantryRoute
+  '/partner': typeof PartnerRouteWithChildren
+  '/planner': typeof PlannerRoute
+  '/premium': typeof PremiumRoute
+  '/profile': typeof ProfileRoute
+  '/recipes': typeof RecipesRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/restaurants': typeof RestaurantsRoute
+  '/scan': typeof ScanRoute
+  '/settings': typeof SettingsRoute
+  '/support': typeof SupportRoute
+  '/welcome': typeof WelcomeRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
+  '/order/$id': typeof OrderIdRoute
+  '/partner/dashboard': typeof PartnerDashboardRoute
+  '/recipe/$slug': typeof RecipeSlugRoute
+  '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/chat': typeof ChatRoute
+  '/checkout': typeof CheckoutRoute
+  '/coach': typeof CoachRoute
+  '/cookbook': typeof CookbookRoute
+  '/grocery': typeof GroceryRoute
+  '/list': typeof ListRoute
+  '/onboarding': typeof OnboardingRoute
+  '/orders': typeof OrdersRoute
+  '/pantry': typeof PantryRoute
+  '/partner': typeof PartnerRouteWithChildren
+  '/planner': typeof PlannerRoute
+  '/premium': typeof PremiumRoute
+  '/profile': typeof ProfileRoute
+  '/recipes': typeof RecipesRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/restaurants': typeof RestaurantsRoute
+  '/scan': typeof ScanRoute
+  '/settings': typeof SettingsRoute
+  '/support': typeof SupportRoute
+  '/welcome': typeof WelcomeRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
+  '/order/$id': typeof OrderIdRoute
+  '/partner/dashboard': typeof PartnerDashboardRoute
+  '/recipe/$slug': typeof RecipeSlugRoute
+  '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/auth'
+    | '/chat'
+    | '/checkout'
+    | '/coach'
+    | '/cookbook'
+    | '/grocery'
+    | '/list'
+    | '/onboarding'
+    | '/orders'
+    | '/pantry'
+    | '/partner'
+    | '/planner'
+    | '/premium'
+    | '/profile'
+    | '/recipes'
+    | '/reset-password'
+    | '/restaurants'
+    | '/scan'
+    | '/settings'
+    | '/support'
+    | '/welcome'
+    | '/auth/callback'
+    | '/legal/privacy'
+    | '/legal/terms'
+    | '/order/$id'
+    | '/partner/dashboard'
+    | '/recipe/$slug'
+    | '/restaurant/$slug'
+    | '/api/public/webhooks/revenuecat'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/auth'
+    | '/chat'
+    | '/checkout'
+    | '/coach'
+    | '/cookbook'
+    | '/grocery'
+    | '/list'
+    | '/onboarding'
+    | '/orders'
+    | '/pantry'
+    | '/partner'
+    | '/planner'
+    | '/premium'
+    | '/profile'
+    | '/recipes'
+    | '/reset-password'
+    | '/restaurants'
+    | '/scan'
+    | '/settings'
+    | '/support'
+    | '/welcome'
+    | '/auth/callback'
+    | '/legal/privacy'
+    | '/legal/terms'
+    | '/order/$id'
+    | '/partner/dashboard'
+    | '/recipe/$slug'
+    | '/restaurant/$slug'
+    | '/api/public/webhooks/revenuecat'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/auth'
+    | '/chat'
+    | '/checkout'
+    | '/coach'
+    | '/cookbook'
+    | '/grocery'
+    | '/list'
+    | '/onboarding'
+    | '/orders'
+    | '/pantry'
+    | '/partner'
+    | '/planner'
+    | '/premium'
+    | '/profile'
+    | '/recipes'
+    | '/reset-password'
+    | '/restaurants'
+    | '/scan'
+    | '/settings'
+    | '/support'
+    | '/welcome'
+    | '/auth/callback'
+    | '/legal/privacy'
+    | '/legal/terms'
+    | '/order/$id'
+    | '/partner/dashboard'
+    | '/recipe/$slug'
+    | '/restaurant/$slug'
+    | '/api/public/webhooks/revenuecat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  ChatRoute: typeof ChatRoute
+  CheckoutRoute: typeof CheckoutRoute
+  CoachRoute: typeof CoachRoute
+  CookbookRoute: typeof CookbookRoute
+  GroceryRoute: typeof GroceryRoute
+  ListRoute: typeof ListRoute
+  OnboardingRoute: typeof OnboardingRoute
+  OrdersRoute: typeof OrdersRoute
+  PantryRoute: typeof PantryRoute
+  PartnerRoute: typeof PartnerRouteWithChildren
+  PlannerRoute: typeof PlannerRoute
+  PremiumRoute: typeof PremiumRoute
+  ProfileRoute: typeof ProfileRoute
+  RecipesRoute: typeof RecipesRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  RestaurantsRoute: typeof RestaurantsRoute
+  ScanRoute: typeof ScanRoute
+  SettingsRoute: typeof SettingsRoute
+  SupportRoute: typeof SupportRoute
+  WelcomeRoute: typeof WelcomeRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
+  OrderIdRoute: typeof OrderIdRoute
+  RecipeSlugRoute: typeof RecipeSlugRoute
+  RestaurantSlugRoute: typeof RestaurantSlugRoute
+  ApiPublicWebhooksRevenuecatRoute: typeof ApiPublicWebhooksRevenuecatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +454,278 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coach': {
+      id: '/coach'
+      path: '/coach'
+      fullPath: '/coach'
+      preLoaderRoute: typeof CoachRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookbook': {
+      id: '/cookbook'
+      path: '/cookbook'
+      fullPath: '/cookbook'
+      preLoaderRoute: typeof CookbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/grocery': {
+      id: '/grocery'
+      path: '/grocery'
+      fullPath: '/grocery'
+      preLoaderRoute: typeof GroceryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/list': {
+      id: '/list'
+      path: '/list'
+      fullPath: '/list'
+      preLoaderRoute: typeof ListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pantry': {
+      id: '/pantry'
+      path: '/pantry'
+      fullPath: '/pantry'
+      preLoaderRoute: typeof PantryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner': {
+      id: '/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof PartnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planner': {
+      id: '/planner'
+      path: '/planner'
+      fullPath: '/planner'
+      preLoaderRoute: typeof PlannerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/premium': {
+      id: '/premium'
+      path: '/premium'
+      fullPath: '/premium'
+      preLoaderRoute: typeof PremiumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes': {
+      id: '/recipes'
+      path: '/recipes'
+      fullPath: '/recipes'
+      preLoaderRoute: typeof RecipesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restaurants': {
+      id: '/restaurants'
+      path: '/restaurants'
+      fullPath: '/restaurants'
+      preLoaderRoute: typeof RestaurantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan': {
+      id: '/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/order/$id': {
+      id: '/order/$id'
+      path: '/order/$id'
+      fullPath: '/order/$id'
+      preLoaderRoute: typeof OrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partner/dashboard': {
+      id: '/partner/dashboard'
+      path: '/dashboard'
+      fullPath: '/partner/dashboard'
+      preLoaderRoute: typeof PartnerDashboardRouteImport
+      parentRoute: typeof PartnerRoute
+    }
+    '/recipe/$slug': {
+      id: '/recipe/$slug'
+      path: '/recipe/$slug'
+      fullPath: '/recipe/$slug'
+      preLoaderRoute: typeof RecipeSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restaurant/$slug': {
+      id: '/restaurant/$slug'
+      path: '/restaurant/$slug'
+      fullPath: '/restaurant/$slug'
+      preLoaderRoute: typeof RestaurantSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/revenuecat': {
+      id: '/api/public/webhooks/revenuecat'
+      path: '/api/public/webhooks/revenuecat'
+      fullPath: '/api/public/webhooks/revenuecat'
+      preLoaderRoute: typeof ApiPublicWebhooksRevenuecatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
+interface PartnerRouteChildren {
+  PartnerDashboardRoute: typeof PartnerDashboardRoute
+}
+
+const PartnerRouteChildren: PartnerRouteChildren = {
+  PartnerDashboardRoute: PartnerDashboardRoute,
+}
+
+const PartnerRouteWithChildren =
+  PartnerRoute._addFileChildren(PartnerRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  AdminRoute: AdminRoute,
+  AuthRoute: AuthRouteWithChildren,
+  ChatRoute: ChatRoute,
+  CheckoutRoute: CheckoutRoute,
+  CoachRoute: CoachRoute,
+  CookbookRoute: CookbookRoute,
+  GroceryRoute: GroceryRoute,
+  ListRoute: ListRoute,
+  OnboardingRoute: OnboardingRoute,
+  OrdersRoute: OrdersRoute,
+  PantryRoute: PantryRoute,
+  PartnerRoute: PartnerRouteWithChildren,
+  PlannerRoute: PlannerRoute,
+  PremiumRoute: PremiumRoute,
+  ProfileRoute: ProfileRoute,
+  RecipesRoute: RecipesRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  RestaurantsRoute: RestaurantsRoute,
+  ScanRoute: ScanRoute,
+  SettingsRoute: SettingsRoute,
+  SupportRoute: SupportRoute,
+  WelcomeRoute: WelcomeRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
+  OrderIdRoute: OrderIdRoute,
+  RecipeSlugRoute: RecipeSlugRoute,
+  RestaurantSlugRoute: RestaurantSlugRoute,
+  ApiPublicWebhooksRevenuecatRoute: ApiPublicWebhooksRevenuecatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
