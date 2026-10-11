@@ -213,7 +213,7 @@ function RootComponent() {
         <MascotThemeProvider>
         <LocaleProvider>
           <UpgradeModalProvider>
-            <div className={`h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}>
+            <div className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}>
               {showAppHeader && <AppHeader />}
               {/* The one scroll container. Header and nav are siblings, not children. */}
               <div

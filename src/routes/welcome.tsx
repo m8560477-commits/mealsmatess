@@ -93,7 +93,7 @@ function WelcomeFlow() {
 
   if (phase === "welcome") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)]">
+      <div className="theme-backdrop fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)]">
         <div className="flex justify-end">
           <button
             type="button"
@@ -133,7 +133,7 @@ function WelcomeFlow() {
 
   if (phase === "ready") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
+      <div className="theme-backdrop fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center text-center">
           <MascotMark className="size-24 rounded-3xl" />
           <h1 className="mt-8 font-display text-4xl leading-tight tracking-tight">
