@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const RECIPE_COLS =
-  "id,name,cuisine,category,meal_type,description,diet_tags,ingredients,created_by,image_url,image_source,image_confidence,image_locked,image_signature,image_checked_at";
+  "id,name,cuisine,category,meal_type,description,diet_tags,ingredients,steps,created_by,image_url,image_source,image_confidence,image_locked,image_signature,image_checked_at";
 
 const IdSchema = z.object({ recipeId: z.string().uuid() });
 
@@ -37,10 +37,18 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
     if (!srv.needsSearch(r, signature)) {
       return { imageUrl: r.image_source ? r.image_url : null, source: r.image_source, confidence: r.image_confidence, searched: false };
     }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Each recipe gets its own AI photo built from its ingredients and steps, generated once and reused.
+    {
+      const { data: ok } = await supabaseAdmin.rpc("check_rate_limit", { _bucket: "recipe_image_ai", _identifier: context.userId, _max_per_minute: 6 });
+      if (ok === false) return { imageUrl: null, source: null, confidence: null, searched: false, reason: "rate_limited" };
+      await srv.markChecked(r.id, signature);
+      const url = await srv.generateAndSaveAiImage(r, signature);
+      if (url) return { imageUrl: url, source: "AI", confidence: 100, searched: true };
+    }
     if (srv.configuredProviders().length === 0) {
       return { imageUrl: null, source: null, confidence: null, searched: false, reason: "no_provider" };
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Global throttle protects the image APIs from bursts of page views.
     const { data: allowed } = await supabaseAdmin.rpc("check_rate_limit", { _bucket: "recipe_image_search", _identifier: "global", _max_per_minute: 20 });
     if (allowed === false) return { imageUrl: null, source: null, confidence: null, searched: false, reason: "rate_limited" };
