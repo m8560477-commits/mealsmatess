@@ -434,3 +434,19 @@ html.theme-transition *::after {
 html[data-keyboard="open"] #app-nav { visibility: hidden; }
 html[data-keyboard="open"] #app-scroll { padding-bottom: var(--keyboard-inset); }
 html[data-keyboard="open"] .chat-composer { bottom: calc(var(--keyboard-inset) + 8px); }
+
+/* Branded launch splash */
+.splash-screen {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem;
+  background: oklch(0 0 0);
+  transition: opacity 400ms ease;
+}
+.splash-screen[data-leaving="true"] { opacity: 0; pointer-events: none; }
+.splash-logo { border-radius: 1.75rem; animation: splash-in 700ms cubic-bezier(.2,.8,.2,1) both; }
+.splash-tagline {
+  color: oklch(1 0 0 / 0.7); font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase;
+  animation: splash-in 700ms 200ms cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes splash-in { from { opacity: 0; transform: scale(.92) translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .splash-logo, .splash-tagline { animation: none; } }

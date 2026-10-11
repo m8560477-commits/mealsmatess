@@ -1,3 +1,4 @@
+import { SplashScreen } from "@/components/splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -230,6 +231,7 @@ function RootComponent() {
               {pathname === "/onboarding" ? null : <BottomNav />}
             </div>
             <Toaster position="top-center" />
+            <SplashScreen />
           </UpgradeModalProvider>
         </LocaleProvider>
         </MascotThemeProvider>
