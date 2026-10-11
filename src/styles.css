@@ -463,7 +463,8 @@ html.dark[data-mascot="cherry"] { --background: oklch(0.15 0.035 10); --card: ok
 html[data-mascot="matcha"] { --background: oklch(0.97 0.025 135); --card: oklch(0.985 0.018 135); --secondary: oklch(0.93 0.045 135); --muted: oklch(0.94 0.03 135); --accent: oklch(0.92 0.05 138); --border: oklch(0.88 0.04 135); }
 html.dark[data-mascot="matcha"] { --background: oklch(0.15 0.035 145); --card: oklch(0.2 0.045 145); --secondary: oklch(0.26 0.05 142); --muted: oklch(0.25 0.04 142); --accent: oklch(0.3 0.06 140); --border: oklch(0.32 0.05 142); }
 
-.theme-backdrop { position: relative; isolation: isolate; }
+.theme-backdrop { isolation: isolate; }
+.theme-backdrop:not(.fixed) { position: relative; }
 .theme-backdrop::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background-repeat: no-repeat; background-size: 100% 100%;
