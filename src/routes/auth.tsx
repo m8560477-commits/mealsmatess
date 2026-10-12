@@ -66,27 +66,16 @@ function AuthPage() {
     setBusy(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: getAuthRedirectUrl("/auth/callback"),
+        redirect_uri: window.location.origin,
+        extraParams: { prompt: "select_account" },
       });
       if (result.error) throw result.error;
+      if (result.redirected) return;
+      navigate({ to: "/", replace: true });
     } catch (err) {
       console.error("[Auth] Google sign-in error:", err);
       toast.error(extractErrorMessage(err, "Google sign-in is unavailable. Please use email and password."));
-      setBusy(false);
-    }
-  }
-
-  async function signInWithLovable() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("lovable", {
-        redirect_uri: getAuthRedirectUrl("/auth/callback"),
-      });
-      if (result.error) throw result.error;
-    } catch (err) {
-      console.error("[Auth] Lovable sign-in error:", err);
-      toast.error(extractErrorMessage(err, "Lovable sign-in is unavailable. Please use email and password."));
+    } finally {
       setBusy(false);
     }
   }
@@ -235,9 +224,6 @@ function AuthPage() {
           </div>
           <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGoogle}>
             Continue with Google
-          </Button>
-          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithLovable}>
-            Continue with Lovable
           </Button>
           {mode === "signin" && (
             <button

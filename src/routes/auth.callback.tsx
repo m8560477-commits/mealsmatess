@@ -36,7 +36,7 @@ function AuthCallbackPage() {
           void navigate({ to: "/", replace: true });
         } else if (attempts >= 20) {
           window.clearInterval(timer);
-          setError("Google or Lovable sign-in could not be completed. Please try again.");
+          setError("Google sign-in could not be completed. Please try again.");
         }
       }, 150);
       return () => window.clearInterval(timer);
@@ -49,7 +49,7 @@ function AuthCallbackPage() {
 
     supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
       if (exchangeError) {
-        setError("Google or Lovable sign-in could not be completed. Please try again.");
+        setError("Google sign-in could not be completed. Please try again.");
         return;
       }
       void navigate({ to: "/", replace: true });
