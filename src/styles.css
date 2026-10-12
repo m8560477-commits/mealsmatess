@@ -102,7 +102,9 @@
   --market-hero: oklch(0.98 0.01 120);
 }
 
-.marketplace-dark {
+/* Dining's own dark look applies only with the Classic theme; other themes take over Dining too */
+html:not([data-mascot]) .marketplace-dark,
+html[data-mascot="classic"] .marketplace-dark {
   --background: oklch(0.115 0.015 150);
   --foreground: oklch(0.965 0.012 120);
   --card: oklch(0.17 0.018 150);
@@ -505,4 +507,5 @@ html[data-mascot="matcha"] .theme-backdrop::before {
 /* Let the scene show through main page surfaces */
 html[data-mascot]:not([data-mascot="classic"]) .theme-backdrop.bg-background { background-color: var(--background); }
 html[data-mascot]:not([data-mascot="classic"]) #app-scroll { background: transparent; }
+html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-background { background-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .theme-backdrop::before { transition: none; } }
