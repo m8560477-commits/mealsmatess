@@ -26,19 +26,30 @@ function AuthCallbackPage() {
       setError(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
       return undefined;
     }
-    if (!code) {
-      // Implicit flow: tokens arrive in the URL hash and the client stores them automatically.
-      const timer = window.setTimeout(async () => {
+    const finishWhenSessionExists = () => {
+      let attempts = 0;
+      const timer = window.setInterval(async () => {
+        attempts += 1;
         const { data } = await supabase.auth.getSession();
-        if (data.session) void navigate({ to: "/", replace: true });
-        else setError("The sign-in link is missing or expired.");
-      }, 300);
-      return () => window.clearTimeout(timer);
+        if (data.session) {
+          window.clearInterval(timer);
+          void navigate({ to: "/", replace: true });
+        } else if (attempts >= 20) {
+          window.clearInterval(timer);
+          setError("Google or Lovable sign-in could not be completed. Please try again.");
+        }
+      }, 150);
+      return () => window.clearInterval(timer);
+    };
+
+    if (!code) {
+      // Lovable OAuth returns tokens in the redirect response and Supabase persists them.
+      return finishWhenSessionExists();
     }
 
     supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
       if (exchangeError) {
-        setError("GitHub sign-in could not be completed. Please try again.");
+        setError("Google or Lovable sign-in could not be completed. Please try again.");
         return;
       }
       void navigate({ to: "/", replace: true });

@@ -26,7 +26,9 @@ export const Route = createFileRoute("/auth")({
 });
 
 function getAuthRedirectUrl(path: string): string {
-  const configured = import.meta.env["VITE_SUPABASE_REDIRECT_URL"] as string | undefined;
+  const configured =
+    (import.meta.env["VITE_SUPABASE_REDIRECT_URL"] as string | undefined) ??
+    (import.meta.env["NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL"] as string | undefined);
   if (configured) {
     const base = configured.replace(/\/$/, "");
     return `${base}${path}`;
