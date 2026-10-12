@@ -15,8 +15,8 @@ export function SplashScreen() {
       return;
     }
     setPhase("show");
-    const t1 = window.setTimeout(() => setPhase("leave"), 500);
-    const t2 = window.setTimeout(() => setPhase("hidden"), 750);
+    const t1 = window.setTimeout(() => setPhase("leave"), 900);
+    const t2 = window.setTimeout(() => setPhase("hidden"), 1200);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
