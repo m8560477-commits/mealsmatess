@@ -58,31 +58,20 @@ function AuthPage() {
     if (!loading && user) navigate({ to: "/", replace: true });
   }, [user, loading, navigate]);
 
-  async function signInWithGoogle() {
+  async function signInWithGitHub() {
     if (busy) return;
     setBusy(true);
     try {
-      const host = window.location.hostname;
-      const lovableHosted = /(^|\.)lovable\.app$|(^|\.)lovableproject\.com$|^localhost$/.test(host);
-      if (!lovableHosted) {
-        // Production (e.g. Vercel): Supabase's own Google OAuth, returning to the public callback page.
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        });
-        if (error) throw error;
-        return;
-      }
-      const { lovable } = await import("@/integrations/lovable");
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: getAuthRedirectUrl("/auth/callback"),
+        },
       });
-      if (result.error) throw result.error;
-      if (result.redirected) return;
-      setBusy(false);
+      if (error) throw error;
     } catch (err) {
-      console.error("[Auth] Google sign-in error:", err);
-      toast.error(extractErrorMessage(err, "Google sign-in is unavailable. Please use email and password."));
+      console.error("[Auth] GitHub sign-in error:", err);
+      toast.error(extractErrorMessage(err, "GitHub sign-in is unavailable. Please use email and password."));
       setBusy(false);
     }
   }
@@ -229,8 +218,8 @@ function AuthPage() {
             OR
             <span className="h-px flex-1 bg-border" />
           </div>
-          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGoogle}>
-            Continue with Google
+          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGitHub}>
+            Continue with GitHub
           </Button>
           {mode === "signin" && (
             <button

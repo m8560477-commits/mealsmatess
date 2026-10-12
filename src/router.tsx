@@ -20,7 +20,8 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Keep link preloads warm briefly so hover/tap navigation is instant without stale data lingering.
+    defaultPreloadStaleTime: 30_000,
   });
 
   return router;

@@ -38,7 +38,7 @@ function AuthCallbackPage() {
 
     supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
       if (exchangeError) {
-        setError("Google sign-in could not be completed. Please try again.");
+        setError("GitHub sign-in could not be completed. Please try again.");
         return;
       }
       void navigate({ to: "/", replace: true });
