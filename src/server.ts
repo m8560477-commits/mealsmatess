@@ -3,6 +3,14 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+// Hosts outside Lovable Cloud (e.g. Netlify) don't inject SUPABASE_* at runtime. Fall back to the
+// public, build-time VITE_* values so server-side auth checks keep working.
+if (typeof process !== "undefined") {
+  process.env["SUPABASE_URL"] ||= (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ?? "";
+  process.env["SUPABASE_PUBLISHABLE_KEY"] ||=
+    (import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string | undefined) ?? "";
+}
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };

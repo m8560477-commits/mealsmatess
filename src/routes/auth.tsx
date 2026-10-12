@@ -25,6 +25,8 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+const LOVABLE_HOST = /(^|\.)(lovable\.app|lovable\.dev|lovableproject\.com|lovableproject-dev\.com)$/i;
+
 function getAuthRedirectUrl(path: string): string {
   const configured =
     (import.meta.env["VITE_SUPABASE_REDIRECT_URL"] as string | undefined) ??
@@ -65,6 +67,19 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
+      // Lovable's OAuth broker (/~oauth) only exists on Lovable hosting; elsewhere (e.g. Netlify)
+      // sign in with Supabase directly and finish on /auth/callback.
+      if (!LOVABLE_HOST.test(window.location.hostname)) {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: getAuthRedirectUrl("/auth/callback"),
+            queryParams: { prompt: "select_account" },
+          },
+        });
+        if (error) throw error;
+        return;
+      }
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
         extraParams: { prompt: "select_account" },

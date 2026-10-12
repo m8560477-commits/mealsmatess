@@ -3,6 +3,8 @@
 // Secondary: the `ai-gateway` edge function on the Lovable Cloud backend, which
 // has LOVABLE_API_KEY injected by Lovable. Used when the key isn't present in
 // this runtime (e.g. Vercel/v0 previews) or the direct call fails transiently.
+// On Netlify, Netlify AI Gateway (OpenAI-compatible, keys injected at runtime) is
+// tried before the backend so AI works without any Lovable secrets.
 
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1";
 const ALLOWED_PATHS = new Set(["/chat/completions", "/images/generations", "/audio/speech"]);
@@ -18,6 +20,40 @@ async function viaGateway(path: string, body: string, key: string): Promise<Resp
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body,
+  });
+}
+
+// Lovable model ids are provider-prefixed; Netlify AI Gateway wants bare OpenAI ids.
+function netlifyModel(path: string, model: unknown): string {
+  if (path === "/images/generations") return "gpt-image-2";
+  if (path === "/audio/speech") return "gpt-4o-mini-tts";
+  const id = typeof model === "string" ? model : "";
+  return id.startsWith("openai/") ? id.slice("openai/".length) : "gpt-4.1-mini";
+}
+
+function netlifyBody(path: string, body: string): string {
+  const parsed = JSON.parse(body) as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...parsed, model: netlifyModel(path, parsed["model"]) };
+  if (path === "/images/generations") {
+    // Gemini-style image requests send chat messages instead of a prompt.
+    if (typeof next["prompt"] !== "string" && Array.isArray(parsed["messages"])) {
+      const last = (parsed["messages"] as Array<{ content?: unknown }>).at(-1)?.content;
+      next["prompt"] = typeof last === "string" ? last : JSON.stringify(last ?? "");
+    }
+    delete next["messages"];
+    delete next["modalities"];
+  }
+  return JSON.stringify(next);
+}
+
+async function viaNetlify(path: string, body: string): Promise<Response | null> {
+  const base = process.env["NETLIFY_AI_GATEWAY_BASE_URL"]?.replace(/\/+$/, "");
+  const key = process.env["NETLIFY_AI_GATEWAY_KEY"];
+  if (!base || !key) return null;
+  return fetch(`${base}/openai/v1${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: netlifyBody(path, body),
   });
 }
 
@@ -54,6 +90,14 @@ export async function lovableFetch(path: string, init: LovableInit): Promise<Res
     } catch (e) {
       console.warn("[Lovable AI] gateway unreachable, falling back to Lovable Cloud backend", e);
     }
+  }
+
+  try {
+    const res = await viaNetlify(path, init.body);
+    if (res && !shouldFallback(res.status)) return res;
+    if (res) console.warn(`[Lovable AI] Netlify AI Gateway returned ${res.status}, falling back to Lovable Cloud backend`);
+  } catch (e) {
+    console.warn("[Lovable AI] Netlify AI Gateway unreachable, falling back to Lovable Cloud backend", e);
   }
 
   return viaBackend(path, init.body);
