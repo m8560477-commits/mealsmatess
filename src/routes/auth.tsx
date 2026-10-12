@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { MealMateLogo } from "@/components/mealmate-logo";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,13 +63,10 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: getAuthRedirectUrl("/auth/callback"),
-        },
+      const result = await lovable.auth.signInWithOAuth("github", {
+        redirect_uri: getAuthRedirectUrl("/auth/callback"),
       });
-      if (error) throw error;
+      if (result.error) throw result.error;
     } catch (err) {
       console.error("[Auth] GitHub sign-in error:", err);
       toast.error(extractErrorMessage(err, "GitHub sign-in is unavailable. Please use email and password."));
