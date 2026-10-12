@@ -1,4 +1,6 @@
 # MealMate updates
+- [ ] Refresh admin presentation, update app fonts and color the post-signup onboarding.
+- [ ] Verify refreshed admin and onboarding with authenticated accounts.
 - [ ] Refresh home and AI chef with mascot and connected cooking controls.
 - [ ] Apply shared premium styling and improve mobile navigation/keyboard layout.
 - [ ] Repair recipe photos without unrelated fallbacks.
