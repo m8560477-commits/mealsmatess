@@ -1,0 +1,8 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  # @lovable.dev/vite-tanstack-config falls back to Cloudflare; build the SSR server for Netlify instead.
+  # Lovable's own sandbox ignores this variable, so Lovable builds are unaffected.
+  NITRO_PRESET = "netlify"

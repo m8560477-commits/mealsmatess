@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { OAUTH_STATE_KEY } from "@/lib/oauth-bridge";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({ meta: [
@@ -20,6 +21,31 @@ function AuthCallbackPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const bridgedState = hash.get("state");
+    if (bridgedState) {
+      // Google sign-in forwarded from the Lovable OAuth bridge (see auth.tsx).
+      const expected = sessionStorage.getItem(OAUTH_STATE_KEY);
+      sessionStorage.removeItem(OAUTH_STATE_KEY);
+      window.history.replaceState(null, "", window.location.pathname);
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
+      if (hash.get("error")) {
+        setError(hash.get("error_description") || "Google sign-in could not be completed. Please try again.");
+      } else if (!expected || bridgedState !== expected) {
+        setError("Sign-in session expired. Please try again.");
+      } else if (!accessToken || !refreshToken) {
+        setError("Google sign-in could not be completed. Please try again.");
+      } else {
+        supabase.auth
+          .setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(({ error: sessionError }) => {
+            if (sessionError) setError("Google sign-in could not be completed. Please try again.");
+            else void navigate({ to: "/", replace: true });
+          });
+      }
+      return undefined;
+    }
     const errorDescription = params.get("error_description");
     const code = params.get("code");
     if (errorDescription) {

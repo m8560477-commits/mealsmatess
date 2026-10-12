@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { MealMateLogo } from "@/components/mealmate-logo";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { LOVABLE_APP_ORIGIN, OAUTH_STATE_KEY } from "@/lib/oauth-bridge";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,12 +66,14 @@ function AuthPage() {
       const host = window.location.hostname;
       const lovableHosted = /(^|\.)lovable\.app$|(^|\.)lovableproject\.com$|^localhost$/.test(host);
       if (!lovableHosted) {
-        // Production (e.g. Vercel): Supabase's own Google OAuth, returning to the public callback page.
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        });
-        if (error) throw error;
+        // Off Lovable hosting (e.g. Netlify) Lovable's OAuth broker rejects our origin, so the
+        // round trip returns via the bridge page on the Lovable domain, which forwards the
+        // tokens to /auth/callback here. State is checked on return.
+        const state = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+        sessionStorage.setItem(OAUTH_STATE_KEY, state);
+        const bridge = `${LOVABLE_APP_ORIGIN}/oauth-bridge.html?return=${encodeURIComponent(window.location.origin)}`;
+        const params = new URLSearchParams({ provider: "google", redirect_uri: bridge, state });
+        window.location.assign(`${LOVABLE_APP_ORIGIN}/~oauth/initiate?${params.toString()}`);
         return;
       }
       const { lovable } = await import("@/integrations/lovable");

@@ -5,7 +5,7 @@
 // this runtime (e.g. Vercel/v0 previews) or the direct call fails transiently.
 
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1";
-const ALLOWED_PATHS = new Set(["/chat/completions", "/images/generations", "/audio/speech"]);
+const ALLOWED_PATHS = new Set(["/chat/completions", "/responses", "/images/generations", "/audio/speech"]);
 
 type LovableInit = { method?: string; headers?: unknown; body: string };
 

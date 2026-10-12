@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="robots" content="noindex" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Signing in… | MealMate</title>
+</head>
+<body style="font-family:system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0">
+  <p id="msg">Completing sign-in…</p>
+  <script>
+    // Lovable's Google OAuth broker only accepts Lovable domains as redirect targets.
+    // This page runs on mealsmates.lovable.app and forwards the result to an allowlisted
+    // Netlify origin. Tokens stay in the URL fragment so they never reach any server.
+    (function () {
+      var ALLOWED = [/^https:\/\/mealsmates\.netlify\.app$/, /^https:\/\/[a-z0-9-]+--mealsmates\.netlify\.app$/];
+      var search = new URLSearchParams(location.search);
+      var target = search.get("return") || "";
+      if (!ALLOWED.some(function (re) { return re.test(target); })) {
+        document.getElementById("msg").textContent = "Sign-in could not be completed.";
+        return;
+      }
+      var out = new URLSearchParams(location.hash.slice(1));
+      search.forEach(function (v, k) { if (k !== "return" && !out.has(k)) out.set(k, v); });
+      location.replace(target + "/auth/callback#" + out.toString());
+    })();
+  </script>
+</body>
+</html>
