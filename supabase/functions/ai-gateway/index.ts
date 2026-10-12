@@ -1,7 +1,7 @@
 // Lovable Cloud edge function: secondary path to Lovable AI.
 // Only the app server (holding the service role key) may call it.
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
-const ALLOWED_PATHS = new Set(["/chat/completions", "/images/generations", "/audio/speech"]);
+const ALLOWED_PATHS = new Set(["/chat/completions", "/responses", "/images/generations", "/audio/speech"]);
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });

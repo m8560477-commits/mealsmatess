@@ -3,6 +3,7 @@
 //   Unsplash (UNSPLASH_ACCESS_KEY) -> Pexels (PEXELS_API_KEY) -> Bing (BING_IMAGE_SEARCH_KEY)
 // Candidates are ranked by metadata, then verified visually by Lovable AI.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { lovableFetch } from "@/lib/lovable-ai.server";
 
 export type ProviderName = "Unsplash" | "Pexels" | "Bing";
 
@@ -265,8 +266,7 @@ function recipeSummary(r: RecipeForImage): string {
  * caller falls back to metadata-only ranking with a stricter threshold.
  */
 export async function aiScore(r: RecipeForImage, cands: ImageCandidate[]): Promise<number[] | null> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key || cands.length === 0) return null;
+  if (cands.length === 0) return null;
   const content: any[] = [
     {
       type: "input_text",
@@ -284,14 +284,7 @@ export async function aiScore(r: RecipeForImage, cands: ImageCandidate[]): Promi
   });
 
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "fetch",
-      },
+    const res = await lovableFetch("/responses", {
       body: JSON.stringify({
         model: "openai/gpt-6-astra",
         stream: true,
@@ -491,22 +484,13 @@ export async function generateAndSaveAiImage(
   r: RecipeForImage & { steps?: unknown },
   signature: string,
 ): Promise<string | null> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) return null;
   const prompt =
     `Photorealistic food photograph of the finished dish "${r.name}"${r.cuisine ? ` (${r.cuisine} cuisine)` : ""}, exactly as made by this recipe.\n` +
     `Ingredients: ${ingredientText(r.ingredients)}\n` +
     `Method:\n${stepText((r as any).steps)}\n` +
     `Show only the plated final dish so its key ingredients are visible. Natural light, shallow depth of field, real crockery, 3/4 angle. ` +
     `No text, no labels, no people, no hands, not an illustration.`;
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-      "Lovable-API-Key": key,
-      "X-Lovable-AIG-SDK": "fetch",
-    },
+  const res = await lovableFetch("/images/generations", {
     body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium" }),
   });
   if (!res.ok) {
