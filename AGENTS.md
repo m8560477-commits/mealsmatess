@@ -16,3 +16,4 @@
 
 - RecipeImage renders stored/curated media only; explicit search events call authenticated ensureRecipeImage and bulk backfill stays disabled, preventing browse-driven image costs.
 - The shared bottom navigation always has exactly Home, Dining, AI Chef, Planner, and Profile; Pantry remains accessible through AI Chef.
+- Keep typography and admin/onboarding presentation tokens in the global stylesheet; expand the shared shell only for the admin workspace so analytics have room without changing consumer layouts.

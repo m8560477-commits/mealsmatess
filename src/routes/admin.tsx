@@ -207,16 +207,17 @@ function AdminPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <main className="admin-workspace mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-6 sm:px-7">
+      <header className="admin-header flex flex-col gap-5 pb-6 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Crown className="h-6 w-6" />
           </span>
           <div>
-            <h1 className="font-display text-3xl leading-tight tracking-tight">Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Live analytics across users, revenue and content.
+            <p className="mb-1 text-xs font-semibold text-muted-foreground">MEALMATE / ADMIN</p>
+            <h1 className="font-display text-2xl font-semibold leading-tight sm:text-3xl">Admin Center</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Users, revenue & your growing community.
             </p>
           </div>
         </div>
@@ -229,11 +230,11 @@ function AdminPage() {
       </header>
 
       <Tabs defaultValue="overview" className="mt-6">
-        <TabsList className="flex w-full flex-wrap justify-start gap-1 rounded-2xl bg-muted p-1">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="recipes">Recipes</TabsTrigger>
+        <TabsList className="admin-tabs flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
+          <TabsTrigger value="overview"><Activity className="mr-2 size-4" />Overview</TabsTrigger>
+          <TabsTrigger value="users"><Users className="mr-2 size-4" />Users</TabsTrigger>
+          <TabsTrigger value="revenue"><DollarSign className="mr-2 size-4" />Revenue</TabsTrigger>
+          <TabsTrigger value="recipes"><Utensils className="mr-2 size-4" />Recipes</TabsTrigger>
           <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
           <TabsTrigger value="flags">Flags</TabsTrigger>
           <TabsTrigger value="subs">Subscribers</TabsTrigger>
@@ -300,7 +301,7 @@ function DateRangeControl({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select value={preset} onValueChange={(v) => onPresetChange(v as Preset)}>
-        <SelectTrigger className="w-[160px] rounded-full">
+        <SelectTrigger className="w-[160px] rounded-lg bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -347,15 +348,15 @@ function KpiCard({
 }) {
   const positive = (delta ?? 0) >= 0;
   return (
-    <div className="group rounded-3xl border border-border/60 bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="admin-kpi group min-w-0 rounded-lg border border-border bg-card p-5 transition motion-safe:hover:-translate-y-0.5">
       <div className="flex items-center justify-between">
-        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <span className="kpi-icon flex h-10 w-10 items-center justify-center rounded-lg bg-chart-1/10 text-chart-1">
           <Icon className="h-5 w-5" />
         </span>
         {delta !== undefined && (
           <span
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-              positive ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
+              positive ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
             }`}
           >
             {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -363,8 +364,8 @@ function KpiCard({
           </span>
         )}
       </div>
-      <p className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="font-display text-3xl leading-tight tracking-tight">{value}</p>
+      <p className="mt-4 text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words font-display text-3xl font-semibold leading-tight tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -380,7 +381,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
+    <div className="admin-chart min-w-0 rounded-lg border border-border bg-card p-5">
       <div className="mb-3">
         <h3 className="font-display text-lg leading-tight">{title}</h3>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}

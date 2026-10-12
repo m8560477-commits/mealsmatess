@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChefHat, Loader2, Sparkles } from "lucide-react";
+import { ChefMascot } from "@/components/chef-mascot";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/hooks/use-preferences";
@@ -107,23 +108,24 @@ function OnboardingPage() {
     } catch { toast.error("We couldn't save your cooking profile. Please try again."); setStage("premium"); }
   }
 
-  return <main className="fixed inset-0 z-50 overflow-y-auto bg-background text-foreground">
+  return <main className="onboarding-shell fixed inset-0 z-50 overflow-y-auto bg-background text-foreground" data-tone={["mint", "coral", "sky", "yellow"][questionIndex % 4]}>
     <div className="mx-auto flex min-h-full w-full max-w-xl flex-col px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(env(safe-area-inset-top),1.5rem)] sm:px-8">
       <header className="mb-7 grid grid-cols-[80px_1fr_80px] items-center">
         <Button variant="ghost" size="sm" onClick={back} disabled={stage === "quiz" && questionIndex === 0} className={cn("justify-self-start", stage === "quiz" && questionIndex === 0 && "invisible")}><ArrowLeft /> Back</Button>
-        <span className="justify-self-center font-display text-xl font-semibold">MealMate</span>
+        <span className="flex items-center gap-2 justify-self-center font-display text-lg font-semibold"><ChefHat className="size-5 text-primary" />MealMate</span>
         <span className="justify-self-end text-xs text-muted-foreground">Your kitchen</span>
       </header>
-      {stage !== "complete" && stage !== "saving" && <div className="mb-8 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} /></div>}
+      {stage !== "complete" && stage !== "saving" && <div className="mb-6 flex gap-1.5" aria-hidden="true">{["bg-setup-mint", "bg-setup-coral", "bg-setup-sky", "bg-setup-yellow"].map((color) => <span key={color} className={cn("h-1.5 flex-1 rounded-full", color)} />)}</div>}
 
       <section className="flex flex-1 flex-col">
-        {stage === "quiz" && <>
-          <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Question {questionIndex + 1} of {QUESTIONS.length}</p>
-          <h1 className="font-display text-4xl leading-tight sm:text-5xl">{question.title}</h1>
+        {stage === "quiz" && <div key={questionIndex} className="step-in-right flex flex-1 flex-col">
+          <div className="mb-5 flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 rounded-md bg-setup-mint px-3 py-2 text-xs font-bold text-setup-ink"><Sparkles className="size-4" />Your kitchen, your way</span><ChefMascot className="size-20 shrink-0" /></div>
+          <div className="mb-4 flex items-center gap-3"><p className="shrink-0 text-xs font-semibold text-muted-foreground">{String(questionIndex + 1).padStart(2, "0")} / {String(QUESTIONS.length).padStart(2, "0")}</p><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Kitchen profile questions" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}><div className="setup-progress h-full transition-all duration-300" style={{ width: `${progress}%` }} /></div></div>
+          <h1 className="onboarding-heading font-display text-3xl font-semibold leading-tight sm:text-4xl">{question.title}</h1>
           <p className="mb-7 mt-3 text-sm text-muted-foreground">Help us personalize your cooking experience.</p>
-          <div className="space-y-3">{question.options.map((option) => <Button key={option} variant={selected(option) ? "default" : "outline"} className="h-auto min-h-14 w-full justify-between whitespace-normal rounded-xl px-4 py-3 text-left" onClick={() => choose(option)} aria-pressed={selected(option)}><span>{option}</span>{selected(option) ? <Check /> : <span aria-hidden>○</span>}</Button>)}</div>
-          <div className="mt-auto space-y-2 pt-8"><Button className="h-13 w-full rounded-xl" onClick={nextQuestion} disabled={question.key === "dietary" ? answers.dietary.length === 0 : !answers[question.key]}>{questionIndex === QUESTIONS.length - 1 ? "Show my results" : "Continue"}</Button><Button variant="ghost" className="w-full" onClick={nextQuestion}>Skip this question</Button></div>
-        </>}
+          <div className="space-y-2.5">{question.options.map((option, index) => <Button key={option} variant="outline" className="onboarding-choice h-auto min-h-14 w-full justify-start gap-3 whitespace-normal rounded-lg px-3 py-3 text-left" onClick={() => choose(option)} aria-pressed={selected(option)}><span className="choice-marker grid size-8 shrink-0 place-items-center rounded-md text-xs font-bold text-setup-ink" aria-hidden>{selected(option) ? <Check /> : String.fromCharCode(65 + index)}</span><span className="flex-1">{option}</span></Button>)}</div>
+          <div className="mt-auto space-y-2 pt-8"><Button className="h-13 w-full rounded-lg" onClick={nextQuestion} disabled={question.key === "dietary" ? answers.dietary.length === 0 : !answers[question.key]}>{questionIndex === QUESTIONS.length - 1 ? "Show my results" : "Continue"}<ArrowRight /></Button><Button variant="ghost" className="w-full" onClick={nextQuestion}>Skip this question</Button></div>
+        </div>}
 
         {stage === "results" && <InfoStage eyebrow="Your cooking profile" title="Your kitchen has more potential." text={<>Your main challenge is <strong>{answers.mainChallenge || "your cooking routine"}</strong>. MealMate can turn your preferences into practical meal ideas.</>} items={[`Your goal: ${answers.goal || "Explore better meal planning"}`, `Cooking time: ${answers.cookingTime || "Flexible"}`, `Cooking for: ${answers.household || "Not specified"}`]} action="Continue" onAction={() => setStage("impact")} />}
         {stage === "impact" && <InfoStage eyebrow="Your everyday routine" title="Make everyday cooking simpler." text="A little organization can reduce guesswork and help you make better use of your ingredients and time." items={benefits} action="Show me the solution" onAction={() => setStage("solution")} />}
@@ -140,11 +142,12 @@ function OnboardingPage() {
 }
 
 function InfoStage({ eyebrow, title, text, items, action, onAction, secondaryAction, onSecondary }: { eyebrow: string; title: string; text: React.ReactNode; items: string[]; action: string; onAction: () => void; secondaryAction?: string; onSecondary?: () => void }) {
-  return <div className="my-auto py-6">
-    <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">{eyebrow}</p>
-    <h1 className="font-display text-4xl leading-tight sm:text-5xl">{title}</h1>
+  return <div className="step-in-right my-auto py-6">
+    <ChefMascot className="mb-5 size-28" animate />
+    <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-setup-sky px-3 py-2 text-xs font-bold text-setup-ink"><Sparkles className="size-4" />{eyebrow}</p>
+    <h1 className="onboarding-heading font-display text-3xl font-semibold leading-tight sm:text-4xl">{title}</h1>
     <p className="mt-5 leading-7 text-muted-foreground">{text}</p>
-    {!!items.length && <div className="mt-7 space-y-3">{items.map((item, index) => <div key={item} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-sm"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-secondary text-xs font-semibold">{index + 1}</span><span className="pt-1">{item}</span></div>)}</div>}
-    <div className="mt-8 space-y-2"><Button className="h-13 w-full rounded-xl" onClick={onAction}>{action}</Button>{secondaryAction && onSecondary && <Button variant="ghost" className="w-full" onClick={onSecondary}>{secondaryAction}</Button>}</div>
+    {!!items.length && <div className="mt-7 divide-y divide-border">{items.map((item, index) => <div key={item} className="setup-item flex items-start gap-3 py-4 text-sm"><span className="choice-marker grid size-8 shrink-0 place-items-center rounded-md text-xs font-bold text-setup-ink"><Check className="size-4" /></span><span className="pt-1">{item}</span></div>)}</div>}
+    <div className="mt-8 space-y-2"><Button className="h-auto min-h-13 w-full whitespace-normal rounded-lg py-3" onClick={onAction}>{action}<ArrowRight /></Button>{secondaryAction && onSecondary && <Button variant="ghost" className="w-full" onClick={onSecondary}>{secondaryAction}</Button>}</div>
   </div>;
 }

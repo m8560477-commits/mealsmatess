@@ -128,10 +128,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
            // Only the weights actually used (400 body, 600 medium emphasis, 700 bold)
-      // plus the upright serif display face. swap keeps text visible immediately.
+      // Sora headings and Nunito Sans body. swap keeps text visible immediately.
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap",
       },
     ],
   }),
@@ -218,7 +218,7 @@ function RootComponent() {
                 id="app-scroll"
                 className="h-full overflow-y-auto overscroll-y-none pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"
               >
-                <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col">
+                  <div className={`mx-auto flex min-h-full w-full flex-col ${pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}>
                   <AuthGate>
                     <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
                       <Outlet />

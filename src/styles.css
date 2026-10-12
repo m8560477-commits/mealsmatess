@@ -5,8 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * MealMate design system — warm cream background, Instrument Serif editorial
- * display, Inter body, terracotta (ember) primary, leaf-green secondary accent.
+ * MealMate design system — Sora display, Nunito Sans body, and theme-aware surfaces.
  * Fonts are loaded via <link> in src/routes/__root.tsx (never @import here).
  */
 
@@ -18,8 +17,15 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --font-serif: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-setup-mint: var(--setup-mint);
+  --color-setup-coral: var(--setup-coral);
+  --color-setup-sky: var(--setup-sky);
+  --color-setup-yellow: var(--setup-yellow);
+  --color-setup-ink: var(--setup-ink);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -61,6 +67,14 @@
 }
 
 :root {
+  --positive: oklch(0.46 0.13 155);
+  --negative: oklch(0.52 0.19 25);
+  --setup-mint: oklch(0.9 0.1 155);
+  --setup-coral: oklch(0.88 0.09 25);
+  --setup-sky: oklch(0.91 0.065 230);
+  --setup-yellow: oklch(0.94 0.11 95);
+  --setup-ink: oklch(0.24 0.045 155);
+  --shadow-admin: 0 4px 20px -12px oklch(0.2 0.02 155 / 18%);
   --app-header-h: calc(4rem + env(safe-area-inset-top, 0px));
   --app-nav-h: calc(4rem + env(safe-area-inset-bottom, 0px));
   --radius: 1rem;
@@ -136,6 +150,8 @@ html[data-mascot="classic"] .marketplace-dark {
 }
 
 .dark {
+  --positive: oklch(0.78 0.14 155);
+  --negative: oklch(0.78 0.13 25);
   --cream: oklch(0.19 0.03 150);
   --ink: oklch(0.95 0.015 125);
   --ember: oklch(0.75 0.15 55);
@@ -509,3 +525,31 @@ html[data-mascot]:not([data-mascot="classic"]) .theme-backdrop.bg-background { b
 html[data-mascot]:not([data-mascot="classic"]) #app-scroll { background: transparent; }
 html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-background { background-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .theme-backdrop::before { transition: none; } }
+
+/* Admin workspace: compact navigation, generous analytics canvas. */
+.admin-header { border-bottom: 1px solid var(--border); }
+.admin-tabs { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.admin-tabs [role="tab"] { min-height: 42px; border-radius: 6px; padding-inline: 14px; }
+.admin-tabs [role="tab"][data-state="active"] { background: var(--primary); color: var(--primary-foreground); box-shadow: none; }
+.admin-kpi, .admin-chart { box-shadow: var(--shadow-admin); }
+.admin-kpi { border-top: 3px solid var(--chart-1); }
+.admin-kpi:nth-child(4n+2) { border-top-color: var(--chart-2); }
+.admin-kpi:nth-child(4n+3) { border-top-color: var(--chart-4); }
+.admin-kpi:nth-child(4n) { border-top-color: var(--chart-5); }
+.admin-kpi:nth-child(4n+2) .kpi-icon { color: var(--chart-2); background: color-mix(in oklab, var(--chart-2) 12%, var(--card)); }
+.admin-kpi:nth-child(4n+3) .kpi-icon { color: var(--chart-4); background: color-mix(in oklab, var(--chart-4) 12%, var(--card)); }
+.admin-kpi:nth-child(4n) .kpi-icon { color: var(--chart-5); background: color-mix(in oklab, var(--chart-5) 12%, var(--card)); }
+
+/* Colorful setup stays readable in every selected app theme. */
+.onboarding-shell { border-top: 6px solid var(--setup-mint); }
+.onboarding-shell[data-tone="coral"] { border-top-color: var(--setup-coral); }
+.onboarding-shell[data-tone="sky"] { border-top-color: var(--setup-sky); }
+.onboarding-shell[data-tone="yellow"] { border-top-color: var(--setup-yellow); }
+.onboarding-choice:nth-child(4n+1) .choice-marker, .setup-item:nth-child(4n+1) .choice-marker { background: var(--setup-mint); }
+.onboarding-choice:nth-child(4n+2) .choice-marker, .setup-item:nth-child(4n+2) .choice-marker { background: var(--setup-coral); }
+.onboarding-choice:nth-child(4n+3) .choice-marker, .setup-item:nth-child(4n+3) .choice-marker { background: var(--setup-sky); }
+.onboarding-choice:nth-child(4n) .choice-marker, .setup-item:nth-child(4n) .choice-marker { background: var(--setup-yellow); }
+.onboarding-choice[aria-pressed="true"] { border-color: var(--primary); background: var(--accent); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--primary); }
+.setup-progress { background: linear-gradient(90deg, var(--setup-mint), var(--setup-sky), var(--setup-coral)); }
+.onboarding-heading { text-wrap: balance; }
+.onboarding-shell button { letter-spacing: 0; }
