@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { MealMateLogo } from "@/components/mealmate-logo";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,20 +59,32 @@ function AuthPage() {
     if (!loading && user) navigate({ to: "/", replace: true });
   }, [user, loading, navigate]);
 
-  async function signInWithGitHub() {
+  async function signInWithGoogle() {
     if (busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: getAuthRedirectUrl("/auth/callback"),
-        },
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: getAuthRedirectUrl("/auth/callback"),
       });
-      if (error) throw error;
+      if (result.error) throw result.error;
     } catch (err) {
-      console.error("[Auth] GitHub sign-in error:", err);
-      toast.error(extractErrorMessage(err, "GitHub sign-in is unavailable. Please use email and password."));
+      console.error("[Auth] Google sign-in error:", err);
+      toast.error(extractErrorMessage(err, "Google sign-in is unavailable. Please use email and password."));
+      setBusy(false);
+    }
+  }
+
+  async function signInWithLovable() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("lovable", {
+        redirect_uri: getAuthRedirectUrl("/auth/callback"),
+      });
+      if (result.error) throw result.error;
+    } catch (err) {
+      console.error("[Auth] Lovable sign-in error:", err);
+      toast.error(extractErrorMessage(err, "Lovable sign-in is unavailable. Please use email and password."));
       setBusy(false);
     }
   }
@@ -188,7 +201,7 @@ function AuthPage() {
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="••••���•••"
                 className="pr-10"
               />
               <button
@@ -218,8 +231,11 @@ function AuthPage() {
             OR
             <span className="h-px flex-1 bg-border" />
           </div>
-          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGitHub}>
-            Continue with GitHub
+          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGoogle}>
+            Continue with Google
+          </Button>
+          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithLovable}>
+            Continue with Lovable
           </Button>
           {mode === "signin" && (
             <button
