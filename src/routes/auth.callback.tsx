@@ -21,7 +21,6 @@ function AuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const errorDescription = params.get("error_description");
-    const code = params.get("code");
     if (errorDescription) {
       setError(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
       return undefined;
@@ -42,19 +41,7 @@ function AuthCallbackPage() {
       return () => window.clearInterval(timer);
     };
 
-    if (!code) {
-      // Lovable OAuth returns tokens in the redirect response and Supabase persists them.
-      return finishWhenSessionExists();
-    }
-
-    supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
-      if (exchangeError) {
-        setError("Google sign-in could not be completed. Please try again.");
-        return;
-      }
-      void navigate({ to: "/", replace: true });
-    });
-    return undefined;
+    return finishWhenSessionExists();
   }, [navigate]);
 
   return (

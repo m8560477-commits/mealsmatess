@@ -86,8 +86,8 @@ function AuthPage() {
     setBusy(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail || password.length < 6) {
-        toast.error("Enter a valid email and a password with at least 6 characters.");
+      if (!normalizedEmail || password.length < 8) {
+        toast.error("Enter a valid email and a password with at least 8 characters.");
         return;
       }
       if (mode === "signup") {
@@ -188,7 +188,7 @@ function AuthPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
-                minLength={6}
+                  minLength={8}
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

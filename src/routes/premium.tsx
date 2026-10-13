@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
 import { usePremium } from "@/hooks/use-premium";
-import { useCurrency, formatPrice, PRICES_USD } from "@/lib/currency";
+import { SubscriptionOptions } from "@/components/subscription-options";
 import {
   applyReferralCode,
   getMyReferral,
@@ -50,17 +50,13 @@ export const Route = createFileRoute("/premium")({
   component: PremiumPage,
 });
 
-type Billing = "annual" | "monthly";
-
 function PremiumPage() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { isPremium, tier, trialActive, entitlement } = usePremium();
-  const { currency } = useCurrency();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [billing, setBilling] = useState<Billing>("annual");
 
   const { data: referral } = useQuery({
     queryKey: ["referral"],
@@ -103,17 +99,6 @@ function PremiumPage() {
     }
   }
 
-  function startTrial() {
-    if (!user) {
-      void navigate({ to: "/auth" });
-      return;
-    }
-    toast.info("Premium purchases open on the MealMate mobile app", {
-      description:
-        "Sign in with the same account on iOS or Android to start your 3-day trial.",
-    });
-  }
-
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6">
       {/* Hero */}
@@ -142,13 +127,10 @@ function PremiumPage() {
         </div>
       </section>
 
-      <BillingToggle value={billing} onChange={setBilling} />
-
       {/* Plan cards */}
       <section className="mt-6 space-y-4">
         <FreeCard onSelect={() => toast.success("You're on the Free plan.")} />
-        <PremiumHeroCard billing={billing} currency={currency} onSelect={startTrial} disabled={isPremium} />
-        <FamilyCard billing={billing} currency={currency} onSelect={startTrial} disabled={isPremium} />
+        <SubscriptionOptions />
       </section>
 
       <TrustBadges />
@@ -244,13 +226,13 @@ function PremiumPage() {
       </section>
 
       <p className="mt-6 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-        <Gift className="h-3 w-3" /> Purchases happen securely via Apple, Google or Paddle.
+        <Gift className="h-3 w-3" /> Purchases use your platform's configured RevenueCat checkout.
       </p>
       <p className="mt-1 text-center text-xs text-muted-foreground">
         <Link to="/profile" className="underline">
           Restore purchase
         </Link>{" "}
-        · sign in on mobile to sync Premium
+        · use Restore / sync purchases above to verify Premium
       </p>
 
       <FruitAnimStyles />
@@ -260,8 +242,8 @@ function PremiumPage() {
 
 const FAQ = [
   {
-    q: "How does the 3-day free trial work?",
-    a: "Start your trial and get full Premium access for 3 days. You're only charged when the trial ends. Cancel anytime before then and you won't be billed.",
+    q: "Is a free trial available?",
+    a: "Available trial terms are displayed by your store at checkout. Only a verified store entitlement enables Premium.",
   },
   {
     q: "Can I cancel anytime?",
@@ -269,11 +251,11 @@ const FAQ = [
   },
   {
     q: "What's the difference between monthly and annual?",
-    a: "Annual saves you over 37% compared to paying monthly for a year. Same features, one payment, best value.",
+    a: "Available billing periods and prices are shown in the current store offering. No discounts are assumed.",
   },
   {
     q: "What's the Family plan?",
-    a: "Family gives up to 6 members full Premium plus shared meal plans, grocery lists, pantry, recipe collections and a family nutrition dashboard.",
+    a: "Family packages appear only when configured in your store offering. The package's checkout terms describe what is included.",
   },
   {
     q: "How do referrals work?",
@@ -282,42 +264,6 @@ const FAQ = [
 ];
 
 /* ---------- Sub-components ---------- */
-
-function BillingToggle({ value, onChange }: { value: Billing; onChange: (v: Billing) => void }) {
-  return (
-    <div className="mt-6 flex flex-col items-center">
-      <div className="relative flex w-full max-w-xs items-center rounded-full border border-border bg-muted/60 p-1">
-        <span
-          className={cn(
-            "absolute top-1 h-[calc(100%-8px)] w-1/2 rounded-full bg-gradient-to-r from-primary to-primary/80 shadow-sm transition-all duration-300 ease-out",
-            value === "annual" ? "left-1" : "left-[calc(50%-4px)]",
-          )}
-          aria-hidden
-        />
-        <button
-          type="button"
-          onClick={() => onChange("annual")}
-          className={cn(
-            "relative z-10 flex-1 rounded-full py-2 text-xs font-semibold transition-colors",
-            value === "annual" ? "text-primary-foreground" : "text-muted-foreground",
-          )}
-        >
-          Yearly · Save 45%
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange("monthly")}
-          className={cn(
-            "relative z-10 flex-1 rounded-full py-2 text-xs font-semibold transition-colors",
-            value === "monthly" ? "text-primary-foreground" : "text-muted-foreground",
-          )}
-        >
-          Monthly
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function FreeCard({ onSelect }: { onSelect: () => void }) {
   const features = [
@@ -343,136 +289,6 @@ function FreeCard({ onSelect }: { onSelect: () => void }) {
       <FeatureList items={features} tone="muted" />
       <Button variant="outline" onClick={onSelect} className="mt-4 h-11 w-full rounded-2xl font-semibold">
         Continue Free
-      </Button>
-    </article>
-  );
-}
-
-function PremiumHeroCard({
-  billing,
-  currency,
-  onSelect,
-  disabled,
-}: {
-  billing: Billing;
-  currency: ReturnType<typeof useCurrency>["currency"];
-  onSelect: () => void;
-  disabled?: boolean;
-}) {
-  const priceLabel =
-    billing === "annual"
-      ? formatPrice(PRICES_USD.premium_annual, currency)
-      : formatPrice(PRICES_USD.premium_monthly, currency);
-  const perMonth = formatPrice(PRICES_USD.premium_annual / 12, currency);
-  const features = [
-    "Up to 100 Mia AI requests a day (fair use)",
-    
-    "Enhanced Mia AI assistance",
-    "Advanced Nutrition Analysis",
-    "Barcode Scanner",
-    "Personalized Meal Plans",
-    "Unlimited Grocery Lists",
-    "Completely ad-free — no banners or sponsored cards",
-    "Priority AI Processing",
-    "Early Access to New Features",
-  ];
-  return (
-    <article className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-[2px] shadow-2xl shadow-orange-500/30">
-      <div className="shimmer pointer-events-none absolute inset-0 opacity-40" aria-hidden />
-      <div className="relative rounded-[30px] bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-6 dark:from-amber-950/60 dark:via-orange-950/50 dark:to-rose-950/60">
-        <span className="pulse-badge absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/40">
-          <Sparkles className="h-3 w-3" /> Most Popular
-        </span>
-        <div className="mt-2 flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-rose-500 text-white shadow-md">
-            <Crown className="h-6 w-6" />
-          </span>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-orange-700 dark:text-amber-300">
-              Premium
-            </p>
-            <p className="font-display text-4xl font-bold leading-none">
-              {priceLabel}
-              <span className="text-base font-medium text-muted-foreground">
-                {billing === "annual" ? "/year" : "/month"}
-              </span>
-            </p>
-            {billing === "annual" && (
-              <p className="text-xs text-muted-foreground">Just {perMonth}/mo · Save 37%</p>
-            )}
-          </div>
-        </div>
-        <FeatureList items={features} tone="premium" />
-        <Button
-          onClick={onSelect}
-          disabled={disabled}
-          className="mt-5 h-14 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-base font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50"
-        >
-          <Sparkles className="mr-2 h-5 w-5" /> Start 3-Day Free Trial
-        </Button>
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          Cancel anytime. No charges during the free trial.
-        </p>
-      </div>
-    </article>
-  );
-}
-
-function FamilyCard({
-  billing,
-  currency,
-  onSelect,
-  disabled,
-}: {
-  billing: Billing;
-  currency: ReturnType<typeof useCurrency>["currency"];
-  onSelect: () => void;
-  disabled?: boolean;
-}) {
-  const priceLabel =
-    billing === "annual"
-      ? formatPrice(PRICES_USD.family_annual, currency)
-      : formatPrice(PRICES_USD.family_monthly, currency);
-  const features = [
-    "Everything in Premium",
-    "Up to 6 Family Members",
-    "Shared Meal Plans",
-    "Shared Grocery Lists",
-    "Shared Recipe Collections",
-    "Family Nutrition Dashboard",
-    "Family Pantry Management",
-    "Priority Support",
-    "Cross-device Sync",
-    "No Ads for All Members",
-  ];
-  return (
-    <article className="relative overflow-hidden rounded-[28px] border border-emerald-300/60 bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100 p-5 shadow-md dark:from-emerald-950/60 dark:via-teal-950/60 dark:to-emerald-950/60">
-      <div className="flex items-center gap-3">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md">
-          <Users className="h-6 w-6" />
-        </span>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
-            Family
-          </p>
-          <p className="font-display text-3xl font-bold leading-none">
-            {priceLabel}
-            <span className="text-base font-medium text-muted-foreground">
-              {billing === "annual" ? "/year" : "/month"}
-            </span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {billing === "annual" ? "Save 36% · " : ""}Up to 6 members
-          </p>
-        </div>
-      </div>
-      <FeatureList items={features} tone="family" />
-      <Button
-        onClick={onSelect}
-        disabled={disabled}
-        className="mt-4 h-12 w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-base font-bold text-white shadow-md hover:shadow-emerald-500/40"
-      >
-        <Users className="mr-2 h-4 w-4" /> Choose Family
       </Button>
     </article>
   );

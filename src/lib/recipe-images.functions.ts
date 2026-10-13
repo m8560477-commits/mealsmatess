@@ -40,6 +40,8 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Each recipe gets its own AI photo built from its ingredients and steps, generated once and reused.
     {
+      const { refreshRevenueCatEntitlement } = await import("./revenuecat.server");
+      await refreshRevenueCatEntitlement(context.userId);
       const { data: ok } = await supabaseAdmin.rpc("check_rate_limit", { _bucket: "recipe_image_ai", _identifier: context.userId, _max_per_minute: 6 });
       if (ok === false) return { imageUrl: null, source: null, confidence: null, searched: false, reason: "rate_limited" };
       const { data: credit } = await supabaseAdmin.rpc("consume_image_credit", { _user_id: context.userId });
