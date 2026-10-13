@@ -47,10 +47,13 @@ export const Route = createFileRoute("/recipe/$slug")({
       ? {
           meta: [
             { title: `${loaderData.name} — MealMate` },
-            { name: "description", content: loaderData.description ?? undefined },
+            { name: "description", content: loaderData.description || `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.` },
             { property: "og:title", content: `${loaderData.name} — MealMate` },
-            ...(loaderData.image_url
-              ? [{ property: "og:image", content: loaderData.image_url }]
+            { property: "og:description", content: loaderData.description || `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.` },
+            { property: "og:type", content: "website" },
+            { name: "twitter:card", content: "summary_large_image" },
+            ...(loaderData.image_url?.startsWith("https://")
+              ? [{ property: "og:image", content: loaderData.image_url }, { name: "twitter:image", content: loaderData.image_url }]
               : []),
           ],
         }
