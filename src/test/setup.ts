@@ -1,4 +1,7 @@
 import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
+
+vi.mock("@better-auth/infra/client", () => ({ sentinelClient: () => ({ id: "sentinel-test" }) }));
 
 Object.defineProperty(window, "scrollTo", {
   writable: true,

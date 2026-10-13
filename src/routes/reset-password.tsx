@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,16 +27,7 @@ function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Supabase puts the recovery session in the URL hash on redirect.
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    if (hash.includes("type=recovery") || hash.includes("access_token")) {
-      // The client auto-parses the hash and sets the session.
-      setReady(true);
-      return;
-    }
-    supabase.auth.getSession().then(({ data }) => {
-      setReady(!!data.session);
-    });
+    setReady(!!new URLSearchParams(window.location.search).get("token"));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -52,10 +43,11 @@ function ResetPasswordPage() {
     }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const token = new URLSearchParams(window.location.search).get("token") ?? "";
+      const { error } = await authClient.resetPassword({ newPassword: password, token });
       if (error) throw error;
-      toast.success("Password updated. You're signed in.");
-      navigate({ to: "/", replace: true });
+      toast.success("Password updated. Sign in with your new password.");
+      navigate({ to: "/auth", replace: true });
     } catch (err) {
       toast.error("Could not update your password. Please request a new reset link and try again.");
     } finally {

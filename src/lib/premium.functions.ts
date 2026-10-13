@@ -23,11 +23,15 @@ function periodKey(period: "day" | "month"): string {
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { refreshRevenueCatEntitlement } = await import("./revenuecat.server");
+    const verified = await refreshRevenueCatEntitlement(context.userId);
+    if (verified?.isPremium) return verified;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("*")
       .eq("user_id", context.userId)
+      .is("rc_app_user_id", null)
       .in("status", ["trialing", "active", "in_grace"])
       .order("period_end", { ascending: false, nullsFirst: false })
       .limit(1)

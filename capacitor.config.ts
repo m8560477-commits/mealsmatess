@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'www',
   server: {
     // Load the live published app so auth, AI, photos and subscriptions all work
-    url: 'https://mealsmatess.lovable.app',
+    url: 'https://mealmatesss.netlify.app',
     androidScheme: 'https',
   },
 };
