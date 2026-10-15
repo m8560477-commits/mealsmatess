@@ -40,6 +40,7 @@ import { Route as OrderIdRouteImport } from './routes/order.$id'
 import { Route as PartnerDashboardRouteImport } from './routes/partner.dashboard'
 import { Route as RecipeSlugRouteImport } from './routes/recipe.$slug'
 import { Route as RestaurantSlugRouteImport } from './routes/restaurant.$slug'
+import { Route as ApiPublicCronDailyRouteImport } from './routes/api/public/cron.daily'
 import { Route as ApiPublicWebhooksRevenuecatRouteImport } from './routes/api/public/webhooks.revenuecat'
 
 const IndexRoute = IndexRouteImport.update({
@@ -197,6 +198,11 @@ const RestaurantSlugRoute = RestaurantSlugRouteImport.update({
   path: '/restaurant/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronDailyRoute = ApiPublicCronDailyRouteImport.update({
+  id: '/api/public/cron/daily',
+  path: '/api/public/cron/daily',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhooksRevenuecatRoute =
   ApiPublicWebhooksRevenuecatRouteImport.update({
     id: '/api/public/webhooks/revenuecat',
@@ -236,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/partner/dashboard': typeof PartnerDashboardRoute
   '/recipe/$slug': typeof RecipeSlugRoute
   '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/cron/daily': typeof ApiPublicCronDailyRoute
   '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRoutesByTo {
@@ -270,6 +277,7 @@ export interface FileRoutesByTo {
   '/partner/dashboard': typeof PartnerDashboardRoute
   '/recipe/$slug': typeof RecipeSlugRoute
   '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/cron/daily': typeof ApiPublicCronDailyRoute
   '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRoutesById {
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   '/partner/dashboard': typeof PartnerDashboardRoute
   '/recipe/$slug': typeof RecipeSlugRoute
   '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/cron/daily': typeof ApiPublicCronDailyRoute
   '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRouteTypes {
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/partner/dashboard'
     | '/recipe/$slug'
     | '/restaurant/$slug'
+    | '/api/public/cron/daily'
     | '/api/public/webhooks/revenuecat'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
     | '/partner/dashboard'
     | '/recipe/$slug'
     | '/restaurant/$slug'
+    | '/api/public/cron/daily'
     | '/api/public/webhooks/revenuecat'
   id:
     | '__root__'
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/partner/dashboard'
     | '/recipe/$slug'
     | '/restaurant/$slug'
+    | '/api/public/cron/daily'
     | '/api/public/webhooks/revenuecat'
   fileRoutesById: FileRoutesById
 }
@@ -442,6 +454,7 @@ export interface RootRouteChildren {
   OrderIdRoute: typeof OrderIdRoute
   RecipeSlugRoute: typeof RecipeSlugRoute
   RestaurantSlugRoute: typeof RestaurantSlugRoute
+  ApiPublicCronDailyRoute: typeof ApiPublicCronDailyRoute
   ApiPublicWebhooksRevenuecatRoute: typeof ApiPublicWebhooksRevenuecatRoute
 }
 
@@ -664,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/daily': {
+      id: '/api/public/cron/daily'
+      path: '/api/public/cron/daily'
+      fullPath: '/api/public/cron/daily'
+      preLoaderRoute: typeof ApiPublicCronDailyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/revenuecat': {
       id: '/api/public/webhooks/revenuecat'
       path: '/api/public/webhooks/revenuecat'
@@ -725,6 +745,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrderIdRoute: OrderIdRoute,
   RecipeSlugRoute: RecipeSlugRoute,
   RestaurantSlugRoute: RestaurantSlugRoute,
+  ApiPublicCronDailyRoute: ApiPublicCronDailyRoute,
   ApiPublicWebhooksRevenuecatRoute: ApiPublicWebhooksRevenuecatRoute,
 }
 export const routeTree = rootRouteImport
