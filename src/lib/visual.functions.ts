@@ -28,8 +28,6 @@ export type VisualExplanation = {
   scenes: VisualScene[];
 };
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1";
-
 function extractJson(text: string): unknown {
   const cleaned = text
     .replace(/^```(?:json)?/i, "")
@@ -123,11 +121,12 @@ export const generateVisualExplanation = createServerFn({ method: "POST" })
       .maybeSingle();
     const isPremium =
       !!sub &&
-      (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > Date.now());
+      (sub.tier === "lifetime" ||
+        !sub.period_end ||
+        new Date(sub.period_end).getTime() > Date.now());
     if (!isPremium) throw new Error("Visual Mode is a Premium feature");
 
     await enforceRateLimit("ai_visual", context.userId, 15);
-
 
     const t0 = Date.now();
     try {

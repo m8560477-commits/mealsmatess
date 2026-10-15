@@ -60,7 +60,9 @@ function ChatPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [busy, setBusy] = useState(false);
   const [visualMode, setVisualMode] = useState(false);
-  useEffect(() => { if (turns.length) endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [turns, busy]);
+  useEffect(() => {
+    if (turns.length) endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [turns, busy]);
 
   function patch(i: number, next: Partial<Turn>) {
     setTurns((t) => t.map((turn, idx) => (idx === i ? { ...turn, ...next } : turn)));
@@ -103,14 +105,33 @@ function ChatPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-10">
-      {turns.length === 0 ? <div className="flex flex-col items-center py-6 text-center">
-        <ChefMascot animate className="h-48 w-48" />
-        <h1 className="mt-6 font-display text-3xl">Your little kitchen companion.</h1>
-        <p className="mt-3 text-sm text-muted-foreground">What's cooking, Chef?</p>
-      </div> : <h1 className="font-display text-2xl">MealMate Chef</h1>}
+      {turns.length === 0 ? (
+        <div className="flex flex-col items-center py-6 text-center">
+          <ChefMascot animate className="h-48 w-48" />
+          <h1 className="mt-6 font-display text-3xl">Your little kitchen companion.</h1>
+          <p className="mt-3 text-sm text-muted-foreground">What's cooking, Chef?</p>
+        </div>
+      ) : (
+        <h1 className="font-display text-2xl">MealMate Chef</h1>
+      )}
 
       <div className="mt-4 flex justify-center">
-        {isPremium ? <Button variant="outline" className="rounded-full" aria-pressed={visualMode} onClick={() => setVisualMode((v) => !v)}><Wand2 /> Visual Mode {visualMode ? "on" : "off"}</Button> : <Button asChild variant="ghost" className="rounded-full text-muted-foreground"><Link to="/premium"><Crown /> Premium Visual Mode</Link></Button>}
+        {isPremium ? (
+          <Button
+            variant="outline"
+            className="rounded-full"
+            aria-pressed={visualMode}
+            onClick={() => setVisualMode((v) => !v)}
+          >
+            <Wand2 /> Visual Mode {visualMode ? "on" : "off"}
+          </Button>
+        ) : (
+          <Button asChild variant="ghost" className="rounded-full text-muted-foreground">
+            <Link to="/premium">
+              <Crown /> Premium Visual Mode
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="mt-8 flex-1 space-y-6">
@@ -169,10 +190,18 @@ function ChatPage() {
 
       <div ref={endRef} />
       <div className="chat-composer sticky bottom-3 mt-6 bg-background pb-2 pt-2">
-        <CookingInput value={question} onChange={setQuestion} onSubmit={() => { void ask(question); }} busy={busy} />
+        <CookingInput
+          value={question}
+          onChange={setQuestion}
+          onSubmit={() => {
+            void ask(question);
+          }}
+          busy={busy}
+        />
       </div>
       <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-        <Sparkles className="h-3 w-3" /> AI answers can be wrong — use judgment for allergies and safety.
+        <Sparkles className="h-3 w-3" /> AI answers can be wrong — use judgment for allergies and
+        safety.
       </p>
     </main>
   );

@@ -74,7 +74,13 @@ type OrderRow = {
   notes: string | null;
   placed_at: string;
   rejection_reason: string | null;
-  order_items: { id: string; name: string; unit_price: number | string; quantity: number; notes: string | null }[];
+  order_items: {
+    id: string;
+    name: string;
+    unit_price: number | string;
+    quantity: number;
+    notes: string | null;
+  }[];
 };
 
 const emptyItem = { name: "", description: "", price: "", category: "", is_available: true };
@@ -111,7 +117,13 @@ function PartnerDashboard() {
   }
 
   const restaurant = mine.data?.restaurant as
-    | (Record<string, unknown> & { id: string; name: string; approval_status: string; currency: string; is_accepting_orders: boolean })
+    | (Record<string, unknown> & {
+        id: string;
+        name: string;
+        approval_status: string;
+        currency: string;
+        is_accepting_orders: boolean;
+      })
     | null
     | undefined;
 
@@ -177,7 +189,11 @@ function PartnerDashboard() {
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
         Your live customer page:{" "}
-        <Link to="/restaurant/$slug" params={{ slug: String(restaurant["slug"] ?? "") }} className="underline">
+        <Link
+          to="/restaurant/$slug"
+          params={{ slug: String(restaurant["slug"] ?? "") }}
+          className="underline"
+        >
           view as a customer
         </Link>
       </p>
@@ -328,7 +344,10 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
         </div>
       ) : (
         orders.map((o) => (
-          <article key={o.id} className="md3-surface rounded-3xl border border-border/60 bg-card p-4">
+          <article
+            key={o.id}
+            className="md3-surface rounded-3xl border border-border/60 bg-card p-4"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">#{o.id.slice(0, 8)}</p>
@@ -336,7 +355,10 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
                   {new Date(o.placed_at).toLocaleString()}
                 </p>
               </div>
-              <Badge variant={o.status === "cancelled" ? "destructive" : "secondary"} className="rounded-full">
+              <Badge
+                variant={o.status === "cancelled" ? "destructive" : "secondary"}
+                className="rounded-full"
+              >
                 {ORDER_STATUS_LABEL[o.status]}
               </Badge>
             </div>
@@ -377,7 +399,9 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
                     disabled={move.isPending}
                     onClick={() => move.mutate({ orderId: o.id, status: next })}
                   >
-                    {next === "cancelled" ? "Cancel" : `Mark ${ORDER_STATUS_LABEL[next].toLowerCase()}`}
+                    {next === "cancelled"
+                      ? "Cancel"
+                      : `Mark ${ORDER_STATUS_LABEL[next].toLowerCase()}`}
                   </Button>
                 ))}
               </div>
@@ -533,7 +557,12 @@ function MenuPanel({
                     aria-label={`${item.name} available`}
                     onCheckedChange={(c) => toggleAvailable(item, c)}
                   />
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} aria-label="Edit dish">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => openEdit(item)}
+                    aria-label="Edit dish"
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Button

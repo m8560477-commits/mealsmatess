@@ -24,7 +24,9 @@ export const listRecentlyViewed = createServerFn({ method: "GET" })
     const supabase = context.supabase;
     const { data, error } = await supabase
       .from("recently_viewed")
-      .select("viewed_at, recipes(id, slug, name, image_url, image_source, cooking_time_minutes, calories)")
+      .select(
+        "viewed_at, recipes(id, slug, name, image_url, image_source, cooking_time_minutes, calories)",
+      )
       .eq("user_id", context.userId)
       .order("viewed_at", { ascending: false })
       .limit(12);
@@ -38,12 +40,24 @@ export const listRecentlyViewed = createServerFn({ method: "GET" })
 export const rateRecipe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) =>
-    z.object({ recipeId: z.string().uuid(), rating: z.number().int().min(1).max(5), review: z.string().max(1000).optional() }).parse(v),
+    z
+      .object({
+        recipeId: z.string().uuid(),
+        rating: z.number().int().min(1).max(5),
+        review: z.string().max(1000).optional(),
+      })
+      .parse(v),
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase;
     const { error } = await supabase.from("recipe_ratings").upsert(
-      { user_id: context.userId, recipe_id: data.recipeId, rating: data.rating, review: data.review ?? null, updated_at: new Date().toISOString() },
+      {
+        user_id: context.userId,
+        recipe_id: data.recipeId,
+        rating: data.rating,
+        review: data.review ?? null,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "user_id,recipe_id" },
     );
     if (error) throw new Error(error.message);
@@ -61,7 +75,8 @@ export const listRecipeRatings = createServerFn({ method: "POST" })
       global: {
         fetch: (input, init) => {
           const h = new Headers(init?.headers);
-          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) h.delete("Authorization");
+          if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`)
+            h.delete("Authorization");
           h.set("apikey", key);
           return fetch(input, { ...init, headers: h });
         },

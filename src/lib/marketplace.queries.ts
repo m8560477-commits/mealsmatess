@@ -92,7 +92,9 @@ export const marketplaceFeedQuery = () =>
           .limit(60),
         supabase
           .from("menu_items")
-          .select("id,restaurant_id,name,description,image_url,price,category,dietary_tags,is_available")
+          .select(
+            "id,restaurant_id,name,description,image_url,price,category,dietary_tags,is_available",
+          )
           .eq("is_available", true)
           .eq("is_hidden", false)
           .order("sort_order")
@@ -101,7 +103,8 @@ export const marketplaceFeedQuery = () =>
 
       if (restaurantsRes.error) throw restaurantsRes.error;
       if (dishesRes.error) throw dishesRes.error;
-      if (promotionsRes.error) console.error("[marketplace] promotions failed", promotionsRes.error);
+      if (promotionsRes.error)
+        console.error("[marketplace] promotions failed", promotionsRes.error);
 
       const now = Date.now();
       const promotions = ((promotionsRes.data ?? []) as any[])
@@ -128,7 +131,11 @@ export const marketplaceFeedQuery = () =>
           rating_count: Number(row.rating_count ?? 0),
           restaurant_locations: ((row.restaurant_locations ?? []) as any[])
             .filter((l) => l.is_active !== false)
-            .map((l) => ({ latitude: Number(l.latitude), longitude: Number(l.longitude), label: l.label ?? null })),
+            .map((l) => ({
+              latitude: Number(l.latitude),
+              longitude: Number(l.longitude),
+              label: l.label ?? null,
+            })),
         })) as FeedRestaurant[],
         promotions,
         dishes: ((dishesRes.data ?? []) as any[]).map((d) => ({
@@ -207,14 +214,34 @@ export function useFavouriteRestaurants() {
 export const DISCOVERY_CATEGORIES = [
   { key: "deals", label: "Hot Deals", emoji: "🔥", terms: [] as string[] },
   { key: "pizza", label: "Pizza", emoji: "🍕", terms: ["pizza"] },
-  { key: "fastfood", label: "Fast Food", emoji: "🍟", terms: ["fast", "fries", "kota", "takeaway"] },
+  {
+    key: "fastfood",
+    label: "Fast Food",
+    emoji: "🍟",
+    terms: ["fast", "fries", "kota", "takeaway"],
+  },
   { key: "burgers", label: "Burgers", emoji: "🍔", terms: ["burger", "smash"] },
   { key: "chicken", label: "Chicken", emoji: "🍗", terms: ["chicken", "wings", "poultry"] },
   { key: "mexican", label: "Mexican", emoji: "🌮", terms: ["mexican", "taco", "burrito", "nacho"] },
   { key: "sushi", label: "Sushi", emoji: "🍣", terms: ["sushi", "maki", "sashimi", "japanese"] },
-  { key: "healthy", label: "Healthy", emoji: "🥗", terms: ["healthy", "salad", "bowl", "vegan", "vegetarian"] },
-  { key: "desserts", label: "Desserts", emoji: "🍰", terms: ["dessert", "cake", "sweet", "ice cream", "pudding"] },
-  { key: "drinks", label: "Drinks", emoji: "🥤", terms: ["drink", "juice", "coffee", "smoothie", "soda"] },
+  {
+    key: "healthy",
+    label: "Healthy",
+    emoji: "🥗",
+    terms: ["healthy", "salad", "bowl", "vegan", "vegetarian"],
+  },
+  {
+    key: "desserts",
+    label: "Desserts",
+    emoji: "🍰",
+    terms: ["dessert", "cake", "sweet", "ice cream", "pudding"],
+  },
+  {
+    key: "drinks",
+    label: "Drinks",
+    emoji: "🥤",
+    terms: ["drink", "juice", "coffee", "smoothie", "soda"],
+  },
 ] as const;
 
 export type CategoryKey = (typeof DISCOVERY_CATEGORIES)[number]["key"];

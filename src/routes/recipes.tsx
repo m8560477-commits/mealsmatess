@@ -28,14 +28,22 @@ const CATEGORIES = [
 type RecipeSearch = { c?: string; q?: string };
 
 export const Route = createFileRoute("/recipes")({
-  head: () => ({ meta: [
-    { title: "Discover recipes | MealMate" },
-    { name: "description", content: "Browse South African favourites, global classics, and personalised recipe ideas." },
-    { property: "og:title", content: "Discover recipes | MealMate" },
-    { property: "og:description", content: "Browse South African favourites, global classics, and personalised recipe ideas." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Discover recipes | MealMate" },
+      {
+        name: "description",
+        content: "Browse South African favourites, global classics, and personalised recipe ideas.",
+      },
+      { property: "og:title", content: "Discover recipes | MealMate" },
+      {
+        property: "og:description",
+        content: "Browse South African favourites, global classics, and personalised recipe ideas.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (search: Record<string, unknown>): RecipeSearch => ({
     ...(typeof search["c"] === "string" ? { c: search["c"] } : {}),
     ...(typeof search["q"] === "string" ? { q: search["q"] } : {}),
@@ -66,8 +74,13 @@ function RecipesPage() {
     const term = query.trim();
     setBusy(true);
     try {
-      await navigate({ to: "/recipes", search: { ...(active !== "All" ? { c: active } : {}), q: term } });
-      const matches = await queryClient.fetchQuery(recipesByCategoryQuery(active !== "All" ? active : undefined, term));
+      await navigate({
+        to: "/recipes",
+        search: { ...(active !== "All" ? { c: active } : {}), q: term },
+      });
+      const matches = await queryClient.fetchQuery(
+        recipesByCategoryQuery(active !== "All" ? active : undefined, term),
+      );
       // Photos are created in the background so results show straight away.
       void (async () => {
         for (const recipe of matches.slice(0, 6)) {
@@ -75,12 +88,21 @@ function RecipesPage() {
           const result = await findImage({ data: { recipeId: recipe.id } }).catch(() => null);
           if (!result) continue;
           if (result.imageUrl) await queryClient.invalidateQueries({ queryKey: ["recipes"] });
-          if (result.reason === "limit") { toast.message("Daily photo allowance reached", { description: "New recipe photos will be created again tomorrow. Upgrade to Premium for more." }); break; }
+          if (result.reason === "limit") {
+            toast.message("Daily photo allowance reached", {
+              description:
+                "New recipe photos will be created again tomorrow. Upgrade to Premium for more.",
+            });
+            break;
+          }
           if (result.reason === "rate_limited") break;
         }
       })();
-    } catch { toast.error("Couldn't complete the search. Please try again."); }
-    finally { setBusy(false); }
+    } catch {
+      toast.error("Couldn't complete the search. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleAiGenerate() {
@@ -92,7 +114,9 @@ function RecipesPage() {
       navigate({ to: "/recipe/$slug", params: { slug } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(message);
+      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
+        message,
+      );
       toast.error(authError ? "Your session expired" : "Couldn't generate that recipe", {
         description: authError
           ? "Please sign in again to cook a recipe."
@@ -111,7 +135,9 @@ function RecipesPage() {
       navigate({ to: "/recipe/$slug", params: { slug } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(message);
+      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
+        message,
+      );
       toast.error(authError ? "Your session expired" : "The chef is busy", {
         description: authError
           ? "Please sign in again to cook a recipe."
@@ -144,7 +170,14 @@ function RecipesPage() {
         <Button type="submit" size="lg" disabled={busy} className="h-12">
           Search
         </Button>
-        <Button type="button" variant="outline" size="lg" disabled={busy} className="h-12" onClick={handleAiGenerate}>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          disabled={busy}
+          className="h-12"
+          onClick={handleAiGenerate}
+        >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ask AI chef"}
         </Button>
         <Button

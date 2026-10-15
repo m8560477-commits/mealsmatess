@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile data stored in Firestore",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "goal": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Saved favorite recipes",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "recipeId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "recipeId"]
+    },
+    "PantryItem": {
+      "title": "PantryItem",
+      "description": "User pantry item",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "name"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles keyed by auth UID"
+    },
+    "/users/{userId}/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "User favorite recipes"
+    },
+    "/users/{userId}/pantry/{pantryId}": {
+      "schema": "PantryItem",
+      "description": "User pantry items"
+    }
+  }
+}

@@ -54,11 +54,13 @@ const FAQ = [
   },
 ];
 
-
 function SupportPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-      <Link to="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/profile"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ChevronLeft className="h-4 w-4" />
         Back to settings
       </Link>
@@ -73,9 +75,7 @@ function SupportPage() {
             key={item.q}
             className="group rounded-2xl border border-border bg-card px-4 py-3 open:pb-4"
           >
-            <summary className="cursor-pointer list-none text-sm font-medium">
-              {item.q}
-            </summary>
+            <summary className="cursor-pointer list-none text-sm font-medium">{item.q}</summary>
             <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
           </details>
         ))}

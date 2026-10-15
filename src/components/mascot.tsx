@@ -82,7 +82,14 @@ export function Mascot({
       {mood === "thinking" && (
         <g>
           <circle cx="51" cy="15" r="7" className="fill-card stroke-border" strokeWidth={1.5} />
-          <text x="51" y="18.5" textAnchor="middle" fontSize="9" fontWeight="bold" className="fill-foreground">
+          <text
+            x="51"
+            y="18.5"
+            textAnchor="middle"
+            fontSize="9"
+            fontWeight="bold"
+            className="fill-foreground"
+          >
             ?
           </text>
         </g>

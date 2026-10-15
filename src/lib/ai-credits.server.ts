@@ -8,7 +8,11 @@ export class AiLimitError extends Error {
     public resetsAt: string | null,
   ) {
     const when = resetsAt
-      ? new Date(resetsAt).toLocaleString("en-ZA", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC"
+      ? new Date(resetsAt).toLocaleString("en-ZA", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "UTC",
+        }) + " UTC"
       : "soon";
     super(
       reason === "daily"

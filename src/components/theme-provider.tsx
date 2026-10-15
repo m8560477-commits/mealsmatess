@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export type ThemeMode = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -40,9 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
     const initial: ThemeMode =
-      stored === "light" || stored === "dark" || stored === "system"
-        ? stored
-        : "system";
+      stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
     setModeState(initial);
     const r = initial === "system" ? systemPref() : initial;
     setResolved(r);

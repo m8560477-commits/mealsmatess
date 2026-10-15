@@ -116,7 +116,10 @@ export function avoidTerms(prefs: FoodPreferences): string[] {
     .filter((t) => t.length > 2);
 }
 
-export function isAvoided(prefs: FoodPreferences, ...text: (string | null | undefined | string[])[]): boolean {
+export function isAvoided(
+  prefs: FoodPreferences,
+  ...text: (string | null | undefined | string[])[]
+): boolean {
   const hay = haystack(...text);
   if (!hay) return false;
   return avoidTerms(prefs).some((term) => hay.includes(term));
@@ -165,7 +168,8 @@ export function preferenceSummary(prefs: FoodPreferences): string {
   if (prefs.goal) bits.push(`Goal: ${prefs.goal}`);
   if (prefs.favorite_foods.length) bits.push(`Enjoys: ${prefs.favorite_foods.join(", ")}`);
   if (prefs.allergies.length) bits.push(`Must avoid: ${prefs.allergies.join(", ")}`);
-  if (prefs.dietary_restrictions.length) bits.push(`Diet: ${prefs.dietary_restrictions.join(", ")}`);
+  if (prefs.dietary_restrictions.length)
+    bits.push(`Diet: ${prefs.dietary_restrictions.join(", ")}`);
   if (prefs.disliked_foods.length) bits.push(`Dislikes: ${prefs.disliked_foods.join(", ")}`);
   if (prefs.cooking_time) bits.push(`Time to cook: ${prefs.cooking_time}`);
   if (prefs.cooking_level) bits.push(`Skill: ${prefs.cooking_level}`);

@@ -6,18 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 
-export type CurrencyCode =
-  | "USD" | "ZAR" | "EUR" | "GBP" | "AUD" | "CAD" | "NZD";
+export type CurrencyCode = "USD" | "ZAR" | "EUR" | "GBP" | "AUD" | "CAD" | "NZD";
 
-export const CURRENCY_META: Record<CurrencyCode, { symbol: string; locale: string; name: string }> = {
-  USD: { symbol: "$", locale: "en-US", name: "US Dollar" },
-  ZAR: { symbol: "R", locale: "en-ZA", name: "South African Rand" },
-  EUR: { symbol: "€", locale: "en-IE", name: "Euro" },
-  GBP: { symbol: "£", locale: "en-GB", name: "British Pound" },
-  AUD: { symbol: "A$", locale: "en-AU", name: "Australian Dollar" },
-  CAD: { symbol: "C$", locale: "en-CA", name: "Canadian Dollar" },
-  NZD: { symbol: "NZ$", locale: "en-NZ", name: "New Zealand Dollar" },
-};
+export const CURRENCY_META: Record<CurrencyCode, { symbol: string; locale: string; name: string }> =
+  {
+    USD: { symbol: "$", locale: "en-US", name: "US Dollar" },
+    ZAR: { symbol: "R", locale: "en-ZA", name: "South African Rand" },
+    EUR: { symbol: "€", locale: "en-IE", name: "Euro" },
+    GBP: { symbol: "£", locale: "en-GB", name: "British Pound" },
+    AUD: { symbol: "A$", locale: "en-AU", name: "Australian Dollar" },
+    CAD: { symbol: "C$", locale: "en-CA", name: "Canadian Dollar" },
+    NZD: { symbol: "NZ$", locale: "en-NZ", name: "New Zealand Dollar" },
+  };
 
 // Static FX rates from USD. Live rates can replace this map later without
 // touching any component code.
@@ -66,10 +66,23 @@ export function price(key: PriceKey, currency: CurrencyCode): string {
 }
 
 const REGION_CURRENCY: Record<string, CurrencyCode> = {
-  US: "USD", ZA: "ZAR", GB: "GBP",
-  IE: "EUR", DE: "EUR", FR: "EUR", ES: "EUR", IT: "EUR", NL: "EUR", PT: "EUR",
-  AT: "EUR", BE: "EUR", FI: "EUR", GR: "EUR",
-  AU: "AUD", CA: "CAD", NZ: "NZD",
+  US: "USD",
+  ZA: "ZAR",
+  GB: "GBP",
+  IE: "EUR",
+  DE: "EUR",
+  FR: "EUR",
+  ES: "EUR",
+  IT: "EUR",
+  NL: "EUR",
+  PT: "EUR",
+  AT: "EUR",
+  BE: "EUR",
+  FI: "EUR",
+  GR: "EUR",
+  AU: "AUD",
+  CA: "CAD",
+  NZ: "NZD",
 };
 
 export function detectCurrency(): CurrencyCode {
@@ -114,7 +127,10 @@ export function useCurrency(): {
       window.dispatchEvent(new CustomEvent("mealmate-currency-changed", { detail: next }));
     }
     if (user) {
-      await supabase.from("profiles").update({ currency: next } as never).eq("id", user.id);
+      await supabase
+        .from("profiles")
+        .update({ currency: next } as never)
+        .eq("id", user.id);
     }
   }
 

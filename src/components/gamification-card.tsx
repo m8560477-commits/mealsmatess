@@ -60,7 +60,9 @@ export function GamificationCard() {
     <section className="space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm">
       {/* Level header */}
       <div className="flex items-center gap-4">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Trophy className="h-8 w-8" /></span>
+        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <Trophy className="h-8 w-8" />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="truncate font-display text-2xl leading-tight">
@@ -113,7 +115,12 @@ export function GamificationCard() {
               50,000 XP earns you 30 days of Premium — once, ever.
             </p>
           </div>
-          <Button size="sm" className="rounded-full" disabled={claim.isPending} onClick={() => claim.mutate()}>
+          <Button
+            size="sm"
+            className="rounded-full"
+            disabled={claim.isPending}
+            onClick={() => claim.mutate()}
+          >
             {claim.isPending ? "Claiming…" : "Claim"}
           </Button>
         </div>
@@ -140,9 +147,7 @@ export function GamificationCard() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 text-sm font-semibold">
-                        {done ? (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        ) : null}
+                        {done ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
                         <span className="truncate">{c.title}</span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>
@@ -196,9 +201,7 @@ export function GamificationCard() {
               ) : (
                 <Lock className="h-4 w-4 text-muted-foreground" />
               )}
-              <span className="line-clamp-2 text-[9px] font-semibold leading-tight">
-                {a.title}
-              </span>
+              <span className="line-clamp-2 text-[9px] font-semibold leading-tight">{a.title}</span>
             </div>
           ))}
         </div>

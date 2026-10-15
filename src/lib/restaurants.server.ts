@@ -164,7 +164,11 @@ export async function fetchMyRestaurant(userId: string) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabaseAdmin.from("menu_items").select("*").eq("restaurant_id", restaurant.id).order("sort_order"),
+    supabaseAdmin
+      .from("menu_items")
+      .select("*")
+      .eq("restaurant_id", restaurant.id)
+      .order("sort_order"),
   ]);
 
   return { restaurant, application: application ?? null, menu: menu ?? [] };
@@ -257,7 +261,10 @@ export async function uploadMedia(
   if (signErr || !signed) throw new Error(signErr?.message ?? "Could not sign media URL");
 
   if (input.kind === "logo") {
-    await supabaseAdmin.from("restaurants").update({ logo_url: signed.signedUrl }).eq("id", restaurantId);
+    await supabaseAdmin
+      .from("restaurants")
+      .update({ logo_url: signed.signedUrl })
+      .eq("id", restaurantId);
   } else if (input.kind === "cover") {
     await supabaseAdmin
       .from("restaurants")
@@ -320,7 +327,13 @@ export async function removeMenuItem(userId: string, id: string) {
   return { ok: true };
 }
 
-const ACTIVE_STATUSES: OrderStatus[] = ["new", "accepted", "preparing", "ready", "out_for_delivery"];
+const ACTIVE_STATUSES: OrderStatus[] = [
+  "new",
+  "accepted",
+  "preparing",
+  "ready",
+  "out_for_delivery",
+];
 
 export async function fetchRestaurantOrders(
   userId: string,
@@ -328,7 +341,8 @@ export async function fetchRestaurantOrders(
   scope: "active" | "completed",
 ) {
   await assertMember(userId, restaurantId);
-  const statuses = scope === "active" ? ACTIVE_STATUSES : (["completed", "cancelled"] as OrderStatus[]);
+  const statuses =
+    scope === "active" ? ACTIVE_STATUSES : (["completed", "cancelled"] as OrderStatus[]);
   const { data, error } = await supabaseAdmin
     .from("restaurant_orders")
     .select(

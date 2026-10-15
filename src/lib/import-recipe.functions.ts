@@ -21,9 +21,7 @@ const RecipeSchema = z.object({
   protein_g: z.number().nullable().optional(),
   carbs_g: z.number().nullable().optional(),
   fat_g: z.number().nullable().optional(),
-  ingredients: z
-    .array(z.object({ name: z.string(), quantity: z.string().optional() }))
-    .default([]),
+  ingredients: z.array(z.object({ name: z.string(), quantity: z.string().optional() })).default([]),
   steps: z.array(z.string()).default([]),
   fun_fact: z.string().nullable().optional(),
   image_prompt: z.string().nullable().optional(),
@@ -56,7 +54,10 @@ Return ONLY valid JSON (no code fences) matching:
 }`;
 
 function extractJson(text: string): unknown {
-  const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const cleaned = text
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No JSON in response");
@@ -67,8 +68,7 @@ async function scrapeMeta(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; MealMateBot/1.0; +https://mealmate.app)",
+        "User-Agent": "Mozilla/5.0 (compatible; MealMateBot/1.0; +https://mealmate.app)",
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
@@ -96,9 +96,7 @@ function imageUrlFor(name: string, imagePrompt: string | null | undefined) {
 
 export const importRecipeFromUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((v: unknown) =>
-    z.object({ url: z.string().url().max(1000) }).parse(v),
-  )
+  .inputValidator((v: unknown) => z.object({ url: z.string().url().max(1000) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
 
@@ -167,7 +165,10 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
     await supabaseAdmin
       .from("favorites")
       .insert({ user_id: userId, recipe_id: inserted.id })
-      .then(() => null, () => null);
+      .then(
+        () => null,
+        () => null,
+      );
 
     return { slug: inserted.slug, id: inserted.id };
   });
@@ -211,10 +212,6 @@ export const deleteImportedRecipe = createServerFn({ method: "POST" })
       .delete()
       .eq("user_id", context.userId)
       .eq("recipe_id", data.id);
-    await supabaseAdmin
-      .from("recipes")
-      .delete()
-      .eq("id", data.id)
-      .eq("created_by", context.userId);
+    await supabaseAdmin.from("recipes").delete().eq("id", data.id).eq("created_by", context.userId);
     return { ok: true };
   });

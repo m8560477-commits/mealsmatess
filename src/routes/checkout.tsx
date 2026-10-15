@@ -17,10 +17,14 @@ export const Route = createFileRoute("/checkout")({
       { title: "Checkout | MealMate" },
       {
         name: "description",
-        content: "Review your restaurant order, confirm delivery details and place your order on MealMate.",
+        content:
+          "Review your restaurant order, confirm delivery details and place your order on MealMate.",
       },
       { property: "og:title", content: "Checkout | MealMate" },
-      { property: "og:description", content: "Confirm your delivery details and place your MealMate order." },
+      {
+        property: "og:description",
+        content: "Confirm your delivery details and place your MealMate order.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -69,7 +73,9 @@ function CheckoutPage() {
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
         <ShoppingBag className="h-10 w-10 text-muted-foreground" />
         <h1 className="font-display text-2xl">Your cart is empty</h1>
-        <p className="text-sm text-muted-foreground">Browse nearby restaurants and add a few dishes.</p>
+        <p className="text-sm text-muted-foreground">
+          Browse nearby restaurants and add a few dishes.
+        </p>
         <Button asChild className="rounded-full">
           <Link to="/restaurants">Find restaurants</Link>
         </Button>

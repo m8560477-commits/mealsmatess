@@ -30,7 +30,11 @@ import {
   adminRevokePremium,
   adminSavePromo,
 } from "@/lib/premium.functions";
-import { createManagedRestaurant, launchManagedRestaurant, listManagedRestaurants } from "@/lib/managed-restaurants.functions";
+import {
+  createManagedRestaurant,
+  launchManagedRestaurant,
+  listManagedRestaurants,
+} from "@/lib/managed-restaurants.functions";
 import {
   adminListAuditLogs,
   adminListUsers,
@@ -72,11 +76,17 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { property: "og:title", content: "Admin \u2014 MealMate" },
-      { property: "og:description", content: "Manage MealMate: analytics, subscribers, revenue, promo codes." },
+      {
+        property: "og:description",
+        content: "Manage MealMate: analytics, subscribers, revenue, promo codes.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { title: "Admin — MealMate" },
-      { name: "description", content: "Manage MealMate: analytics, subscribers, revenue, promo codes." },
+      {
+        name: "description",
+        content: "Manage MealMate: analytics, subscribers, revenue, promo codes.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -97,7 +107,10 @@ function usePresetRange(preset: Preset, custom: { from: string; to: string }) {
 
 function ManagedRestaurantsTab() {
   const queryClient = useQueryClient();
-  const managed = useQuery({ queryKey: ["managed-restaurants"], queryFn: () => listManagedRestaurants() });
+  const managed = useQuery({
+    queryKey: ["managed-restaurants"],
+    queryFn: () => listManagedRestaurants(),
+  });
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -134,23 +147,62 @@ function ManagedRestaurantsTab() {
       <div className="mb-6">
         <h2 className="font-display text-2xl">Create a restaurant account</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Invite a restaurant owner by email. Their account starts with a one-month RevenueCat trial and becomes visible to Consumer after Hub launch.
+          Invite a restaurant owner by email. Their account starts with a one-month RevenueCat trial
+          and becomes visible to Consumer after Hub launch.
         </p>
       </div>
       <form onSubmit={submit} className="grid gap-4">
-        <Input required type="text" placeholder="Restaurant name" value={name} onChange={(event) => setName(event.target.value)} />
-        <Input required type="text" placeholder="Owner full name" value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />
-        <Input required type="email" placeholder="Owner email" value={email} onChange={(event) => setEmail(event.target.value)} />
-        <Button type="submit" disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send invite and start trial"}</Button>
+        <Input
+          required
+          type="text"
+          placeholder="Restaurant name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Input
+          required
+          type="text"
+          placeholder="Owner full name"
+          value={ownerName}
+          onChange={(event) => setOwnerName(event.target.value)}
+        />
+        <Input
+          required
+          type="email"
+          placeholder="Owner email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <Button type="submit" disabled={busy}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send invite and start trial"}
+        </Button>
       </form>
       <div className="mt-8 space-y-3">
         <h3 className="font-display text-lg">Restaurants</h3>
-        {managed.isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : managed.data?.length ? managed.data.map((restaurant: any) => (
-          <div key={restaurant.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 p-4">
-            <div><p className="font-medium">{restaurant.name}</p><p className="text-xs text-muted-foreground">{restaurant.owner_email}</p></div>
-            <Button size="sm" disabled={restaurant.onboarding_complete} onClick={() => launch(restaurant.id)}>{restaurant.onboarding_complete ? "Launched" : "Launch"}</Button>
-          </div>
-        )) : <p className="text-sm text-muted-foreground">No managed restaurants yet.</p>}
+        {managed.isLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : managed.data?.length ? (
+          managed.data.map((restaurant: any) => (
+            <div
+              key={restaurant.id}
+              className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 p-4"
+            >
+              <div>
+                <p className="font-medium">{restaurant.name}</p>
+                <p className="text-xs text-muted-foreground">{restaurant.owner_email}</p>
+              </div>
+              <Button
+                size="sm"
+                disabled={restaurant.onboarding_complete}
+                onClick={() => launch(restaurant.id)}
+              >
+                {restaurant.onboarding_complete ? "Launched" : "Launch"}
+              </Button>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">No managed restaurants yet.</p>
+        )}
       </div>
     </section>
   );
@@ -215,7 +267,9 @@ function AdminPage() {
           </span>
           <div>
             <p className="mb-1 text-xs font-semibold text-muted-foreground">MEALMATE / ADMIN</p>
-            <h1 className="font-display text-2xl font-semibold leading-tight sm:text-3xl">Admin Center</h1>
+            <h1 className="font-display text-2xl font-semibold leading-tight sm:text-3xl">
+              Admin Center
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Users, revenue & your growing community.
             </p>
@@ -231,10 +285,22 @@ function AdminPage() {
 
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="admin-tabs flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
-          <TabsTrigger value="overview"><Activity className="mr-2 size-4" />Overview</TabsTrigger>
-          <TabsTrigger value="users"><Users className="mr-2 size-4" />Users</TabsTrigger>
-          <TabsTrigger value="revenue"><DollarSign className="mr-2 size-4" />Revenue</TabsTrigger>
-          <TabsTrigger value="recipes"><Utensils className="mr-2 size-4" />Recipes</TabsTrigger>
+          <TabsTrigger value="overview">
+            <Activity className="mr-2 size-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="users">
+            <Users className="mr-2 size-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="revenue">
+            <DollarSign className="mr-2 size-4" />
+            Revenue
+          </TabsTrigger>
+          <TabsTrigger value="recipes">
+            <Utensils className="mr-2 size-4" />
+            Recipes
+          </TabsTrigger>
           <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
           <TabsTrigger value="flags">Flags</TabsTrigger>
           <TabsTrigger value="subs">Subscribers</TabsTrigger>
@@ -246,17 +312,31 @@ function AdminPage() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
-          <OverviewTab {...(analytics.data ? { analytics: analytics.data } : {})} loading={analytics.isLoading} />
-          <div className="mt-4"><RecipeImageBackfillCard /></div>
+          <OverviewTab
+            {...(analytics.data ? { analytics: analytics.data } : {})}
+            loading={analytics.isLoading}
+          />
+          <div className="mt-4">
+            <RecipeImageBackfillCard />
+          </div>
         </TabsContent>
         <TabsContent value="users" className="mt-4">
-          <UsersTab {...(analytics.data ? { analytics: analytics.data } : {})} loading={analytics.isLoading} />
+          <UsersTab
+            {...(analytics.data ? { analytics: analytics.data } : {})}
+            loading={analytics.isLoading}
+          />
         </TabsContent>
         <TabsContent value="revenue" className="mt-4">
-          <RevenueTab {...(analytics.data ? { analytics: analytics.data } : {})} loading={analytics.isLoading} />
+          <RevenueTab
+            {...(analytics.data ? { analytics: analytics.data } : {})}
+            loading={analytics.isLoading}
+          />
         </TabsContent>
         <TabsContent value="recipes" className="mt-4">
-          <RecipesTab {...(analytics.data ? { analytics: analytics.data } : {})} loading={analytics.isLoading} />
+          <RecipesTab
+            {...(analytics.data ? { analytics: analytics.data } : {})}
+            loading={analytics.isLoading}
+          />
         </TabsContent>
         <TabsContent value="telemetry" className="mt-4">
           <TelemetryTab range={range} />
@@ -365,7 +445,9 @@ function KpiCard({
         )}
       </div>
       <p className="mt-4 text-xs font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words font-display text-3xl font-semibold leading-tight tabular-nums">{value}</p>
+      <p className="mt-1 break-words font-display text-3xl font-semibold leading-tight tabular-nums">
+        {value}
+      </p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
@@ -386,7 +468,13 @@ function ChartCard({
         <h3 className="font-display text-lg leading-tight">{title}</h3>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
-      <Suspense fallback={<div className="flex h-[220px] items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
+      <Suspense
+        fallback={
+          <div className="flex h-[220px] items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        }
+      >
         {children}
       </Suspense>
     </div>
@@ -409,10 +497,29 @@ function OverviewTab({ analytics, loading }: { analytics?: Analytics; loading: b
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total users" value={users.total.toLocaleString()} icon={Users} delta={users.growthPct} />
-        <KpiCard label="Revenue (range)" value={`$${revenue.total.toFixed(2)}`} icon={DollarSign} delta={revenue.growthPct} />
-        <KpiCard label="Active premium" value={subscriptions.active + subscriptions.lifetime} icon={Crown} hint={`${subscriptions.trialing} in trial`} />
-        <KpiCard label="Conversion" value={`${subscriptions.conversionRate.toFixed(1)}%`} icon={Sparkles} />
+        <KpiCard
+          label="Total users"
+          value={users.total.toLocaleString()}
+          icon={Users}
+          delta={users.growthPct}
+        />
+        <KpiCard
+          label="Revenue (range)"
+          value={`$${revenue.total.toFixed(2)}`}
+          icon={DollarSign}
+          delta={revenue.growthPct}
+        />
+        <KpiCard
+          label="Active premium"
+          value={subscriptions.active + subscriptions.lifetime}
+          icon={Crown}
+          hint={`${subscriptions.trialing} in trial`}
+        />
+        <KpiCard
+          label="Conversion"
+          value={`${subscriptions.conversionRate.toFixed(1)}%`}
+          icon={Sparkles}
+        />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="New users" subtitle="Signups in selected range">
@@ -425,8 +532,16 @@ function OverviewTab({ analytics, loading }: { analytics?: Analytics; loading: b
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="New users" value={users.new.toLocaleString()} icon={Users} />
         <KpiCard label="New recipes" value={recipes.newInRange.toLocaleString()} icon={Utensils} />
-        <KpiCard label="Grocery items" value={analytics.grocery.itemsInRange.toLocaleString()} icon={Activity} />
-        <KpiCard label="Meal plans" value={analytics.planner.entriesInRange.toLocaleString()} icon={Activity} />
+        <KpiCard
+          label="Grocery items"
+          value={analytics.grocery.itemsInRange.toLocaleString()}
+          icon={Activity}
+        />
+        <KpiCard
+          label="Meal plans"
+          value={analytics.planner.entriesInRange.toLocaleString()}
+          icon={Activity}
+        />
       </div>
     </div>
   );
@@ -447,9 +562,18 @@ function UsersTab({ analytics, loading }: { analytics?: Analytics; loading: bool
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total users" value={analytics.users.total.toLocaleString()} icon={Users} delta={analytics.users.growthPct} />
+        <KpiCard
+          label="Total users"
+          value={analytics.users.total.toLocaleString()}
+          icon={Users}
+          delta={analytics.users.growthPct}
+        />
         <KpiCard label="New in range" value={analytics.users.new.toLocaleString()} icon={Users} />
-        <KpiCard label="Premium users" value={analytics.users.premium.toLocaleString()} icon={Crown} />
+        <KpiCard
+          label="Premium users"
+          value={analytics.users.premium.toLocaleString()}
+          icon={Crown}
+        />
         <KpiCard label="Free users" value={analytics.users.free.toLocaleString()} icon={Users} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -532,10 +656,29 @@ function RevenueTab({ analytics, loading }: { analytics?: Analytics; loading: bo
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Revenue (range)" value={`$${analytics.revenue.total.toFixed(2)}`} icon={DollarSign} delta={analytics.revenue.growthPct} />
-        <KpiCard label="Monthly (est.)" value={`$${monthlyEstimate.toFixed(2)}`} icon={TrendingUp} hint="Extrapolated from range" />
-        <KpiCard label="ARPU" value={`$${analytics.revenue.arpu.toFixed(2)}`} icon={Users} hint="Revenue / premium user" />
-        <KpiCard label="Refunds" value={`$${analytics.revenue.refunds.toFixed(2)}`} icon={TrendingDown} />
+        <KpiCard
+          label="Revenue (range)"
+          value={`$${analytics.revenue.total.toFixed(2)}`}
+          icon={DollarSign}
+          delta={analytics.revenue.growthPct}
+        />
+        <KpiCard
+          label="Monthly (est.)"
+          value={`$${monthlyEstimate.toFixed(2)}`}
+          icon={TrendingUp}
+          hint="Extrapolated from range"
+        />
+        <KpiCard
+          label="ARPU"
+          value={`$${analytics.revenue.arpu.toFixed(2)}`}
+          icon={Users}
+          hint="Revenue / premium user"
+        />
+        <KpiCard
+          label="Refunds"
+          value={`$${analytics.revenue.refunds.toFixed(2)}`}
+          icon={TrendingDown}
+        />
       </div>
       <ChartCard title="Revenue over time" subtitle="Daily payments in USD">
         <AreaTrend data={analytics.revenue.series} dataKey="amount" color="hsl(142 71% 45%)" />
@@ -565,10 +708,26 @@ function RecipesTab({ analytics, loading }: { analytics?: Analytics; loading: bo
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total recipes" value={analytics.recipes.total.toLocaleString()} icon={Utensils} />
-        <KpiCard label="New in range" value={analytics.recipes.newInRange.toLocaleString()} icon={Utensils} />
-        <KpiCard label="Grocery items" value={analytics.grocery.itemsInRange.toLocaleString()} icon={Activity} />
-        <KpiCard label="Meal plan entries" value={analytics.planner.entriesInRange.toLocaleString()} icon={Activity} />
+        <KpiCard
+          label="Total recipes"
+          value={analytics.recipes.total.toLocaleString()}
+          icon={Utensils}
+        />
+        <KpiCard
+          label="New in range"
+          value={analytics.recipes.newInRange.toLocaleString()}
+          icon={Utensils}
+        />
+        <KpiCard
+          label="Grocery items"
+          value={analytics.grocery.itemsInRange.toLocaleString()}
+          icon={Activity}
+        />
+        <KpiCard
+          label="Meal plan entries"
+          value={analytics.planner.entriesInRange.toLocaleString()}
+          icon={Activity}
+        />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title="Top categories">
@@ -632,7 +791,16 @@ function SubscribersTab() {
   const rows = data ?? [];
 
   function exportCsv() {
-    const header = ["user_id", "display_name", "tier", "status", "store", "period_end", "trial_end", "is_manual"];
+    const header = [
+      "user_id",
+      "display_name",
+      "tier",
+      "status",
+      "store",
+      "period_end",
+      "trial_end",
+      "is_manual",
+    ];
     const csv = [
       header.join(","),
       ...rows.map((r) =>
@@ -907,7 +1075,11 @@ function GrantTab() {
   return (
     <div className="max-w-md space-y-3 rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
       <h3 className="font-display text-lg">Manual grant / revoke</h3>
-      <Input placeholder="User ID (uuid)" value={userId} onChange={(e) => setUserId(e.target.value)} />
+      <Input
+        placeholder="User ID (uuid)"
+        value={userId}
+        onChange={(e) => setUserId(e.target.value)}
+      />
       <Input
         type="number"
         placeholder="Days"
@@ -922,9 +1094,7 @@ function GrantTab() {
           Revoke
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Find user IDs in the Users tab.
-      </p>
+      <p className="text-xs text-muted-foreground">Find user IDs in the Users tab.</p>
     </div>
   );
 }

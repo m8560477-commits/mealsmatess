@@ -13,14 +13,19 @@ import { toast } from "sonner";
 import { awardXp } from "@/lib/xp.functions";
 
 export const Route = createFileRoute("/list")({
-  head: () => ({ meta: [
-    { title: "My grocery list | MealMate" },
-    { name: "description", content: "Build and check off your personal MealMate grocery list." },
-    { property: "og:title", content: "My grocery list | MealMate" },
-    { property: "og:description", content: "Build and check off your personal MealMate grocery list." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "My grocery list | MealMate" },
+      { name: "description", content: "Build and check off your personal MealMate grocery list." },
+      { property: "og:title", content: "My grocery list | MealMate" },
+      {
+        property: "og:description",
+        content: "Build and check off your personal MealMate grocery list.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ListPage,
 });
 
@@ -113,7 +118,10 @@ function ListPage() {
       <ul className="mt-4 space-y-2">
         {items === undefined ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <li key={i} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+            <li
+              key={i}
+              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
+            >
               <Skeleton className="h-4 w-4 rounded" />
               <Skeleton className="h-4 flex-1 max-w-[60%]" />
             </li>
@@ -136,16 +144,12 @@ function ListPage() {
               />
               <div className="flex-1">
                 <span
-                  className={`text-sm ${
-                    item.checked ? "text-muted-foreground line-through" : ""
-                  }`}
+                  className={`text-sm ${item.checked ? "text-muted-foreground line-through" : ""}`}
                 >
                   {item.name}
                 </span>
                 {item.quantity && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {item.quantity}
-                  </span>
+                  <span className="ml-2 text-xs text-muted-foreground">{item.quantity}</span>
                 )}
               </div>
               <button

@@ -35,7 +35,12 @@ export function CookingMode({
 
   const step = steps[i] ?? "";
   const pct = steps.length ? ((i + 1) / steps.length) * 100 : 0;
-  const mm = seconds !== null ? Math.floor(seconds / 60).toString().padStart(2, "0") : "00";
+  const mm =
+    seconds !== null
+      ? Math.floor(seconds / 60)
+          .toString()
+          .padStart(2, "0")
+      : "00";
   const ss = seconds !== null ? (seconds % 60).toString().padStart(2, "0") : "00";
 
   return (
@@ -67,12 +72,7 @@ export function CookingMode({
           </span>
           <div className="ml-2 flex gap-1">
             {[1, 3, 5, 10, 15].map((m) => (
-              <Button
-                key={m}
-                size="sm"
-                variant="outline"
-                onClick={() => setSeconds(m * 60)}
-              >
+              <Button key={m} size="sm" variant="outline" onClick={() => setSeconds(m * 60)}>
                 {m}m
               </Button>
             ))}

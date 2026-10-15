@@ -69,7 +69,15 @@ export function useCart() {
 
   const addItem = useCallback(
     (
-      restaurant: Pick<Cart, "restaurant_id" | "restaurant_slug" | "restaurant_name" | "currency" | "delivery_fee" | "min_order_amount">,
+      restaurant: Pick<
+        Cart,
+        | "restaurant_id"
+        | "restaurant_slug"
+        | "restaurant_name"
+        | "currency"
+        | "delivery_fee"
+        | "min_order_amount"
+      >,
       line: Omit<CartLine, "quantity">,
       quantity = 1,
     ): { replaced: boolean } => {

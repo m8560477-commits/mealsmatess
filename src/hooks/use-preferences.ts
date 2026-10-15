@@ -42,8 +42,7 @@ export function usePreferences() {
         if (cancelled) return;
         const localNewer =
           local?.onboarding_completed &&
-          (!remote?.onboarding_completed ||
-            (local.updated_at ?? "") > (remote.updated_at ?? ""));
+          (!remote?.onboarding_completed || (local.updated_at ?? "") > (remote.updated_at ?? ""));
         if (localNewer && local) {
           const { updated_at: _drop, ...rest } = local;
           await saveMyPreferences({ data: rest });

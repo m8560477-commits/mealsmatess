@@ -51,7 +51,11 @@ export const Route = createFileRoute("/cookbook")({
   head: () => ({
     meta: [
       { property: "og:title", content: "Cookbook \u2014 MealMate" },
-      { property: "og:description", content: "Your saved and imported recipes. Import from TikTok, Instagram Reels, YouTube Shorts and more." },
+      {
+        property: "og:description",
+        content:
+          "Your saved and imported recipes. Import from TikTok, Instagram Reels, YouTube Shorts and more.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { title: "Cookbook — MealMate" },
@@ -177,11 +181,7 @@ function CookbookPage() {
     if (!user) return;
     setBusyId(recipeId);
     try {
-      await supabase
-        .from("favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("recipe_id", recipeId);
+      await supabase.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
       await queryClient.invalidateQueries({ queryKey: ["favorites"] });
       toast.success("Removed from Cookbook");
     } finally {
@@ -270,11 +270,7 @@ function CookbookPage() {
             Your saved and imported recipes, all in one place.
           </p>
         </div>
-        <Button
-          onClick={() => setImportOpen(true)}
-          className="shrink-0 rounded-full"
-          size="sm"
-        >
+        <Button onClick={() => setImportOpen(true)} className="shrink-0 rounded-full" size="sm">
           <Plus className="mr-1 h-4 w-4" />
           Import
         </Button>
@@ -299,8 +295,8 @@ function CookbookPage() {
           <Sparkles className="mx-auto h-10 w-10 text-primary" />
           <h2 className="mt-3 font-display text-xl">Your cookbook is empty</h2>
           <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
-            Paste a cooking video link from TikTok, Instagram Reels, YouTube Shorts, or
-            Facebook Reels — MealMate will turn it into a full recipe.
+            Paste a cooking video link from TikTok, Instagram Reels, YouTube Shorts, or Facebook
+            Reels — MealMate will turn it into a full recipe.
           </p>
           <Button className="mt-5" onClick={() => setImportOpen(true)}>
             <Link2 className="mr-2 h-4 w-4" />
@@ -320,19 +316,10 @@ function CookbookPage() {
                   params={{ slug: item.slug }}
                   className="block h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-muted"
                 >
-                  <RecipeImage
-                    recipe={item}
-                    size="thumb"
-                    className="h-full w-full object-cover"
-                  />
-
+                  <RecipeImage recipe={item} size="thumb" className="h-full w-full object-cover" />
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link
-                    to="/recipe/$slug"
-                    params={{ slug: item.slug }}
-                    className="block"
-                  >
+                  <Link to="/recipe/$slug" params={{ slug: item.slug }} className="block">
                     <h3 className="line-clamp-2 font-display text-base leading-tight">
                       {item.name}
                     </h3>
@@ -401,8 +388,8 @@ function CookbookPage() {
           <DialogHeader>
             <DialogTitle>Import a recipe from a video</DialogTitle>
             <DialogDescription>
-              Paste a link from TikTok, Instagram Reels, YouTube Shorts, Facebook Reels
-              or any cooking video. MealMate AI will extract the recipe.
+              Paste a link from TikTok, Instagram Reels, YouTube Shorts, Facebook Reels or any
+              cooking video. MealMate AI will extract the recipe.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -419,11 +406,7 @@ function CookbookPage() {
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setImportOpen(false)}
-              disabled={importing}
-            >
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
               Cancel
             </Button>
             <Button onClick={handleImport} disabled={importing || !importUrl.trim()}>
@@ -495,7 +478,14 @@ function IconAction({
         ? "text-rose-500 hover:bg-rose-500/10"
         : "text-muted-foreground hover:bg-muted";
   return (
-    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={`${base} ${color}`}>
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={`${base} ${color}`}
+    >
       <Icon className={`h-4 w-4 ${variant === "fav" ? "fill-current" : ""}`} />
     </button>
   );
@@ -515,9 +505,7 @@ function EditRecipeDialog({
   const [time, setTime] = useState<string>(
     item.cooking_time_minutes ? String(item.cooking_time_minutes) : "",
   );
-  const [servings, setServings] = useState<string>(
-    item.servings ? String(item.servings) : "",
-  );
+  const [servings, setServings] = useState<string>(item.servings ? String(item.servings) : "");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -647,12 +635,7 @@ function PlanDialog({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="pdate">Date</Label>
-            <Input
-              id="pdate"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <Input id="pdate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label>Meal</Label>

@@ -9,7 +9,8 @@ export function useShellMetrics(mode: ShellMode) {
     const nav = document.getElementById("app-nav");
 
     const update = () => {
-      const headerHeight = mode === "with-header" && header ? header.getBoundingClientRect().height : 0;
+      const headerHeight =
+        mode === "with-header" && header ? header.getBoundingClientRect().height : 0;
       const navHeight = nav?.getBoundingClientRect().height ?? 0;
       root.style.setProperty("--app-header-h", `${headerHeight}px`);
       root.style.setProperty("--app-nav-h", `${navHeight}px`);
@@ -17,7 +18,9 @@ export function useShellMetrics(mode: ShellMode) {
 
     const viewport = window.visualViewport;
     const updateKeyboard = () => {
-      const inset = viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      const inset = viewport
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
       const open = inset > 120;
       root.dataset["keyboard"] = open ? "open" : "closed";
       root.style.setProperty("--keyboard-inset", `${open ? inset : 0}px`);

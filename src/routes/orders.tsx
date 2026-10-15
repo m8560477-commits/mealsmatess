@@ -16,7 +16,8 @@ export const Route = createFileRoute("/orders")({
       { title: "My orders | MealMate" },
       {
         name: "description",
-        content: "Track your MealMate restaurant orders, see delivery progress and revisit past meals.",
+        content:
+          "Track your MealMate restaurant orders, see delivery progress and revisit past meals.",
       },
       { property: "og:title", content: "My orders | MealMate" },
       { property: "og:description", content: "Track and review your MealMate restaurant orders." },
@@ -46,7 +47,9 @@ function OrdersPage() {
   return (
     <div className="page-enter mx-auto w-full max-w-2xl px-4 py-6">
       <h1 className="font-display text-2xl">My orders</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Your restaurant orders and their live status.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Your restaurant orders and their live status.
+      </p>
 
       {!user ? (
         <div className="md3-surface mt-6 rounded-3xl border border-dashed border-border p-8 text-center">

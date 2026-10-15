@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,7 +8,9 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
+
 - Recipe photos come from src/lib/recipe-images.server.ts (official image APIs + AI relevance check), stored on the recipe row and cached; never pick unverified images client-side. Why: accuracy and API cost control.
 
 - Pantry management lives on /pantry and shares myPantryQuery with generation controls; this keeps ingredient edits and cooking prompts consistent.

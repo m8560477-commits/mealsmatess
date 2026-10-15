@@ -16,13 +16,22 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/scan")({
-  validateSearch: (search: Record<string, unknown>): { mode?: "ingredients" | "dish" } => ({ mode: search["mode"] === "ingredients" ? "ingredients" : "dish" }),
+  validateSearch: (search: Record<string, unknown>): { mode?: "ingredients" | "dish" } => ({
+    mode: search["mode"] === "ingredients" ? "ingredients" : "dish",
+  }),
   head: () => ({
     meta: [
       { title: "Food Scanner – MealMate" },
-      { name: "description", content: "Point your camera at a dish to identify it, get nutrition facts, and add it to your meal planner." },
+      {
+        name: "description",
+        content:
+          "Point your camera at a dish to identify it, get nutrition facts, and add it to your meal planner.",
+      },
       { property: "og:title", content: "Food Scanner – MealMate" },
-      { property: "og:description", content: "Identify any dish, see its nutrition, and save it to your planner." },
+      {
+        property: "og:description",
+        content: "Identify any dish, see its nutrition, and save it to your planner.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -115,7 +124,9 @@ function ScanPage() {
       if (mode === "dish") {
         const found = await scanDish({ data: { imageDataUrl: dataUrl } });
         if (!found.is_food) {
-          toast.info("That doesn't look like a dish", { description: "Try a clear photo of a plated meal." });
+          toast.info("That doesn't look like a dish", {
+            description: "Try a clear photo of a plated meal.",
+          });
           setPreview(null);
           return;
         }
@@ -125,7 +136,9 @@ function ScanPage() {
         const found = await scanKitchen({ data: { imageDataUrl: dataUrl } });
         setItems(found);
         if (found.length === 0) {
-          toast.info("Didn't spot any ingredients", { description: "Try a clearer, closer photo." });
+          toast.info("Didn't spot any ingredients", {
+            description: "Try a clearer, closer photo.",
+          });
         }
       }
     } catch (err) {
@@ -312,7 +325,9 @@ function ScanPage() {
           <dl className="mt-3 grid grid-cols-4 gap-2">
             {macros.map((m) => (
               <div key={m.label} className="rounded-2xl bg-muted px-2 py-3 text-center">
-                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{m.label}</dt>
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {m.label}
+                </dt>
                 <dd className="font-display text-lg">
                   {m.value ?? "–"}
                   <span className="text-xs font-normal">{m.value != null ? m.unit : ""}</span>
@@ -324,7 +339,10 @@ function ScanPage() {
           {dish.ingredients.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-2">
               {dish.ingredients.map((ing, i) => (
-                <li key={`${ing}-${i}`} className="rounded-full border border-border px-3 py-1 text-xs">
+                <li
+                  key={`${ing}-${i}`}
+                  className="rounded-full border border-border px-3 py-1 text-xs"
+                >
                   {ing}
                 </li>
               ))}
@@ -350,7 +368,11 @@ function ScanPage() {
                         ? "Today"
                         : i === 1
                           ? "Tomorrow"
-                          : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+                          : d.toLocaleDateString(undefined, {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                            })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -370,7 +392,11 @@ function ScanPage() {
             </div>
             <div className="mt-3 flex gap-3">
               <Button onClick={saveDishToPlanner} disabled={saving} className="rounded-full">
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
                 Add to planner
               </Button>
               <Button variant="secondary" className="rounded-full" onClick={reset}>
@@ -400,7 +426,11 @@ function ScanPage() {
           </ul>
           <div className="mt-6 flex gap-3">
             <Button onClick={addAllToPantry} disabled={saving} className="rounded-full">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               Add all to pantry
             </Button>
             <Button variant="secondary" className="rounded-full" onClick={reset}>

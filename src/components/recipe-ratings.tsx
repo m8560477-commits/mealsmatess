@@ -54,12 +54,15 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
     }
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("recipe_ratings")
-        .upsert(
-          { user_id: user.id, recipe_id: recipeId, rating: myRating, review: review.trim() || null },
-          { onConflict: "user_id,recipe_id" },
-        );
+      const { error } = await supabase.from("recipe_ratings").upsert(
+        {
+          user_id: user.id,
+          recipe_id: recipeId,
+          rating: myRating,
+          review: review.trim() || null,
+        },
+        { onConflict: "user_id,recipe_id" },
+      );
       if (error) throw error;
       toast.success("Thanks for rating!");
       await qc.invalidateQueries({ queryKey: ["ratings", recipeId] });

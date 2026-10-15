@@ -9,7 +9,11 @@ const IdSchema = z.object({ recipeId: z.string().uuid() });
 
 async function loadRecipe(recipeId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.from("recipes").select(RECIPE_COLS).eq("id", recipeId).maybeSingle();
+  const { data, error } = await supabaseAdmin
+    .from("recipes")
+    .select(RECIPE_COLS)
+    .eq("id", recipeId)
+    .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Recipe not found");
   return data;
@@ -18,7 +22,8 @@ async function loadRecipe(recipeId: string) {
 async function assertCanEdit(userId: string, createdBy: string | null) {
   if (createdBy && createdBy === userId) return;
   const { isAdmin } = await import("@/lib/marketplace.server");
-  if (!(await isAdmin(userId))) throw new Error("Only the recipe owner or an admin can change this image");
+  if (!(await isAdmin(userId)))
+    throw new Error("Only the recipe owner or an admin can change this image");
 }
 
 /**
@@ -29,30 +34,69 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
-    const { data: accessible, error } = await context.supabase.from("recipes").select("id").eq("id", data.recipeId).maybeSingle();
+    const { data: accessible, error } = await context.supabase
+      .from("recipes")
+      .select("id")
+      .eq("id", data.recipeId)
+      .maybeSingle();
     if (error || !accessible) throw new Error("Recipe not found");
     const srv = await import("@/lib/recipe-images.server");
     const r = await loadRecipe(data.recipeId);
     const signature = srv.recipeSignature(r);
     if (!srv.needsSearch(r, signature)) {
-      return { imageUrl: r.image_source ? r.image_url : null, source: r.image_source, confidence: r.image_confidence, searched: false };
+      return {
+        imageUrl: r.image_source ? r.image_url : null,
+        source: r.image_source,
+        confidence: r.image_confidence,
+        searched: false,
+      };
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Each recipe gets its own AI photo built from its ingredients and steps, generated once and reused.
     {
-      const { data: ok } = await supabaseAdmin.rpc("check_rate_limit", { _bucket: "recipe_image_ai", _identifier: context.userId, _max_per_minute: 6 });
-      if (ok === false) return { imageUrl: null, source: null, confidence: null, searched: false, reason: "rate_limited" };
-      const { data: credit } = await supabaseAdmin.rpc("consume_image_credit", { _user_id: context.userId });
-      const c = credit as { allowed?: boolean; max?: number; resets_at?: string; premium?: boolean } | null;
+      const { data: ok } = await supabaseAdmin.rpc("check_rate_limit", {
+        _bucket: "recipe_image_ai",
+        _identifier: context.userId,
+        _max_per_minute: 6,
+      });
+      if (ok === false)
+        return {
+          imageUrl: null,
+          source: null,
+          confidence: null,
+          searched: false,
+          reason: "rate_limited",
+        };
+      const { data: credit } = await supabaseAdmin.rpc("consume_image_credit", {
+        _user_id: context.userId,
+      });
+      const c = credit as {
+        allowed?: boolean;
+        max?: number;
+        resets_at?: string;
+        premium?: boolean;
+      } | null;
       if (c && c.allowed === false) {
-        return { imageUrl: null, source: null, confidence: null, searched: false, reason: "limit", limit: c.max ?? null, resetsAt: c.resets_at ?? null, premium: !!c.premium };
+        return {
+          imageUrl: null,
+          source: null,
+          confidence: null,
+          searched: false,
+          reason: "limit",
+          limit: c.max ?? null,
+          resetsAt: c.resets_at ?? null,
+          premium: !!c.premium,
+        };
       }
       // Claim the recipe so simultaneous searches don't generate twice.
       await srv.markChecked(r.id, signature);
       let url: string | null = null;
       for (let attempt = 0; attempt < 2 && !url; attempt++) {
-        try { url = await srv.generateAndSaveAiImage(r, signature); }
-        catch (e) { console.error("recipe image attempt failed", e); }
+        try {
+          url = await srv.generateAndSaveAiImage(r, signature);
+        } catch (e) {
+          console.error("recipe image attempt failed", e);
+        }
         if (!url && attempt === 0) await new Promise((res) => setTimeout(res, 1500));
       }
       if (url) return { imageUrl: url, source: "AI", confidence: 100, searched: true };
@@ -63,20 +107,48 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
       }
     }
     if (srv.configuredProviders().length === 0) {
-      return { imageUrl: null, source: null, confidence: null, searched: false, reason: "no_provider" };
+      return {
+        imageUrl: null,
+        source: null,
+        confidence: null,
+        searched: false,
+        reason: "no_provider",
+      };
     }
     // Global throttle protects the image APIs from bursts of page views.
-    const { data: allowed } = await supabaseAdmin.rpc("check_rate_limit", { _bucket: "recipe_image_search", _identifier: "global", _max_per_minute: 20 });
-    if (allowed === false) return { imageUrl: null, source: null, confidence: null, searched: false, reason: "rate_limited" };
+    const { data: allowed } = await supabaseAdmin.rpc("check_rate_limit", {
+      _bucket: "recipe_image_search",
+      _identifier: "global",
+      _max_per_minute: 20,
+    });
+    if (allowed === false)
+      return {
+        imageUrl: null,
+        source: null,
+        confidence: null,
+        searched: false,
+        reason: "rate_limited",
+      };
 
     // Claim the recipe so concurrent viewers don't trigger duplicate searches.
     await srv.markChecked(r.id, signature);
     const result = await srv.findBestImage(r);
     if (!result.best || !result.query) {
-      return { imageUrl: null, source: null, confidence: null, searched: true, reason: result.reason };
+      return {
+        imageUrl: null,
+        source: null,
+        confidence: null,
+        searched: true,
+        reason: result.reason,
+      };
     }
     await srv.saveImage(r.id, result.best, result.query, { signature });
-    return { imageUrl: result.best.url, source: result.best.provider, confidence: result.best.score ?? null, searched: true };
+    return {
+      imageUrl: result.best.url,
+      source: result.best.provider,
+      confidence: result.best.score ?? null,
+      searched: true,
+    };
   });
 
 export const getImageAlternatives = createServerFn({ method: "POST" })
@@ -86,7 +158,8 @@ export const getImageAlternatives = createServerFn({ method: "POST" })
     const srv = await import("@/lib/recipe-images.server");
     const r = await loadRecipe(data.recipeId);
     await assertCanEdit(context.userId, r.created_by);
-    if (srv.configuredProviders().length === 0) return { options: [], reason: "no_provider" as const };
+    if (srv.configuredProviders().length === 0)
+      return { options: [], reason: "no_provider" as const };
     const options = await srv.findAlternatives(r);
     return {
       options: options.map((c) => ({
@@ -121,17 +194,24 @@ export const chooseRecipeImage = createServerFn({ method: "POST" })
     const options = await srv.findAlternatives(r, 20);
     const pick = options.find((c) => c.provider === data.provider && c.id === data.id);
     if (!pick) throw new Error("That image is no longer available. Please pick another.");
-    await srv.saveImage(r.id, { ...pick, score: Math.max(pick.score ?? 0, 95) }, `manual: ${srv.buildQueries(r)[0]}`, {
-      locked: true,
-      signature: srv.recipeSignature(r),
-    });
+    await srv.saveImage(
+      r.id,
+      { ...pick, score: Math.max(pick.score ?? 0, 95) },
+      `manual: ${srv.buildQueries(r)[0]}`,
+      {
+        locked: true,
+        signature: srv.recipeSignature(r),
+      },
+    );
     return { imageUrl: pick.url };
   });
 
 /** Kept for compatibility; bulk generation is disabled by user preference. */
 export const backfillRecipeImages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((v: unknown) => z.object({ batchSize: z.number().int().min(1).max(10).default(5) }).parse(v ?? {}))
+  .inputValidator((v: unknown) =>
+    z.object({ batchSize: z.number().int().min(1).max(10).default(5) }).parse(v ?? {}),
+  )
   .handler(async ({ data, context }) => {
     const { isAdmin } = await import("@/lib/marketplace.server");
     if (!(await isAdmin(context.userId))) throw new Error("Admin access required");

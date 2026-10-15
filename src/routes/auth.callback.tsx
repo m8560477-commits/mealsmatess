@@ -4,13 +4,16 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth/callback")({
-  head: () => ({ meta: [
-    { title: "Completing Sign In — MealMate" },
-    { name: "description", content: "Complete your secure MealMate account sign-in." },
-    { property: "og:title", content: "Completing Sign In — MealMate" },
-    { property: "og:description", content: "Complete your secure MealMate account sign-in." },
-    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Completing Sign In — MealMate" },
+      { name: "description", content: "Complete your secure MealMate account sign-in." },
+      { property: "og:title", content: "Completing Sign In — MealMate" },
+      { property: "og:description", content: "Complete your secure MealMate account sign-in." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AuthCallbackPage,
 });
 
@@ -62,7 +65,10 @@ function AuthCallbackPage() {
       {error ? (
         <div className="space-y-4">
           <p className="text-sm text-destructive">{error}</p>
-          <button className="text-sm underline" onClick={() => void navigate({ to: "/auth", replace: true })}>
+          <button
+            className="text-sm underline"
+            onClick={() => void navigate({ to: "/auth", replace: true })}
+          >
             Return to sign in
           </button>
         </div>

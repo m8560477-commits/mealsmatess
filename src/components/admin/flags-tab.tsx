@@ -19,8 +19,12 @@ export function FlagsTab() {
   });
 
   const upsert = useMutation({
-    mutationFn: (v: { key: string; enabled: boolean; description?: string; rollout_percent: number }) =>
-      adminUpsertFeatureFlag({ data: v }),
+    mutationFn: (v: {
+      key: string;
+      enabled: boolean;
+      description?: string;
+      rollout_percent: number;
+    }) => adminUpsertFeatureFlag({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["feature-flags-admin"] });
       qc.invalidateQueries({ queryKey: ["feature-flags"] });
@@ -48,8 +52,16 @@ export function FlagsTab() {
       <div className="rounded-2xl border border-border bg-card p-4">
         <h3 className="font-medium">New flag</h3>
         <div className="mt-3 grid gap-2 md:grid-cols-[220px_1fr_auto]">
-          <Input placeholder="flag_key" value={newKey} onChange={(e) => setNewKey(e.target.value)} />
-          <Input placeholder="Description" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+          <Input
+            placeholder="flag_key"
+            value={newKey}
+            onChange={(e) => setNewKey(e.target.value)}
+          />
+          <Input
+            placeholder="Description"
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+          />
           <Button
             disabled={!newKey || upsert.isPending}
             onClick={() => {
@@ -77,10 +89,15 @@ export function FlagsTab() {
 
       <div className="space-y-2">
         {(flags ?? []).map((f) => (
-          <div key={f.key} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
+          <div
+            key={f.key}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4"
+          >
             <div className="min-w-0">
               <div className="font-mono text-sm">{f.key}</div>
-              {f.description && <div className="text-xs text-muted-foreground">{f.description}</div>}
+              {f.description && (
+                <div className="text-xs text-muted-foreground">{f.description}</div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm">

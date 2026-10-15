@@ -2,7 +2,13 @@ import { cn } from "@/lib/utils";
 import { useMascotTheme } from "@/hooks/use-mascot-theme";
 
 /** The MealMate mascot artwork for the selected theme. */
-export function MascotMark({ className, alt = "MealMate" }: { className?: string | undefined; alt?: string }) {
+export function MascotMark({
+  className,
+  alt = "MealMate",
+}: {
+  className?: string | undefined;
+  alt?: string;
+}) {
   const { theme } = useMascotTheme();
   return (
     <img

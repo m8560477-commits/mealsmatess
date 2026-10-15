@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
@@ -74,7 +82,10 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
       }
       if (!user) return;
       setSaving(true);
-      const { error } = await supabase.from("profiles").update({ theme: id } as never).eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ theme: id } as never)
+        .eq("id", user.id);
       setSaving(false);
       if (error) {
         console.error("[theme] save failed", error);
@@ -86,7 +97,10 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
     [themeId, user],
   );
 
-  const value = useMemo(() => ({ theme: getTheme(themeId), setTheme, saving }), [themeId, setTheme, saving]);
+  const value = useMemo(
+    () => ({ theme: getTheme(themeId), setTheme, saving }),
+    [themeId, setTheme, saving],
+  );
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }
 

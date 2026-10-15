@@ -3,6 +3,7 @@
 //   Unsplash (UNSPLASH_ACCESS_KEY) -> Pexels (PEXELS_API_KEY) -> Bing (BING_IMAGE_SEARCH_KEY)
 // Candidates are ranked by metadata, then verified visually by Lovable AI.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { lovableFetch } from "@/lib/lovable-ai.server";
 
 export type ProviderName = "Unsplash" | "Pexels" | "Bing";
 
@@ -49,22 +50,66 @@ export function configuredProviders(): ProviderName[] {
 // ---------- Query building ----------
 
 const STOP = new Set([
-  "salt", "pepper", "water", "oil", "to", "taste", "and", "or", "of", "the", "a", "fresh",
-  "chopped", "sliced", "finely", "crushed", "large", "small", "tin", "g", "ml", "tbsp", "tsp",
-  "cup", "cups", "clove", "cloves", "sugar", "flour", "butter", "milk", "garlic", "onion",
-  "onions", "egg", "eggs", "with", "for", "in", "boneless", "cubed", "grated",
+  "salt",
+  "pepper",
+  "water",
+  "oil",
+  "to",
+  "taste",
+  "and",
+  "or",
+  "of",
+  "the",
+  "a",
+  "fresh",
+  "chopped",
+  "sliced",
+  "finely",
+  "crushed",
+  "large",
+  "small",
+  "tin",
+  "g",
+  "ml",
+  "tbsp",
+  "tsp",
+  "cup",
+  "cups",
+  "clove",
+  "cloves",
+  "sugar",
+  "flour",
+  "butter",
+  "milk",
+  "garlic",
+  "onion",
+  "onions",
+  "egg",
+  "eggs",
+  "with",
+  "for",
+  "in",
+  "boneless",
+  "cubed",
+  "grated",
 ]);
 
 function words(s: string): string[] {
-  return s.toLowerCase().replace(/[^a-z\s-]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w));
+  return s
+    .toLowerCase()
+    .replace(/[^a-z\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP.has(w));
 }
 
 export function mainIngredients(r: RecipeForImage, max = 3): string[] {
-  const list = Array.isArray(r.ingredients) ? (r.ingredients as Array<{ name?: string } | string>) : [];
+  const list = Array.isArray(r.ingredients)
+    ? (r.ingredients as Array<{ name?: string } | string>)
+    : [];
   const nameWords = new Set(words(r.name));
   const out: string[] = [];
   for (const item of list) {
-    const raw = typeof item === "string" ? item : item?.name ?? "";
+    const raw = typeof item === "string" ? item : (item?.name ?? "");
     const first = raw.split(/[,(]/)[0] ?? "";
     const w = words(first).filter((x) => !nameWords.has(x));
     const phrase = w.slice(0, 2).join(" ");
@@ -92,13 +137,19 @@ export function buildQueries(r: RecipeForImage): string[] {
   const name = r.name.trim();
   const ing = mainIngredients(r);
   const dish = DISH_TYPE.find(([re]) => re.test(name))?.[1];
-  const cuisine = r.cuisine && !name.toLowerCase().includes(r.cuisine.toLowerCase()) ? r.cuisine : null;
+  const cuisine =
+    r.cuisine && !name.toLowerCase().includes(r.cuisine.toLowerCase()) ? r.cuisine : null;
   const diet = (r.diet_tags ?? []).find((t) => /vegan|vegetarian/i.test(t));
   const join = (...p: Array<string | null | undefined | false>) =>
     p.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
   const qs = [
     join(name, dish && !name.toLowerCase().includes(dish) ? dish : null, ing[0], "food"),
-    join(diet && !name.toLowerCase().includes(diet.toLowerCase()) ? diet.toLowerCase() : null, name, ing.slice(0, 2).join(" "), dish),
+    join(
+      diet && !name.toLowerCase().includes(diet.toLowerCase()) ? diet.toLowerCase() : null,
+      name,
+      ing.slice(0, 2).join(" "),
+      dish,
+    ),
     join("authentic", cuisine, name, "dish"),
     join(name, "close up food photography"),
     join(name),
@@ -146,9 +197,13 @@ async function searchUnsplash(q: string): Promise<ImageCandidate[]> {
     thumb: p.urls?.small,
     width: p.width,
     height: p.height,
-    title: [p.alt_description, p.description, (p.tags ?? []).map((t: any) => t.title).join(" ")].filter(Boolean).join(" "),
+    title: [p.alt_description, p.description, (p.tags ?? []).map((t: any) => t.title).join(" ")]
+      .filter(Boolean)
+      .join(" "),
     photographer: p.user?.name,
-    photographerUrl: p.user?.links?.html ? `${p.user.links.html}?utm_source=mealmate&utm_medium=referral` : undefined,
+    photographerUrl: p.user?.links?.html
+      ? `${p.user.links.html}?utm_source=mealmate&utm_medium=referral`
+      : undefined,
     pageUrl: p.links?.html ? `${p.links.html}?utm_source=mealmate&utm_medium=referral` : undefined,
     downloadLocation: p.links?.download_location,
   }));
@@ -206,9 +261,13 @@ export async function searchProvider(provider: ProviderName, q: string): Promise
     return cached.results as unknown as ImageCandidate[];
   }
   const results = (await SEARCHERS[provider](q)).filter((c) => c.url && c.thumb);
-  await supabaseAdmin
-    .from("image_search_cache")
-    .upsert({ cache_key: cacheKey, provider, query: q, results: results as any, created_at: new Date().toISOString() });
+  await supabaseAdmin.from("image_search_cache").upsert({
+    cache_key: cacheKey,
+    provider,
+    query: q,
+    results: results as any,
+    created_at: new Date().toISOString(),
+  });
   return results;
 }
 
@@ -224,14 +283,16 @@ const CONFLICTS: Array<[RegExp, RegExp]> = [
   [/burger/i, /pizza|pasta|curry/i],
 ];
 
-const NON_FOOD = /\blogo|screenshot|menu|collage|text|sign|poster|illustration|vector|icon|cartoon|people|woman|man\b/i;
+const NON_FOOD =
+  /\blogo|screenshot|menu|collage|text|sign|poster|illustration|vector|icon|cartoon|people|woman|man\b/i;
 
 export function metaScore(c: ImageCandidate, r: RecipeForImage): number {
   const hay = c.title.toLowerCase();
   const nameWords = words(r.name);
   const ing = mainIngredients(r);
   let s = 0;
-  if (nameWords.length) s += 40 * (nameWords.filter((w) => hay.includes(w)).length / nameWords.length);
+  if (nameWords.length)
+    s += 40 * (nameWords.filter((w) => hay.includes(w)).length / nameWords.length);
   if (ing.length) s += 20 * (ing.filter((w) => hay.includes(w.split(" ")[0]!)).length / ing.length);
   if (r.cuisine && hay.includes(r.cuisine.toLowerCase())) s += 5;
   if (/food|dish|meal|plate|bowl|cuisine/.test(hay)) s += 5;
@@ -256,7 +317,9 @@ function recipeSummary(r: RecipeForImage): string {
     r.category || r.meal_type ? `Type: ${r.category ?? r.meal_type}` : null,
     `Main ingredients: ${mainIngredients(r, 6).join(", ") || "unknown"}`,
     r.description ? `Description: ${r.description.slice(0, 300)}` : null,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
@@ -264,7 +327,10 @@ function recipeSummary(r: RecipeForImage): string {
  * Streams the Responses call and returns null if AI is unavailable, so the
  * caller falls back to metadata-only ranking with a stricter threshold.
  */
-export async function aiScore(r: RecipeForImage, cands: ImageCandidate[]): Promise<number[] | null> {
+export async function aiScore(
+  r: RecipeForImage,
+  cands: ImageCandidate[],
+): Promise<number[] | null> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key || cands.length === 0) return null;
   const content: any[] = [
@@ -279,19 +345,16 @@ export async function aiScore(r: RecipeForImage, cands: ImageCandidate[]): Promi
     },
   ];
   cands.forEach((c, i) => {
-    content.push({ type: "input_text", text: `Image ${i + 1} metadata: ${c.title.slice(0, 160) || "none"}` });
+    content.push({
+      type: "input_text",
+      text: `Image ${i + 1} metadata: ${c.title.slice(0, 160) || "none"}`,
+    });
     content.push({ type: "input_image", image_url: c.thumb, detail: "low" });
   });
 
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
+    const res = await lovableFetch("/responses", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "fetch",
-      },
       body: JSON.stringify({
         model: "openai/gpt-6-astra",
         stream: true,
@@ -314,7 +377,9 @@ export async function aiScore(r: RecipeForImage, cands: ImageCandidate[]): Promi
       }),
     });
     if (!res.ok || !res.body) {
-      console.error(`[images] AI check failed [${res.status}]: ${(await res.text()).slice(0, 300)}`);
+      console.error(
+        `[images] AI check failed [${res.status}]: ${(await res.text()).slice(0, 300)}`,
+      );
       return null;
     }
     const reader = res.body.getReader();
@@ -366,7 +431,11 @@ function dedupe(cands: ImageCandidate[]): ImageCandidate[] {
 }
 
 /** Rank candidates for one query: metadata first, then AI on the top few. */
-async function rank(r: RecipeForImage, cands: ImageCandidate[], aiTop = 6): Promise<ImageCandidate[]> {
+async function rank(
+  r: RecipeForImage,
+  cands: ImageCandidate[],
+  aiTop = 6,
+): Promise<ImageCandidate[]> {
   const scored = dedupe(cands)
     .map((c) => ({ ...c, metaScore: metaScore(c, r) }))
     .filter((c) => (c.metaScore ?? 0) >= 15)
@@ -377,7 +446,10 @@ async function rank(r: RecipeForImage, cands: ImageCandidate[], aiTop = 6): Prom
     .map((c, i) => {
       const aiS = ai ? ai[i]! : undefined;
       // AI judgement dominates; without AI, metadata must be very strong.
-      const score = aiS !== undefined ? Math.round(aiS * 0.8 + (c.metaScore ?? 0) * 0.2) : Math.round((c.metaScore ?? 0) * 0.85);
+      const score =
+        aiS !== undefined
+          ? Math.round(aiS * 0.8 + (c.metaScore ?? 0) * 0.2)
+          : Math.round((c.metaScore ?? 0) * 0.85);
       return { ...c, aiScore: aiS, score };
     })
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
@@ -401,7 +473,8 @@ export async function findBestImage(r: RecipeForImage, maxQueries = 4): Promise<
     for (const p of providers) {
       const ranked = await rank(r, await searchProvider(p, q));
       const top = ranked[0];
-      if (top && (!bestSoFar || (top.score ?? 0) > (bestSoFar.c.score ?? 0))) bestSoFar = { c: top, q };
+      if (top && (!bestSoFar || (top.score ?? 0) > (bestSoFar.c.score ?? 0)))
+        bestSoFar = { c: top, q };
       if (top && (top.score ?? 0) >= ACCEPT_THRESHOLD) return { best: top, query: q, tried };
     }
   }
@@ -419,10 +492,17 @@ export async function findAlternatives(r: RecipeForImage, limit = 8): Promise<Im
   return ranked.filter((c) => (c.score ?? 0) >= 40).slice(0, limit);
 }
 
-export async function saveImage(recipeId: string, c: ImageCandidate, query: string, opts: { locked?: boolean; signature: string }) {
+export async function saveImage(
+  recipeId: string,
+  c: ImageCandidate,
+  query: string,
+  opts: { locked?: boolean; signature: string },
+) {
   // Unsplash API terms: trigger a download event when a photo is used.
   if (c.provider === "Unsplash" && c.downloadLocation && process.env["UNSPLASH_ACCESS_KEY"]) {
-    void fetch(c.downloadLocation, { headers: { Authorization: `Client-ID ${process.env["UNSPLASH_ACCESS_KEY"]}` } }).catch(() => {});
+    void fetch(c.downloadLocation, {
+      headers: { Authorization: `Client-ID ${process.env["UNSPLASH_ACCESS_KEY"]}` },
+    }).catch(() => {});
   }
   const { error } = await supabaseAdmin
     .from("recipes")
@@ -431,7 +511,11 @@ export async function saveImage(recipeId: string, c: ImageCandidate, query: stri
       image_source: c.provider,
       image_query: query,
       image_confidence: c.score ?? null,
-      image_attribution: { photographer: c.photographer ?? null, photographerUrl: c.photographerUrl ?? null, pageUrl: c.pageUrl ?? null },
+      image_attribution: {
+        photographer: c.photographer ?? null,
+        photographerUrl: c.photographerUrl ?? null,
+        pageUrl: c.pageUrl ?? null,
+      },
       image_checked_at: new Date().toISOString(),
       image_signature: opts.signature,
       image_locked: opts.locked ?? false,
@@ -448,18 +532,25 @@ export async function markChecked(recipeId: string, signature: string) {
 }
 
 /** True when the stored image is trustworthy and current. */
-export function needsSearch(row: {
-  image_source: string | null;
-  image_confidence: number | null;
-  image_locked: boolean;
-  image_signature: string | null;
-  image_checked_at: string | null;
-}, signature: string): boolean {
+export function needsSearch(
+  row: {
+    image_source: string | null;
+    image_confidence: number | null;
+    image_locked: boolean;
+    image_signature: string | null;
+    image_checked_at: string | null;
+  },
+  signature: string,
+): boolean {
   if (row.image_locked) return false;
   const verified = !!row.image_source && (row.image_confidence ?? 0) >= ACCEPT_THRESHOLD;
   if (verified && row.image_signature === signature) return false;
   // Don't retry unsuccessful searches more than once a day.
-  if (row.image_checked_at && row.image_signature === signature && Date.now() - new Date(row.image_checked_at).getTime() < 24 * 3600 * 1000) {
+  if (
+    row.image_checked_at &&
+    row.image_signature === signature &&
+    Date.now() - new Date(row.image_checked_at).getTime() < 24 * 3600 * 1000
+  ) {
     return false;
   }
   return true;
@@ -473,7 +564,12 @@ function stepText(steps: unknown, max = 6): string {
   if (!Array.isArray(steps)) return "";
   return steps
     .slice(0, max)
-    .map((s, i) => `${i + 1}. ${typeof s === "string" ? s : (s as any)?.text ?? (s as any)?.instruction ?? (s as any)?.step ?? ""}`.slice(0, 160))
+    .map((s, i) =>
+      `${i + 1}. ${typeof s === "string" ? s : ((s as any)?.text ?? (s as any)?.instruction ?? (s as any)?.step ?? "")}`.slice(
+        0,
+        160,
+      ),
+    )
     .join("\n");
 }
 
@@ -481,7 +577,13 @@ function ingredientText(ingredients: unknown, max = 14): string {
   if (!Array.isArray(ingredients)) return "";
   return ingredients
     .slice(0, max)
-    .map((x) => (typeof x === "string" ? x : [(x as any)?.quantity, (x as any)?.unit, (x as any)?.name ?? (x as any)?.item].filter(Boolean).join(" ")))
+    .map((x) =>
+      typeof x === "string"
+        ? x
+        : [(x as any)?.quantity, (x as any)?.unit, (x as any)?.name ?? (x as any)?.item]
+            .filter(Boolean)
+            .join(" "),
+    )
     .filter(Boolean)
     .join(", ");
 }
@@ -518,7 +620,9 @@ export async function generateAndSaveAiImage(
   if (!b64) return null;
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const path = `${r.id}/${signature}.png`;
-  const { error: upErr } = await supabaseAdmin.storage.from(IMAGE_BUCKET).upload(path, bytes, { contentType: "image/png", upsert: true });
+  const { error: upErr } = await supabaseAdmin.storage
+    .from(IMAGE_BUCKET)
+    .upload(path, bytes, { contentType: "image/png", upsert: true });
   if (upErr) throw upErr;
   const { data: signed, error: signErr } = await supabaseAdmin.storage
     .from(IMAGE_BUCKET)

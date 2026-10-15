@@ -40,7 +40,7 @@ export function TrendingCard({
   /** Above-the-fold cards load eagerly; everything else lazily. */
   priority?: boolean;
 }) {
-  const dots = recipe.difficulty ? DIFFICULTY_DOTS[recipe.difficulty] ?? 1 : 1;
+  const dots = recipe.difficulty ? (DIFFICULTY_DOTS[recipe.difficulty] ?? 1) : 1;
   return (
     <div className="w-40 flex-shrink-0">
       <Link
@@ -115,7 +115,6 @@ export function RecipeCard({ recipe }: { recipe: RecipeCardData }) {
           size="card"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

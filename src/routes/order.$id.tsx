@@ -13,7 +13,8 @@ export const Route = createFileRoute("/order/$id")({
       { title: "Order tracking | MealMate" },
       {
         name: "description",
-        content: "Follow your MealMate order from the kitchen to your door with live status updates.",
+        content:
+          "Follow your MealMate order from the kitchen to your door with live status updates.",
       },
       { property: "og:title", content: "Order tracking | MealMate" },
       { property: "og:description", content: "Live status updates for your MealMate order." },

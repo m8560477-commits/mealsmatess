@@ -38,9 +38,7 @@ export const awardXp = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { awardXpFor, dayKey } = await import("@/lib/xp.server");
-    const refKey = data.entityId
-      ? `${data.entityId}:${dayKey()}`
-      : `${context.userId}:${dayKey()}`;
+    const refKey = data.entityId ? `${data.entityId}:${dayKey()}` : `${context.userId}:${dayKey()}`;
     return awardXpFor(supabaseUserId(context.userId), data.action, refKey);
   });
 

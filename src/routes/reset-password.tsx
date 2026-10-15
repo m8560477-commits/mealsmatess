@@ -8,14 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [
-    { title: "Reset password | MealMate" },
-    { name: "description", content: "Choose a new password for your MealMate account." },
-    { property: "og:title", content: "Reset password | MealMate" },
-    { property: "og:description", content: "Choose a new password for your MealMate account." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Reset password | MealMate" },
+      { name: "description", content: "Choose a new password for your MealMate account." },
+      { property: "og:title", content: "Reset password | MealMate" },
+      { property: "og:description", content: "Choose a new password for your MealMate account." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ResetPasswordPage,
 });
 

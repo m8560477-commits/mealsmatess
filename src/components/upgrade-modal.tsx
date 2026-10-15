@@ -122,8 +122,8 @@ function PaywallSheet({ reason, onClose }: { reason?: string; onClose: () => voi
           <TrustBadges />
 
           <p className="mt-4 text-center text-[11px] text-muted-foreground">
-            Purchases happen securely through Apple, Google or Paddle. Subscriptions
-            auto-renew until cancelled.
+            Purchases happen securely through Apple, Google or Paddle. Subscriptions auto-renew
+            until cancelled.
           </p>
           <p className="mt-1 text-center text-[11px] text-muted-foreground">
             <Link to="/profile" onClick={onClose} className="underline">
@@ -213,9 +213,7 @@ function FreeCard({ onSelect }: { onSelect: () => void }) {
           <Leaf className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Free
-          </p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Free</p>
           <p className="font-display text-2xl font-bold leading-none">$0</p>
           <p className="text-xs text-muted-foreground">Perfect to get started.</p>
         </div>
@@ -232,26 +230,18 @@ function FreeCard({ onSelect }: { onSelect: () => void }) {
   );
 }
 
-function PremiumCard({
-  billing,
-  onClose,
-}: {
-  billing: "annual" | "monthly";
-  onClose: () => void;
-}) {
+function PremiumCard({ billing, onClose }: { billing: "annual" | "monthly"; onClose: () => void }) {
   const { currency } = useCurrency();
   const monthlyUsd = PRICES_USD.premium_monthly;
   const annualUsd = PRICES_USD.premium_annual;
   const priceLabel =
-    billing === "annual"
-      ? formatPrice(annualUsd, currency)
-      : formatPrice(monthlyUsd, currency);
+    billing === "annual" ? formatPrice(annualUsd, currency) : formatPrice(monthlyUsd, currency);
   const perLabel = billing === "annual" ? "/year" : "/month";
   const perMonth = formatPrice(annualUsd / 12, currency);
 
   const features = [
     "Up to 100 Mia AI requests a day (fair use)",
-    
+
     "Enhanced Mia AI assistance",
     "Unlimited weekly meal plans",
     "Advanced Nutrition Analysis",
@@ -283,9 +273,7 @@ function PremiumCard({
               <span className="text-sm font-medium text-muted-foreground">{perLabel}</span>
             </p>
             {billing === "annual" && (
-              <p className="text-xs text-muted-foreground">
-                Just {perMonth}/mo · Save 37%
-              </p>
+              <p className="text-xs text-muted-foreground">Just {perMonth}/mo · Save 37%</p>
             )}
           </div>
         </div>
@@ -305,13 +293,7 @@ function PremiumCard({
   );
 }
 
-function FamilyCard({
-  billing,
-  onClose,
-}: {
-  billing: "annual" | "monthly";
-  onClose: () => void;
-}) {
+function FamilyCard({ billing, onClose }: { billing: "annual" | "monthly"; onClose: () => void }) {
   const { currency } = useCurrency();
   const priceLabel =
     billing === "annual"
@@ -359,13 +341,7 @@ function FamilyCard({
   );
 }
 
-function FeatureList({
-  items,
-  tone,
-}: {
-  items: string[];
-  tone: "muted" | "premium" | "family";
-}) {
+function FeatureList({ items, tone }: { items: string[]; tone: "muted" | "premium" | "family" }) {
   const bg =
     tone === "premium"
       ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
@@ -380,7 +356,12 @@ function FeatureList({
           className="flex items-start gap-2 text-sm animate-in fade-in slide-in-from-left-1"
           style={{ animationDelay: `${i * 40}ms`, animationFillMode: "backwards" }}
         >
-          <span className={cn("mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full", bg)}>
+          <span
+            className={cn(
+              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
+              bg,
+            )}
+          >
             <Check className="h-3 w-3" />
           </span>
           <span className="text-foreground">{f}</span>

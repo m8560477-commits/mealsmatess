@@ -16,7 +16,12 @@ export function useRestaurantRealtime(restaurantId: string | undefined, slug?: s
       .channel(`restaurant-live-${restaurantId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "menu_items", filter: `restaurant_id=eq.${restaurantId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "menu_items",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
         () => {
           queryClient.invalidateQueries({ queryKey: ["restaurant-menu", restaurantId] });
           queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
@@ -76,9 +81,13 @@ export function useMarketplaceRealtime() {
       .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => {
         queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_promotions" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "restaurant_promotions" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+        },
+      )
       .subscribe();
 
     return () => {
@@ -97,7 +106,12 @@ export function useOrderRealtime(orderId: string | undefined, onChange?: (status
       .channel(`order-live-${orderId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "restaurant_orders", filter: `id=eq.${orderId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "restaurant_orders",
+          filter: `id=eq.${orderId}`,
+        },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["order", orderId] });
           queryClient.invalidateQueries({ queryKey: ["restaurant-order", orderId] });
@@ -117,7 +131,10 @@ export function useOrderRealtime(orderId: string | undefined, onChange?: (status
 }
 
 /** Live order queue for the partner dashboard. */
-export function usePartnerOrdersRealtime(restaurantId: string | undefined, onNewOrder?: () => void) {
+export function usePartnerOrdersRealtime(
+  restaurantId: string | undefined,
+  onNewOrder?: () => void,
+) {
   const queryClient = useQueryClient();
 
   useEffect(() => {

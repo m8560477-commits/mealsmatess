@@ -86,7 +86,7 @@ const CURATED_ALIASES: Record<string, string> = {
   "chakalaka-with-pap-mealmate": "chakalaka-with-pap",
   "bunny-chow": "chicken-bunny-chow",
   "chicken-bunny-chow": "chicken-bunny-chow",
-  "kota": "kota-south-african-spatlo-7rwhl",
+  kota: "kota-south-african-spatlo-7rwhl",
   "kota-south-african-spatlo": "kota-south-african-spatlo-7rwhl",
   "kota-south-african-street-sandwich": "kota-south-african-spatlo-7rwhl",
   "malva-pudding": "malva-pudding",
@@ -96,7 +96,11 @@ const CURATED_ALIASES: Record<string, string> = {
 };
 
 function curatedKey(value: string): string {
-  const normalized = value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const normalized = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
   return CURATED_ALIASES[normalized] ?? normalized;
 }
 
@@ -133,11 +137,19 @@ export function curatedRecipeImageUrl(
 
 /** Neutral placeholder: never substitute a photograph of a different dish. */
 export const NEUTRAL_RECIPE_PLACEHOLDER = "/recipe-placeholder.svg";
-export function generatedImageUrl(_r: ImageRecipeLike, _size: ImageSize = "card"): string { return NEUTRAL_RECIPE_PLACEHOLDER; }
-export function recipeImageUrl(r: ImageRecipeLike, size: ImageSize = "card"): string {
-  return (r.image_source && r.image_url ? r.image_url : null) ?? curatedRecipeImageUrl(r, size) ?? NEUTRAL_RECIPE_PLACEHOLDER;
+export function generatedImageUrl(_r: ImageRecipeLike, _size: ImageSize = "card"): string {
+  return NEUTRAL_RECIPE_PLACEHOLDER;
 }
-export function categoryFallbackUrl(_r: ImageRecipeLike): string { return NEUTRAL_RECIPE_PLACEHOLDER; }
+export function recipeImageUrl(r: ImageRecipeLike, size: ImageSize = "card"): string {
+  return (
+    (r.image_source && r.image_url ? r.image_url : null) ??
+    curatedRecipeImageUrl(r, size) ??
+    NEUTRAL_RECIPE_PLACEHOLDER
+  );
+}
+export function categoryFallbackUrl(_r: ImageRecipeLike): string {
+  return NEUTRAL_RECIPE_PLACEHOLDER;
+}
 
 /** onError handler: fall back to the dish-matched photo, then a real category photo. */
 export function imageFallback(r: ImageRecipeLike, size: ImageSize = "card") {
@@ -155,4 +167,3 @@ export function imageFallback(r: ImageRecipeLike, size: ImageSize = "card") {
     }
   };
 }
-

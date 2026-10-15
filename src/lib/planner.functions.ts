@@ -31,10 +31,11 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age")
+      .select(
+        "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age",
+      )
       .eq("id", context.userId)
       .maybeSingle();
-
 
     const start = data.startDate ? new Date(data.startDate) : new Date();
     const dates: string[] = [];
@@ -64,7 +65,10 @@ Days: 1..${data.days}. One entry per meal per day.`;
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: "You are a certified nutritionist and chef. Respond with strict JSON only." },
+            {
+              role: "system",
+              content: "You are a certified nutritionist and chef. Respond with strict JSON only.",
+            },
             { role: "user", content: prompt },
           ],
         }),
@@ -72,11 +76,20 @@ Days: 1..${data.days}. One entry per meal per day.`;
       if (!res.ok) throw new Error(`AI ${res.status}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
       const raw = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      const cleaned = raw
+        .replace(/^```(?:json)?/i, "")
+        .replace(/```$/i, "")
+        .trim();
       const s = cleaned.indexOf("{");
       const e = cleaned.lastIndexOf("}");
       const parsed = JSON.parse(cleaned.slice(s, e + 1)) as {
-        plan: Array<{ day: number; meal_type: string; name: string; calories?: number; short_reason?: string }>;
+        plan: Array<{
+          day: number;
+          meal_type: string;
+          name: string;
+          calories?: number;
+          short_reason?: string;
+        }>;
       };
       const suggestions: MealSuggestion[] = (parsed.plan ?? []).map((p) => ({
         day: p.day,
@@ -86,10 +99,24 @@ Days: 1..${data.days}. One entry per meal per day.`;
         calories: p.calories ?? 0,
         short_reason: p.short_reason ?? "",
       }));
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.plan_generated", latency_ms: Date.now() - t0, success: true, metadata: { days: data.days, count: suggestions.length } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.plan_generated",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { days: data.days, count: suggestions.length },
+      });
       return { suggestions };
     } catch (err) {
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.plan_generated", latency_ms: Date.now() - t0, success: false, error: err instanceof Error ? err.message.slice(0, 500) : String(err) });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.plan_generated",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: err instanceof Error ? err.message.slice(0, 500) : String(err),
+      });
       throw err;
     }
   });
@@ -111,12 +138,15 @@ export const buildGroceryFromPlan = createServerFn({ method: "POST" })
     const map = new Map<string, { quantity: string | null; sources: Set<string> }>();
     for (const p of plans ?? []) {
       const rec = (p as { recipes?: { ingredients?: unknown; name?: string } | null }).recipes;
-      const ings = Array.isArray(rec?.ingredients) ? (rec!.ingredients as Array<{ name?: string; quantity?: string }>) : [];
+      const ings = Array.isArray(rec?.ingredients)
+        ? (rec!.ingredients as Array<{ name?: string; quantity?: string }>)
+        : [];
       for (const ing of ings) {
         if (!ing?.name) continue;
         const k = ing.name.trim().toLowerCase();
         const cur = map.get(k) ?? { quantity: null, sources: new Set() };
-        if (ing.quantity) cur.quantity = cur.quantity ? `${cur.quantity} + ${ing.quantity}` : ing.quantity;
+        if (ing.quantity)
+          cur.quantity = cur.quantity ? `${cur.quantity} + ${ing.quantity}` : ing.quantity;
         if (rec?.name) cur.sources.add(rec.name);
         map.set(k, cur);
       }
@@ -132,7 +162,13 @@ export const buildGroceryFromPlan = createServerFn({ method: "POST" })
     if (rows.length === 0) return { inserted: 0 };
     const { error: insErr } = await supabase.from("grocery_items").insert(rows);
     if (insErr) throw new Error(insErr.message);
-    void trackEvent({ user_id: context.userId, kind: "planner", name: "planner.autogrocery", success: true, metadata: { inserted: rows.length } });
+    void trackEvent({
+      user_id: context.userId,
+      kind: "planner",
+      name: "planner.autogrocery",
+      success: true,
+      metadata: { inserted: rows.length },
+    });
     return { inserted: rows.length };
   });
 
@@ -168,7 +204,6 @@ export const aiPlanAndShop = createServerFn({ method: "POST" })
       )
       .eq("id", userId)
       .maybeSingle();
-
 
     const start = data.startDate ? new Date(data.startDate) : new Date();
     const dates: string[] = [];
@@ -217,7 +252,10 @@ Days: 1..${data.days}. One entry per meal per day.`;
       if (!res.ok) throw new Error(`AI ${res.status}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
       const raw = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      const cleaned = raw
+        .replace(/^```(?:json)?/i, "")
+        .replace(/```$/i, "")
+        .trim();
       const s = cleaned.indexOf("{");
       const e = cleaned.lastIndexOf("}");
       const parsed = JSON.parse(cleaned.slice(s, e + 1)) as { plan: ShopMeal[] };
@@ -236,11 +274,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
     // Persist meal_plans (as custom entries).
     if (data.replaceExisting) {
-      await supabase
-        .from("meal_plans")
-        .delete()
-        .gte("plan_date", fromISO)
-        .lte("plan_date", toISO);
+      await supabase.from("meal_plans").delete().gte("plan_date", fromISO).lte("plan_date", toISO);
     }
 
     const planRows = suggestions.map((m) => ({
@@ -330,7 +364,9 @@ Days: 1..${data.days}. One entry per meal per day.`;
 export const suggestSubstitutions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) =>
-    z.object({ ingredient: z.string().min(1).max(120), context: z.string().max(300).optional() }).parse(v),
+    z
+      .object({ ingredient: z.string().min(1).max(120), context: z.string().max(300).optional() })
+      .parse(v),
   )
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
@@ -342,7 +378,10 @@ export const suggestSubstitutions = createServerFn({ method: "POST" })
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: "You are a culinary substitutions expert. Return JSON only." },
+            {
+              role: "system",
+              content: "You are a culinary substitutions expert. Return JSON only.",
+            },
             {
               role: "user",
               content: `Give 3 practical substitutes for "${data.ingredient}"${data.context ? ` in the context of ${data.context}` : ""}. JSON: {"substitutes":[{"name":"...","ratio":"1:1","notes":"..."}]}`,
@@ -353,16 +392,33 @@ export const suggestSubstitutions = createServerFn({ method: "POST" })
       if (!res.ok) throw new Error(`AI ${res.status}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
       const raw = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      const cleaned = raw
+        .replace(/^```(?:json)?/i, "")
+        .replace(/```$/i, "")
+        .trim();
       const s = cleaned.indexOf("{");
       const e = cleaned.lastIndexOf("}");
       const parsed = JSON.parse(cleaned.slice(s, e + 1)) as {
         substitutes: Array<{ name: string; ratio?: string; notes?: string }>;
       };
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.substitute", latency_ms: Date.now() - t0, success: true, metadata: { ingredient: data.ingredient } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.substitute",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { ingredient: data.ingredient },
+      });
       return { substitutes: parsed.substitutes ?? [] };
     } catch (err) {
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.substitute", latency_ms: Date.now() - t0, success: false, error: err instanceof Error ? err.message.slice(0, 500) : String(err) });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.substitute",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: err instanceof Error ? err.message.slice(0, 500) : String(err),
+      });
       throw err;
     }
   });

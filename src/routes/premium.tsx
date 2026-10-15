@@ -20,11 +20,7 @@ import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
 import { usePremium } from "@/hooks/use-premium";
 import { useCurrency, formatPrice, PRICES_USD } from "@/lib/currency";
-import {
-  applyReferralCode,
-  getMyReferral,
-  redeemPromoCode,
-} from "@/lib/premium.functions";
+import { applyReferralCode, getMyReferral, redeemPromoCode } from "@/lib/premium.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -109,8 +105,7 @@ function PremiumPage() {
       return;
     }
     toast.info("Premium purchases open on the MealMate mobile app", {
-      description:
-        "Sign in with the same account on iOS or Android to start your 3-day trial.",
+      description: "Sign in with the same account on iOS or Android to start your 3-day trial.",
     });
   }
 
@@ -127,13 +122,14 @@ function PremiumPage() {
             Unlock MealMate Premium
           </h1>
           <p className="mt-2 max-w-md text-sm/relaxed text-white/90">
-            Unlimited AI-powered recipes, meal plans, food scanning and nutrition
-            insights for you or your whole family.
+            Unlimited AI-powered recipes, meal plans, food scanning and nutrition insights for you
+            or your whole family.
           </p>
           {isPremium && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1.5 text-xs font-semibold backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
-              {t("premium.youAreMember", { defaultValue: "You're Premium" })} ({tier}) {trialActive ? "· trial" : ""}
+              {t("premium.youAreMember", { defaultValue: "You're Premium" })} ({tier}){" "}
+              {trialActive ? "· trial" : ""}
               {entitlement?.periodEnd
                 ? ` · ${new Date(entitlement.periodEnd).toLocaleDateString()}`
                 : ""}
@@ -147,8 +143,18 @@ function PremiumPage() {
       {/* Plan cards */}
       <section className="mt-6 space-y-4">
         <FreeCard onSelect={() => toast.success("You're on the Free plan.")} />
-        <PremiumHeroCard billing={billing} currency={currency} onSelect={startTrial} disabled={isPremium} />
-        <FamilyCard billing={billing} currency={currency} onSelect={startTrial} disabled={isPremium} />
+        <PremiumHeroCard
+          billing={billing}
+          currency={currency}
+          onSelect={startTrial}
+          disabled={isPremium}
+        />
+        <FamilyCard
+          billing={billing}
+          currency={currency}
+          onSelect={startTrial}
+          disabled={isPremium}
+        />
       </section>
 
       <TrustBadges />
@@ -191,9 +197,7 @@ function PremiumPage() {
                 Share your code — you both get 14 free Premium days.
               </p>
               <div className="mt-3 flex items-center justify-between rounded-2xl border border-dashed border-border bg-muted/40 px-3 py-2">
-                <code className="font-mono text-sm font-bold tracking-wider">
-                  {referral.code}
-                </code>
+                <code className="font-mono text-sm font-bold tracking-wider">{referral.code}</code>
                 <button
                   type="button"
                   onClick={() => {
@@ -341,7 +345,11 @@ function FreeCard({ onSelect }: { onSelect: () => void }) {
         </div>
       </div>
       <FeatureList items={features} tone="muted" />
-      <Button variant="outline" onClick={onSelect} className="mt-4 h-11 w-full rounded-2xl font-semibold">
+      <Button
+        variant="outline"
+        onClick={onSelect}
+        className="mt-4 h-11 w-full rounded-2xl font-semibold"
+      >
         Continue Free
       </Button>
     </article>
@@ -366,7 +374,7 @@ function PremiumHeroCard({
   const perMonth = formatPrice(PRICES_USD.premium_annual / 12, currency);
   const features = [
     "Up to 100 Mia AI requests a day (fair use)",
-    
+
     "Enhanced Mia AI assistance",
     "Advanced Nutrition Analysis",
     "Barcode Scanner",
@@ -478,13 +486,7 @@ function FamilyCard({
   );
 }
 
-function FeatureList({
-  items,
-  tone,
-}: {
-  items: string[];
-  tone: "muted" | "premium" | "family";
-}) {
+function FeatureList({ items, tone }: { items: string[]; tone: "muted" | "premium" | "family" }) {
   const bg =
     tone === "premium"
       ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
@@ -499,7 +501,12 @@ function FeatureList({
           className="flex items-start gap-2 text-sm animate-in fade-in slide-in-from-left-1"
           style={{ animationDelay: `${i * 35}ms`, animationFillMode: "backwards" }}
         >
-          <span className={cn("mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full", bg)}>
+          <span
+            className={cn(
+              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
+              bg,
+            )}
+          >
             <Check className="h-3 w-3" />
           </span>
           <span className="text-foreground">{f}</span>

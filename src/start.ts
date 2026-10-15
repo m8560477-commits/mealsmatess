@@ -29,19 +29,17 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
   const res =
     result instanceof Response
       ? result
-      : result && typeof result === "object" && (result as { response?: unknown }).response instanceof Response
-        ? ((result as { response: Response }).response)
+      : result &&
+          typeof result === "object" &&
+          (result as { response?: unknown }).response instanceof Response
+        ? (result as { response: Response }).response
         : null;
   if (res) {
     const h = res.headers;
     h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-    h.set("X-Frame-Options", "SAMEORIGIN");
     h.set("X-Content-Type-Options", "nosniff");
     h.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    h.set(
-      "Permissions-Policy",
-      "camera=(self), microphone=(), geolocation=(), payment=(self)",
-    );
+    h.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=(self)");
     h.set(
       "Content-Security-Policy",
       [
@@ -52,7 +50,7 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
         "img-src 'self' data: blob: https:",
         "media-src 'self' blob: https:",
         "connect-src 'self' https: wss:",
-        "frame-ancestors 'self'",
+        "frame-ancestors *",
         "base-uri 'self'",
         "form-action 'self'",
       ].join("; "),
@@ -65,4 +63,3 @@ export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [errorMiddleware, securityHeadersMiddleware],
 }));
-

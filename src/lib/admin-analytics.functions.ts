@@ -46,10 +46,7 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
     const to = new Date(data.to);
     const fromIso = from.toISOString();
     const toIso = to.toISOString();
-    const spanDays = Math.max(
-      1,
-      Math.ceil((to.getTime() - from.getTime()) / 86400000),
-    );
+    const spanDays = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86400000));
     const prevFrom = new Date(from.getTime() - spanDays * 86400000);
     const prevTo = from;
 
@@ -183,10 +180,7 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
       date,
       amount: Number(amount.toFixed(2)),
     }));
-    const prevRevenue = (prevPaymentsRows ?? []).reduce(
-      (s, p) => s + Number(p.amount_usd ?? 0),
-      0,
-    );
+    const prevRevenue = (prevPaymentsRows ?? []).reduce((s, p) => s + Number(p.amount_usd ?? 0), 0);
     const revenueGrowth = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
     const userGrowth =
       (prevNewUsers ?? 0) > 0
@@ -307,9 +301,7 @@ export const adminListAuditLogs = createServerFn({ method: "GET" })
 // ---------- Users list ----------
 export const adminListUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((v: unknown) =>
-    z.object({ search: z.string().optional() }).parse(v),
-  )
+  .inputValidator((v: unknown) => z.object({ search: z.string().optional() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -373,10 +365,15 @@ export const getAdminTelemetry = createServerFn({ method: "POST" })
     const total = rows.length;
     const successes = rows.filter((r) => r.success).length;
     const successRate = total > 0 ? (successes / total) * 100 : 0;
-    const latencies = rows.map((r) => r.latency_ms ?? 0).filter((n) => n > 0).sort((a, b) => a - b);
+    const latencies = rows
+      .map((r) => r.latency_ms ?? 0)
+      .filter((n) => n > 0)
+      .sort((a, b) => a - b);
     const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : 0;
     const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : 0;
-    const avgLatency = latencies.length ? Math.round(latencies.reduce((s, n) => s + n, 0) / latencies.length) : 0;
+    const avgLatency = latencies.length
+      ? Math.round(latencies.reduce((s, n) => s + n, 0) / latencies.length)
+      : 0;
 
     // Series per day
     const dayBucket = new Map<string, { count: number; errors: number }>();
@@ -388,10 +385,17 @@ export const getAdminTelemetry = createServerFn({ method: "POST" })
       b.count += 1;
       if (!r.success) b.errors += 1;
     }
-    const series = Array.from(dayBucket.entries()).map(([date, v]) => ({ date, count: v.count, errors: v.errors }));
+    const series = Array.from(dayBucket.entries()).map(([date, v]) => ({
+      date,
+      count: v.count,
+      errors: v.errors,
+    }));
 
     // By event name
-    const byName = new Map<string, { count: number; errors: number; totalLatency: number; latCount: number }>();
+    const byName = new Map<
+      string,
+      { count: number; errors: number; totalLatency: number; latCount: number }
+    >();
     for (const r of rows) {
       const b = byName.get(r.name) ?? { count: 0, errors: 0, totalLatency: 0, latCount: 0 };
       b.count += 1;
@@ -407,7 +411,7 @@ export const getAdminTelemetry = createServerFn({ method: "POST" })
         name,
         count: v.count,
         errors: v.errors,
-        successRate: v.count > 0 ? Number(((v.count - v.errors) / v.count * 100).toFixed(1)) : 0,
+        successRate: v.count > 0 ? Number((((v.count - v.errors) / v.count) * 100).toFixed(1)) : 0,
         avgLatencyMs: v.latCount > 0 ? Math.round(v.totalLatency / v.latCount) : 0,
       }))
       .sort((a, b) => b.count - a.count);

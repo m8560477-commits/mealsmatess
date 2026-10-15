@@ -39,7 +39,9 @@ const ACTIVATE_TYPES = new Set([
 ]);
 const EXPIRE_TYPES = new Set(["EXPIRATION", "CANCELLATION", "REFUND", "SUBSCRIPTION_PAUSED"]);
 
-function tierFromProduct(productId: string | undefined): "monthly" | "annual" | "lifetime" | "promo" {
+function tierFromProduct(
+  productId: string | undefined,
+): "monthly" | "annual" | "lifetime" | "promo" {
   const p = (productId ?? "").toLowerCase();
   if (p.includes("annual") || p.includes("year")) return "annual";
   if (p.includes("lifetime") || p.includes("forever")) return "lifetime";
@@ -47,7 +49,9 @@ function tierFromProduct(productId: string | undefined): "monthly" | "annual" | 
   return "monthly";
 }
 
-function storeFrom(s: string | undefined): "app_store" | "play_store" | "stripe" | "promo" | "admin" {
+function storeFrom(
+  s: string | undefined,
+): "app_store" | "play_store" | "stripe" | "promo" | "admin" {
   switch ((s ?? "").toUpperCase()) {
     case "APP_STORE":
     case "MAC_APP_STORE":
@@ -104,7 +108,9 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
         const userId = evt.app_user_id; // app must set RC appUserId = supabase user.id
         const tier = tierFromProduct(evt.product_id);
         const store = storeFrom(evt.store);
-        const periodEnd = evt.expiration_at_ms ? new Date(evt.expiration_at_ms).toISOString() : null;
+        const periodEnd = evt.expiration_at_ms
+          ? new Date(evt.expiration_at_ms).toISOString()
+          : null;
         const purchasedAt = evt.purchased_at_ms
           ? new Date(evt.purchased_at_ms).toISOString()
           : new Date().toISOString();
@@ -131,7 +137,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
             environment: evt.environment ?? null,
             period_start: purchasedAt,
             period_end: periodEnd,
-            trial_end: status === "trialing" ? periodEnd : existing?.trial_end ?? null,
+            trial_end: status === "trialing" ? periodEnd : (existing?.trial_end ?? null),
             auto_renew: evt.type !== "CANCELLATION",
             is_manual: false,
           } as const;
@@ -166,7 +172,10 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
                 occurred_at: purchasedAt,
                 raw: JSON.parse(JSON.stringify(evt)),
               })
-              .then(() => undefined, () => undefined);
+              .then(
+                () => undefined,
+                () => undefined,
+              );
           }
 
           // Reward pending referrals on first paid conversion
@@ -199,23 +208,30 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
               .update({
                 status: newStatus,
                 auto_renew: evt.type === "CANCELLATION" ? false : existing.auto_renew,
-                cancelled_at: evt.type === "CANCELLATION" ? new Date().toISOString() : existing.cancelled_at,
+                cancelled_at:
+                  evt.type === "CANCELLATION" ? new Date().toISOString() : existing.cancelled_at,
               })
               .eq("id", existing.id);
           }
           if (evt.type === "REFUND" && evt.id) {
-            await supabaseAdmin.from("payments").insert({
-              user_id: userId,
-              subscription_id: existing?.id ?? null,
-              rc_event_id: evt.id,
-              amount_usd: evt.price_in_purchased_currency
-                ? -Math.abs(evt.price_in_purchased_currency)
-                : null,
-              currency: evt.currency ?? "USD",
-              kind: "refund",
-              occurred_at: purchasedAt,
-              raw: JSON.parse(JSON.stringify(evt)),
-            }).then(() => undefined, () => undefined);
+            await supabaseAdmin
+              .from("payments")
+              .insert({
+                user_id: userId,
+                subscription_id: existing?.id ?? null,
+                rc_event_id: evt.id,
+                amount_usd: evt.price_in_purchased_currency
+                  ? -Math.abs(evt.price_in_purchased_currency)
+                  : null,
+                currency: evt.currency ?? "USD",
+                kind: "refund",
+                occurred_at: purchasedAt,
+                raw: JSON.parse(JSON.stringify(evt)),
+              })
+              .then(
+                () => undefined,
+                () => undefined,
+              );
           }
         } else if (evt.type === "BILLING_ISSUE") {
           if (existing) {
@@ -258,7 +274,11 @@ async function grantDays(userId: string, days: number) {
   if (current) {
     await supabaseAdmin
       .from("subscriptions")
-      .update({ status: "active", period_end: newEnd, tier: current.tier === "free" ? "promo" : current.tier })
+      .update({
+        status: "active",
+        period_end: newEnd,
+        tier: current.tier === "free" ? "promo" : current.tier,
+      })
       .eq("id", current.id);
   } else {
     await supabaseAdmin.from("subscriptions").insert({

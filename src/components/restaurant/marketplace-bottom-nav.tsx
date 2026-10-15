@@ -33,14 +33,31 @@ export function MarketplaceBottomNav() {
   };
 
   return (
-    <nav aria-label="Food marketplace" className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-3xl border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+    <nav
+      aria-label="Food marketplace"
+      className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-3xl border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+    >
       <div className="grid grid-cols-5">
         {link(LINK_TABS[0])}
-        <Button variant="ghost" className="h-auto min-h-14 rounded-none px-1 text-muted-foreground" onClick={() => toast.info("Pick n Pay is coming to MealMate soon") }>
-          <span className="flex flex-col items-center gap-1 text-[10px] font-semibold"><ShoppingBag className="h-5 w-5" />Pick n Pay</span>
+        <Button
+          variant="ghost"
+          className="h-auto min-h-14 rounded-none px-1 text-muted-foreground"
+          onClick={() => toast.info("Pick n Pay is coming to MealMate soon")}
+        >
+          <span className="flex flex-col items-center gap-1 text-[10px] font-semibold">
+            <ShoppingBag className="h-5 w-5" />
+            Pick n Pay
+          </span>
         </Button>
-        <Button variant="ghost" className="h-auto min-h-14 rounded-none px-1 text-muted-foreground" onClick={() => toast.info("Shops are coming to MealMate soon") }>
-          <span className="flex flex-col items-center gap-1 text-[10px] font-semibold"><Store className="h-5 w-5" />Shops</span>
+        <Button
+          variant="ghost"
+          className="h-auto min-h-14 rounded-none px-1 text-muted-foreground"
+          onClick={() => toast.info("Shops are coming to MealMate soon")}
+        >
+          <span className="flex flex-col items-center gap-1 text-[10px] font-semibold">
+            <Store className="h-5 w-5" />
+            Shops
+          </span>
         </Button>
         {link(LINK_TABS[1])}
         {link(LINK_TABS[2])}

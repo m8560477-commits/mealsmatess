@@ -67,7 +67,9 @@ export const recipesByCategoryQuery = (category: string | undefined, search = ""
       }
       if (search.trim()) {
         const term = search.trim().replace(/[(),]/g, " ");
-        q = q.or(`name.ilike.%${term}%,cuisine.ilike.%${term}%,category.ilike.%${term}%,country.ilike.%${term}%`);
+        q = q.or(
+          `name.ilike.%${term}%,cuisine.ilike.%${term}%,category.ilike.%${term}%,country.ilike.%${term}%`,
+        );
       }
       const { data, error } = await q;
       if (error) throw error;

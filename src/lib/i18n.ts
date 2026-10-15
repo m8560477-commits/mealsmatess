@@ -197,30 +197,26 @@ export const en = {
 // for every key. Translation packs can be filled in later.
 const emptyPack = {};
 
-void i18n
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      af: { translation: emptyPack },
-      zu: { translation: emptyPack },
-      xh: { translation: emptyPack },
-      st: { translation: emptyPack },
-      tn: { translation: emptyPack },
-      nso: { translation: emptyPack },
-      ve: { translation: emptyPack },
-      ts: { translation: emptyPack },
-      ss: { translation: emptyPack },
-      nr: { translation: emptyPack },
-    },
-    lng:
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("mealmate-lang") ?? "en"
-        : "en",
-    fallbackLng: "en",
-    interpolation: { escapeValue: false },
-    returnNull: false,
-    react: { useSuspense: false },
-  });
+void i18n.use(initReactI18next).init({
+  resources: {
+    en: { translation: en },
+    af: { translation: emptyPack },
+    zu: { translation: emptyPack },
+    xh: { translation: emptyPack },
+    st: { translation: emptyPack },
+    tn: { translation: emptyPack },
+    nso: { translation: emptyPack },
+    ve: { translation: emptyPack },
+    ts: { translation: emptyPack },
+    ss: { translation: emptyPack },
+    nr: { translation: emptyPack },
+  },
+  lng:
+    typeof window !== "undefined" ? (window.localStorage.getItem("mealmate-lang") ?? "en") : "en",
+  fallbackLng: "en",
+  interpolation: { escapeValue: false },
+  returnNull: false,
+  react: { useSuspense: false },
+});
 
 export default i18n;

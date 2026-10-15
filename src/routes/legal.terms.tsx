@@ -18,7 +18,10 @@ export const Route = createFileRoute("/legal/terms")({
 function TermsPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-      <Link to="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/profile"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ChevronLeft className="h-4 w-4" />
         Back to settings
       </Link>
@@ -28,23 +31,20 @@ function TermsPage() {
         <div>
           <h2 className="font-display text-xl">Using MealMate</h2>
           <p>
-            By using MealMate you agree to use the app for personal cooking and meal planning.
-            Be kind, follow the law, and don't submit unsafe content.
+            By using MealMate you agree to use the app for personal cooking and meal planning. Be
+            kind, follow the law, and don't submit unsafe content.
           </p>
         </div>
         <div>
           <h2 className="font-display text-xl">Your content</h2>
           <p>
-            You own the recipes, notes, and photos you save. You grant MealMate a licence to
-            store them so we can display them to you across your devices.
+            You own the recipes, notes, and photos you save. You grant MealMate a licence to store
+            them so we can display them to you across your devices.
           </p>
         </div>
         <div>
           <h2 className="font-display text-xl">Accounts</h2>
-          <p>
-            Keep your login credentials safe. We may suspend accounts that violate these terms.
-          </p>
-
+          <p>Keep your login credentials safe. We may suspend accounts that violate these terms.</p>
         </div>
         <p className="text-xs text-muted-foreground">
           This is a summary and not a substitute for legal review.

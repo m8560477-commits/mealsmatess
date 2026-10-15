@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Film, Images, Loader2, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import {
+  Download,
+  Film,
+  Images,
+  Loader2,
+  Pause,
+  Play,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { VisualExplanation } from "@/lib/visual.functions";
 import { Button } from "@/components/ui/button";
@@ -343,7 +353,11 @@ export function VisualExplainer({ data }: { data: VisualExplanation }) {
           <Images className="mr-1 h-4 w-4" /> Images
         </Button>
         <Button size="sm" onClick={recordVideo} disabled={recording}>
-          {recording ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Film className="mr-1 h-4 w-4" />}
+          {recording ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <Film className="mr-1 h-4 w-4" />
+          )}
           {recording ? "Exporting…" : "Download video"}
         </Button>
       </div>
@@ -360,7 +374,9 @@ export function VisualExplainer({ data }: { data: VisualExplanation }) {
               setPlaying(true);
             }}
             className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-              i === index ? "border-transparent bg-primary text-primary-foreground" : "border-border hover:bg-muted"
+              i === index
+                ? "border-transparent bg-primary text-primary-foreground"
+                : "border-border hover:bg-muted"
             }`}
           >
             {i + 1}. {s.heading}
@@ -368,7 +384,8 @@ export function VisualExplainer({ data }: { data: VisualExplanation }) {
         ))}
       </div>
       <p className="flex items-center gap-1 px-1 pb-1 text-xs text-muted-foreground">
-        <Download className="h-3 w-3" /> Exports use your current aspect ratio — switch to 9:16 for social.
+        <Download className="h-3 w-3" /> Exports use your current aspect ratio — switch to 9:16 for
+        social.
       </p>
     </div>
   );

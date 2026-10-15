@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useSession } from "@/hooks/use-session";
+import { useSession, signOutUnified } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/theme-provider";
@@ -40,7 +40,10 @@ export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
       { property: "og:title", content: "Settings \u2014 MealMate" },
-      { property: "og:description", content: "Manage your MealMate account, currency, language, notifications, and privacy." },
+      {
+        property: "og:description",
+        content: "Manage your MealMate account, currency, language, notifications, and privacy.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { title: "Settings — MealMate" },
@@ -90,16 +93,31 @@ const LANGUAGES: { code: string; name: string }[] = [
 
 // Best-effort region → currency map for first-launch defaults.
 const REGION_CURRENCY: Record<string, string> = {
-  US: "USD", ZA: "ZAR", GB: "GBP", IE: "EUR", DE: "EUR", FR: "EUR", ES: "EUR",
-  IT: "EUR", NL: "EUR", PT: "EUR", AT: "EUR", BE: "EUR", FI: "EUR", GR: "EUR",
-  AU: "AUD", CA: "CAD", NZ: "NZD",
+  US: "USD",
+  ZA: "ZAR",
+  GB: "GBP",
+  IE: "EUR",
+  DE: "EUR",
+  FR: "EUR",
+  ES: "EUR",
+  IT: "EUR",
+  NL: "EUR",
+  PT: "EUR",
+  AT: "EUR",
+  BE: "EUR",
+  FI: "EUR",
+  GR: "EUR",
+  AU: "AUD",
+  CA: "CAD",
+  NZ: "NZD",
 };
 
 function detectCurrency(): string {
   if (typeof navigator === "undefined") return "USD";
   const region =
     (Intl.DateTimeFormat().resolvedOptions() as { locale?: string }).locale
-      ?.split("-")?.[1]?.toUpperCase() ?? "";
+      ?.split("-")?.[1]
+      ?.toUpperCase() ?? "";
   return REGION_CURRENCY[region] ?? "USD";
 }
 
@@ -180,11 +198,7 @@ function SettingsPage() {
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Couldn't sign out");
-      return;
-    }
+    await signOutUnified();
     toast.success("Signed out");
     navigate({ to: "/auth", replace: true });
   }
@@ -265,19 +279,49 @@ function SettingsPage() {
   ];
 
   const supportItems: Item[] = [
-    { label: "Help Center", description: "Answers to common questions", icon: HelpCircle, to: "/support" },
-    { label: "Contact support", description: "Get in touch with the team", icon: Mail, href: "mailto:support@mealmate.app" },
+    {
+      label: "Help Center",
+      description: "Answers to common questions",
+      icon: HelpCircle,
+      to: "/support",
+    },
+    {
+      label: "Contact support",
+      description: "Get in touch with the team",
+      icon: Mail,
+      href: "mailto:support@mealmate.app",
+    },
   ];
 
   const aboutItems: Item[] = [
     { label: "About MealMate", description: "Version and credits", icon: Info, to: "/about" },
-    { label: "Follow on Instagram", description: "@mealmate.sp", icon: Share2, href: "https://www.instagram.com/mealmate.sp" },
-    { label: "Follow on TikTok", description: "@mealmate.sp", icon: Share2, href: "https://www.tiktok.com/@mealmate.sp" },
+    {
+      label: "Follow on Instagram",
+      description: "@mealmate.sp",
+      icon: Share2,
+      href: "https://www.instagram.com/mealmate.sp",
+    },
+    {
+      label: "Follow on TikTok",
+      description: "@mealmate.sp",
+      icon: Share2,
+      href: "https://www.tiktok.com/@mealmate.sp",
+    },
   ];
 
   const legalItems: Item[] = [
-    { label: "Terms of Service", description: "The rules for using MealMate", icon: FileText, to: "/legal/terms" },
-    { label: "Privacy Policy", description: "How we handle your data", icon: Shield, to: "/legal/privacy" },
+    {
+      label: "Terms of Service",
+      description: "The rules for using MealMate",
+      icon: FileText,
+      to: "/legal/terms",
+    },
+    {
+      label: "Privacy Policy",
+      description: "How we handle your data",
+      icon: Shield,
+      to: "/legal/privacy",
+    },
   ];
 
   return (
@@ -323,7 +367,8 @@ function SettingsPage() {
         items={[
           {
             label: resolved === "dark" ? "Dark mode" : "Light mode",
-            description: resolved === "dark" ? "Easier on your eyes at night" : "Bright and airy interface",
+            description:
+              resolved === "dark" ? "Easier on your eyes at night" : "Bright and airy interface",
             icon: resolved === "dark" ? Moon : Sun,
             onClick: () => setMode(resolved === "dark" ? "light" : "dark"),
             trailing: (
@@ -388,7 +433,12 @@ function SettingsPage() {
       <Section
         title="Privacy & Security"
         items={[
-          { label: "Privacy Policy", description: "How we handle your data", icon: Shield, to: "/legal/privacy" },
+          {
+            label: "Privacy Policy",
+            description: "How we handle your data",
+            icon: Shield,
+            to: "/legal/privacy",
+          },
           {
             label: "Change password",
             description: "Send a secure reset link to your email",
@@ -420,9 +470,7 @@ function SettingsPage() {
         </div>
       )}
 
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        MealMate · Made with care
-      </p>
+      <p className="mt-8 text-center text-xs text-muted-foreground">MealMate · Made with care</p>
     </main>
   );
 }
@@ -455,18 +503,22 @@ function Row({ item }: { item: Item }) {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-tight">{item.label}</p>
         {item.description && (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {item.description}
-          </p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.description}</p>
         )}
       </div>
-      {item.trailing ?? (showChevron ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : null)}
+      {item.trailing ??
+        (showChevron ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : null)}
     </div>
   );
 
   if (item.href) {
     return (
-      <a href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="block">
+      <a
+        href={item.href}
+        target={item.href.startsWith("http") ? "_blank" : undefined}
+        rel="noreferrer"
+        className="block"
+      >
         {body}
       </a>
     );

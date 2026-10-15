@@ -29,7 +29,8 @@ type Profile = {
 };
 
 function profileSummary(p: Profile | null): string {
-  if (!p) return "No profile on file yet — ask the user for their goal, allergies, and any dietary preferences before giving specific numbers.";
+  if (!p)
+    return "No profile on file yet — ask the user for their goal, allergies, and any dietary preferences before giving specific numbers.";
   const bits: string[] = [];
   if (p.display_name) bits.push(`Name: ${p.display_name}`);
   if (p.age) bits.push(`Age: ${p.age}`);
@@ -44,7 +45,9 @@ function profileSummary(p: Profile | null): string {
   return bits.length ? bits.join("\n") : "Profile exists but has no health details filled in.";
 }
 
-const SYSTEM = (summary: string) => `You are MealMate's AI Nutrition Coach — a warm, evidence-based coach (think dietitian, not a doctor). You give personalized, practical advice tailored to the user's profile below.
+const SYSTEM = (
+  summary: string,
+) => `You are MealMate's AI Nutrition Coach — a warm, evidence-based coach (think dietitian, not a doctor). You give personalized, practical advice tailored to the user's profile below.
 
 USER PROFILE:
 ${summary}

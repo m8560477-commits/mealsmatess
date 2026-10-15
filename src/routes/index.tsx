@@ -17,11 +17,7 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  trendingRecipesQuery,
-  southAfricanFavoritesQuery,
-  myFavoritesQuery,
-} from "@/lib/queries";
+import { trendingRecipesQuery, southAfricanFavoritesQuery, myFavoritesQuery } from "@/lib/queries";
 import { surpriseMe, generateRecipe } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,9 +36,17 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "MealMate — Cook the world, one recipe at a time" },
-      { name: "description", content: "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate." },
+      {
+        name: "description",
+        content:
+          "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate.",
+      },
       { property: "og:title", content: "MealMate — Cook the world, one recipe at a time" },
-      { property: "og:description", content: "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate." },
+      {
+        property: "og:description",
+        content:
+          "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -83,8 +87,13 @@ function Index() {
     isLoading: southAfricanLoading,
     error: southAfricanError,
   } = useQuery(southAfricanFavoritesQuery());
-  const recipeText = (r: { name: string; description?: string | null; cuisine?: string | null; category?: string | null; diet_tags?: string[] | null }) =>
-    [r.name, r.description ?? null, r.cuisine ?? null, r.category ?? null, r.diet_tags ?? []];
+  const recipeText = (r: {
+    name: string;
+    description?: string | null;
+    cuisine?: string | null;
+    category?: string | null;
+    diet_tags?: string[] | null;
+  }) => [r.name, r.description ?? null, r.cuisine ?? null, r.category ?? null, r.diet_tags ?? []];
   const trending = personalize(hasPreferences ? preferences : null, trendingRaw ?? [], recipeText);
   const southAfrican = southAfricanRaw
     ? personalize(hasPreferences ? preferences : null, southAfricanRaw, recipeText)
@@ -108,17 +117,19 @@ function Index() {
     try {
       const { slug } = await generateRecipe({ data: { query: query.trim() } });
       navigate({ to: "/recipe/$slug", params: { slug } });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "";
-    const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(message);
-    const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|Groq|gateway/i.test(message);
-    toast.error(authError ? "Your session expired" : "Couldn't cook that up", {
-      description: authError
-        ? "Please sign in again to cook a recipe."
-        : aiError
-          ? "The kitchen assistant is unavailable right now. Please try again."
-          : "Try again in a moment.",
-    });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
+        message,
+      );
+      const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|Groq|gateway/i.test(message);
+      toast.error(authError ? "Your session expired" : "Couldn't cook that up", {
+        description: authError
+          ? "Please sign in again to cook a recipe."
+          : aiError
+            ? "The kitchen assistant is unavailable right now. Please try again."
+            : "Try again in a moment.",
+      });
     } finally {
       setBusy(null);
     }
@@ -132,7 +143,9 @@ function Index() {
       navigate({ to: "/recipe/$slug", params: { slug } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(message);
+      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
+        message,
+      );
       toast.error(authError ? "Your session expired" : "The chef is busy", {
         description: authError
           ? "Please sign in again to cook a recipe."
@@ -240,12 +253,9 @@ function Index() {
             <p className="text-[11px] font-medium uppercase tracking-widest text-background/60">
               AI Kitchen Scan
             </p>
-            <h2 className="mt-2 font-display text-2xl leading-tight">
-              What's in your kitchen?
-            </h2>
+            <h2 className="mt-2 font-display text-2xl leading-tight">What's in your kitchen?</h2>
             <p className="mt-2 text-xs leading-relaxed text-background/70">
-              Point your camera at the fridge or pantry — we'll log every ingredient
-              automatically.
+              Point your camera at the fridge or pantry — we'll log every ingredient automatically.
             </p>
           </div>
           <span className="pointer-events-none absolute right-4 top-4 flex h-14 w-14 items-center justify-center rounded-full border border-background/20">
@@ -265,9 +275,7 @@ function Index() {
         >
           <div>
             <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="mt-2 font-display text-2xl leading-tight text-primary">
-              Surprise Me
-            </h2>
+            <h2 className="mt-2 font-display text-2xl leading-tight text-primary">Surprise Me</h2>
             <p className="mt-2 text-xs leading-relaxed text-background/70">
               Get a random recipe made just for you!
             </p>
@@ -286,10 +294,30 @@ function Index() {
       {/* Quick actions */}
       <section className="grid grid-cols-4 gap-2 px-4 pt-6">
         {[
-          { to: "/coach", icon: HeartPulse, label: "Nutrition Coach", sub: "Personalized food advice" },
-          { to: "/chat", icon: MessageCircleQuestion, label: "AI Chat", sub: "Ask anything about food" },
-          { to: "/scan", icon: Camera, label: "Scan Ingredients", sub: "Use your camera to scan items" },
-          { to: "/planner", icon: Calendar, label: "Meal Planner", sub: "Plan your meals for the week" },
+          {
+            to: "/coach",
+            icon: HeartPulse,
+            label: "Nutrition Coach",
+            sub: "Personalized food advice",
+          },
+          {
+            to: "/chat",
+            icon: MessageCircleQuestion,
+            label: "AI Chat",
+            sub: "Ask anything about food",
+          },
+          {
+            to: "/scan",
+            icon: Camera,
+            label: "Scan Ingredients",
+            sub: "Use your camera to scan items",
+          },
+          {
+            to: "/planner",
+            icon: Calendar,
+            label: "Meal Planner",
+            sub: "Plan your meals for the week",
+          },
         ].map((a) => (
           <Link
             key={a.to}
@@ -335,7 +363,9 @@ function Index() {
           </div>
         ) : trendingError ? (
           <div className="mx-4 rounded-2xl border border-dashed border-border p-10 text-center">
-            <p className="text-muted-foreground">Recipes are temporarily unavailable. You can still use the rest of MealMate.</p>
+            <p className="text-muted-foreground">
+              Recipes are temporarily unavailable. You can still use the rest of MealMate.
+            </p>
           </div>
         ) : trending.length > 0 ? (
           <div className="flex gap-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -378,7 +408,9 @@ function Index() {
             ))}
           </div>
         ) : southAfricanError ? (
-          <p className="px-4 text-sm text-muted-foreground">This section is temporarily unavailable.</p>
+          <p className="px-4 text-sm text-muted-foreground">
+            This section is temporarily unavailable.
+          </p>
         ) : southAfrican.length > 0 ? (
           <div className="flex gap-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {southAfrican.map((r) => (
@@ -390,7 +422,6 @@ function Index() {
               >
                 <div className="aspect-square w-24 overflow-hidden rounded-2xl bg-muted">
                   <RecipeImage recipe={r} size="thumb" className="h-full w-full object-cover" />
-
                 </div>
                 <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-tight">{r.name}</p>
               </Link>
@@ -433,7 +464,6 @@ function Index() {
                 size="thumb"
                 className="h-full w-full object-cover"
               />
-
             </div>
             <div className="flex-1">
               <p className="font-display text-lg leading-tight">{continueCooking.name}</p>

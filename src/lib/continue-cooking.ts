@@ -30,8 +30,7 @@ export function setContinueCooking(entry: Omit<ContinueCookingEntry, "progress" 
   const existing = getContinueCooking();
   // Bump progress a little each time the recipe is reopened, capped at 90%
   // (100% would imply "done" — we don't have a real completion signal yet).
-  const progress =
-    existing?.slug === entry.slug ? Math.min(90, existing.progress + 15) : 20;
+  const progress = existing?.slug === entry.slug ? Math.min(90, existing.progress + 15) : 20;
   const next: ContinueCookingEntry = { ...entry, progress, updatedAt: Date.now() };
   window.localStorage.setItem(KEY, JSON.stringify(next));
 }

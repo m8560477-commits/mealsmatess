@@ -149,9 +149,7 @@ function CoachPage() {
               to="/profile"
               className="mt-3 flex items-center justify-between rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
             >
-              <span>
-                Add your {missing.slice(0, 3).join(", ")} for sharper advice.
-              </span>
+              <span>Add your {missing.slice(0, 3).join(", ")} for sharper advice.</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           )}

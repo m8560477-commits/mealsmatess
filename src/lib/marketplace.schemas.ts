@@ -64,7 +64,13 @@ export const PromotionSchema = z.object({
   restaurantId: z.string().uuid(),
   title: z.string().min(2).max(120),
   description: z.string().max(500).optional(),
-  code: z.string().min(3).max(30).regex(/^[A-Za-z0-9_-]+$/).optional().nullable(),
+  code: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional()
+    .nullable(),
   kind: z.enum(PROMOTION_KINDS),
   value: z.number().min(0).max(100000).default(0),
   min_order_amount: z.number().min(0).max(100000).default(0),
@@ -165,7 +171,10 @@ export const OrderV2Schema = z.object({
 
 export type OrderV2Input = z.infer<typeof OrderV2Schema>;
 
-export const QuoteSchema = OrderV2Schema.omit({ delivery_address: true, contact_phone: true }).extend({
+export const QuoteSchema = OrderV2Schema.omit({
+  delivery_address: true,
+  contact_phone: true,
+}).extend({
   contact_phone: z.string().max(30).optional(),
 });
 

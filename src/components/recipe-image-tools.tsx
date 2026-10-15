@@ -14,10 +14,20 @@ import {
 } from "@/components/ui/dialog";
 import { chooseRecipeImage, getImageAlternatives } from "@/lib/recipe-images.functions";
 
-type Attribution = { photographer?: string | null; photographerUrl?: string | null; pageUrl?: string | null } | null;
+type Attribution = {
+  photographer?: string | null;
+  photographerUrl?: string | null;
+  pageUrl?: string | null;
+} | null;
 
 /** Small credit line required by Unsplash/Pexels licensing. */
-export function ImageCredit({ source, attribution }: { source?: string | null; attribution?: unknown }) {
+export function ImageCredit({
+  source,
+  attribution,
+}: {
+  source?: string | null;
+  attribution?: unknown;
+}) {
   const a = attribution as Attribution;
   if (!source || !a?.photographer) return null;
   return (
@@ -112,7 +122,12 @@ export function ChangeImageButton({
 
   return (
     <>
-      <Button variant="ghost" size="sm" className="mt-1 h-7 px-2 text-xs text-muted-foreground" onClick={openPicker}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mt-1 h-7 px-2 text-xs text-muted-foreground"
+        onClick={openPicker}
+      >
         <ImageIcon className="mr-1 h-3.5 w-3.5" /> Change image
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -137,7 +152,12 @@ export function ChangeImageButton({
                   onClick={() => pick(o)}
                   className="group relative overflow-hidden rounded-2xl border border-border bg-muted text-left focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <img src={o.thumb} alt={o.title || "Food photo"} loading="lazy" className="aspect-square w-full object-cover" />
+                  <img
+                    src={o.thumb}
+                    alt={o.title || "Food photo"}
+                    loading="lazy"
+                    className="aspect-square w-full object-cover"
+                  />
                   <span className="absolute bottom-1 left-1 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium">
                     {o.score}% · {o.provider}
                   </span>
@@ -157,4 +177,6 @@ export function ChangeImageButton({
 }
 
 /** Bulk image work disabled: image discovery happens only on a user search. */
-export function RecipeImageBackfillCard() { return null; }
+export function RecipeImageBackfillCard() {
+  return null;
+}

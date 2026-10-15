@@ -18,10 +18,24 @@ export function MotionReveal({
   );
 }
 
-export function MotionStagger({ children, className, ...props }: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
-  return <div className={cn("motion-stagger", className)} {...props}>{children}</div>;
+export function MotionStagger({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
+  return (
+    <div className={cn("motion-stagger", className)} {...props}>
+      {children}
+    </div>
+  );
 }
 
-export function AnimatedNumber({ value, className }: { value: number | string; className?: string }) {
+export function AnimatedNumber({
+  value,
+  className,
+}: {
+  value: number | string;
+  className?: string;
+}) {
   return <span className={cn("motion-number", className)}>{value}</span>;
 }

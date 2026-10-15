@@ -27,6 +27,7 @@ import { UpgradeModalProvider } from "@/components/upgrade-modal";
 import { hasSeenTour } from "@/lib/preferences";
 import { useSession } from "@/hooks/use-session";
 import { useShellMetrics } from "@/hooks/use-shell-metrics";
+import { testFirestoreConnection } from "@/lib/firebase";
 
 function NotFoundComponent() {
   return (
@@ -118,16 +119,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "MealMate — Cook the world, one recipe at a time" },
-      { name: "twitter:description", content: "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics." },
+      {
+        name: "twitter:description",
+        content:
+          "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.png", type: "image/png", id: "app-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180", id: "apple-touch-icon" },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.png",
+        sizes: "180x180",
+        id: "apple-touch-icon",
+      },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-           // Only the weights actually used (400 body, 600 medium emphasis, 700 bold)
+      // Only the weights actually used (400 body, 600 medium emphasis, 700 bold)
       // Sora headings and Nunito Sans body. swap keeps text visible immediately.
       {
         rel: "stylesheet",
@@ -143,12 +153,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <Scripts />
       </body>
@@ -161,11 +171,15 @@ function RootComponent() {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user } = useSession();
-  const isMarketplace =
-    pathname === "/restaurants" || pathname.startsWith("/restaurant/");
-  const isFlow = pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
+  const isMarketplace = pathname === "/restaurants" || pathname.startsWith("/restaurant/");
+  const isFlow =
+    pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
   const showAppHeader = pathname !== "/" && !isMarketplace && !isFlow;
   useShellMetrics(showAppHeader ? "with-header" : "no-header");
+
+  useEffect(() => {
+    void testFirestoreConnection();
+  }, []);
 
   // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
   useEffect(() => {
@@ -174,7 +188,13 @@ function RootComponent() {
   }, [pathname, router, user]);
 
   useEffect(() => {
-    if (!user || pathname === "/onboarding" || pathname.startsWith("/auth") || pathname === "/reset-password") return;
+    if (
+      !user ||
+      pathname === "/onboarding" ||
+      pathname.startsWith("/auth") ||
+      pathname === "/reset-password"
+    )
+      return;
     let active = true;
     supabase
       .from("profiles")
@@ -197,8 +217,7 @@ function RootComponent() {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED")
-        return;
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
@@ -209,29 +228,33 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <MascotThemeProvider>
-        <LocaleProvider>
-          <UpgradeModalProvider>
-            <div className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}>
-              {showAppHeader && <AppHeader />}
-              {/* The one scroll container. Header and nav are siblings, not children. */}
+          <LocaleProvider>
+            <UpgradeModalProvider>
               <div
-                id="app-scroll"
-                className="h-full overflow-y-auto overscroll-y-none pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"
+                className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
               >
-                  <div className={`mx-auto flex min-h-full w-full flex-col ${pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}>
-                  <AuthGate>
-                    <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
-                      <Outlet />
-                    </div>
-                  </AuthGate>
+                {showAppHeader && <AppHeader />}
+                {/* The one scroll container. Header and nav are siblings, not children. */}
+                <div
+                  id="app-scroll"
+                  className="h-full overflow-y-auto overscroll-y-none pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"
+                >
+                  <div
+                    className={`mx-auto flex min-h-full w-full flex-col ${pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
+                  >
+                    <AuthGate>
+                      <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
+                        <Outlet />
+                      </div>
+                    </AuthGate>
+                  </div>
                 </div>
+                {pathname === "/onboarding" ? null : <BottomNav />}
               </div>
-              {pathname === "/onboarding" ? null : <BottomNav />}
-            </div>
-            <Toaster position="top-center" />
-            <SplashScreen />
-          </UpgradeModalProvider>
-        </LocaleProvider>
+              <Toaster position="top-center" />
+              <SplashScreen />
+            </UpgradeModalProvider>
+          </LocaleProvider>
         </MascotThemeProvider>
       </ThemeProvider>
     </QueryClientProvider>

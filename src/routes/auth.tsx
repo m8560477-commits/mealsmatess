@@ -10,16 +10,29 @@ import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  signInWithGoogle as signInWithFirebaseGoogle,
+  signInWithEmail as signInWithFirebaseEmail,
+  signUpWithEmail as signUpWithFirebaseEmail,
+  sendPasswordReset as sendFirebasePasswordReset,
+  db,
+} from "@/lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [
-    { title: "Sign in | MealMate" },
-    { name: "description", content: "Sign in or create your MealMate account to save recipes, lists, and meal plans." },
-    { property: "og:title", content: "Sign in | MealMate" },
-    { property: "og:description", content: "Access your saved recipes, lists, and meal plans." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Sign in | MealMate" },
+      {
+        name: "description",
+        content: "Sign in or create your MealMate account to save recipes, lists, and meal plans.",
+      },
+      { property: "og:title", content: "Sign in | MealMate" },
+      { property: "og:description", content: "Access your saved recipes, lists, and meal plans." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): { mode?: "signin" | "signup" } =>
     s["mode"] === "signup" ? { mode: "signup" } : s["mode"] === "signin" ? { mode: "signin" } : {},
   component: AuthPage,
@@ -65,16 +78,53 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-        extraParams: { prompt: "select_account" },
-      });
-      if (result.error) throw result.error;
-      if (result.redirected) return;
-      navigate({ to: "/", replace: true });
-    } catch (err) {
-      console.error("[Auth] Google sign-in error:", err);
-      toast.error(extractErrorMessage(err, "Google sign-in is unavailable. Please use email and password."));
+      // Primary: Firebase Google Sign-In with popup
+      const cred = await signInWithFirebaseGoogle();
+      if (cred?.user) {
+        // Ensure user profile document in Firestore
+        try {
+          const userRef = doc(db, "users", cred.user.uid);
+          const snap = await getDoc(userRef);
+          if (!snap.exists()) {
+            await setDoc(userRef, {
+              id: cred.user.uid,
+              email: cred.user.email || "",
+              displayName: cred.user.displayName || cred.user.email?.split("@")[0] || "Chef",
+              photoURL: cred.user.photoURL || "",
+              goal: "healthy_cooking",
+              createdAt: new Date().toISOString(),
+            });
+          }
+        } catch (dbErr) {
+          console.warn("[Auth] Could not create Firestore profile:", dbErr);
+        }
+        toast.success("Welcome to MealMate!");
+        navigate({ to: "/", replace: true });
+        return;
+      }
+    } catch (fbErr: any) {
+      if (fbErr?.code === "auth/popup-closed-by-user") {
+        setBusy(false);
+        return;
+      }
+      console.warn("[Auth] Firebase Google auth notice, trying fallback:", fbErr);
+      try {
+        const result = await lovable.auth.signInWithOAuth("google", {
+          redirect_uri: window.location.origin,
+          extraParams: { prompt: "select_account" },
+        });
+        if (result.error) throw result.error;
+        if (result.redirected) return;
+        navigate({ to: "/", replace: true });
+      } catch (fallbackErr) {
+        console.error("[Auth] Google sign-in error:", fallbackErr);
+        toast.error(
+          extractErrorMessage(
+            fbErr || fallbackErr,
+            "Google sign-in is unavailable. Please use email and password.",
+          ),
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -90,7 +140,40 @@ function AuthPage() {
         toast.error("Enter a valid email and a password with at least 6 characters.");
         return;
       }
+
       if (mode === "signup") {
+        // Try Firebase signup first
+        try {
+          const cred = await signUpWithFirebaseEmail(normalizedEmail, password, displayName);
+          if (cred?.user) {
+            try {
+              const userRef = doc(db, "users", cred.user.uid);
+              await setDoc(userRef, {
+                id: cred.user.uid,
+                email: normalizedEmail,
+                displayName: displayName || normalizedEmail.split("@")[0],
+                photoURL: "",
+                goal: "healthy_cooking",
+                createdAt: new Date().toISOString(),
+              });
+            } catch (fsErr) {
+              console.warn("[Auth] Could not initialize firestore user profile:", fsErr);
+            }
+            toast.success("Welcome to MealMate!");
+            navigate({ to: "/", replace: true });
+            return;
+          }
+        } catch (fbErr: any) {
+          if (fbErr?.code === "auth/email-already-in-use") {
+            toast.error("An account with this email already exists. Sign in instead.");
+            setMode("signin");
+            setPassword("");
+            return;
+          }
+          // If Firebase email provider is not enabled in Firebase console, fall back to Supabase
+          console.info("[Auth] Falling back to Supabase signup:", fbErr?.code);
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
@@ -117,7 +200,28 @@ function AuthPage() {
         }
         toast.success("Welcome to MealMate!");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        // Try Firebase sign in first
+        try {
+          const cred = await signInWithFirebaseEmail(normalizedEmail, password);
+          if (cred?.user) {
+            toast.success("Welcome back!");
+            navigate({ to: "/", replace: true });
+            return;
+          }
+        } catch (fbErr: any) {
+          if (
+            fbErr?.code !== "auth/operation-not-allowed" &&
+            fbErr?.code !== "auth/user-not-found" &&
+            fbErr?.code !== "auth/invalid-credential"
+          ) {
+            console.warn("[Auth] Firebase sign-in attempt notice:", fbErr?.code);
+          }
+        }
+
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
         if (error) throw error;
       }
       navigate({ to: "/", replace: true });
@@ -125,7 +229,10 @@ function AuthPage() {
       console.error("[Auth] submit error:", err);
       const message = extractErrorMessage(err, "Authentication failed").toLowerCase();
       toast.error(
-        message.includes("invalid login credentials") || message.includes("invalid email or password")
+        message.includes("invalid login credentials") ||
+          message.includes("invalid email or password") ||
+          message.includes("auth/wrong-password") ||
+          message.includes("auth/user-not-found")
           ? "Invalid email or password."
           : message.includes("email not confirmed")
             ? "Please verify your email before signing in."
@@ -222,7 +329,13 @@ function AuthPage() {
             OR
             <span className="h-px flex-1 bg-border" />
           </div>
-          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGoogle}>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={busy}
+            onClick={signInWithGoogle}
+          >
             Continue with Google
           </Button>
           {mode === "signin" && (
@@ -237,13 +350,22 @@ function AuthPage() {
                 }
                 setBusy(true);
                 try {
+                  try {
+                    await sendFirebasePasswordReset(email);
+                    toast.success("Check your inbox for a reset link.");
+                    return;
+                  } catch (fbErr: any) {
+                    console.info("[Auth] Firebase reset password notice:", fbErr?.code);
+                  }
                   const { error } = await supabase.auth.resetPasswordForEmail(email, {
                     redirectTo: getAuthRedirectUrl("/reset-password"),
                   });
                   if (error) throw error;
                   toast.success("Check your inbox for a reset link.");
                 } catch (err) {
-                  toast.error("Could not send the reset email. Please check the address and try again.");
+                  toast.error(
+                    "Could not send the reset email. Please check the address and try again.",
+                  );
                 } finally {
                   setBusy(false);
                 }
@@ -253,8 +375,6 @@ function AuthPage() {
             </button>
           )}
         </form>
-
-
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
@@ -268,8 +388,14 @@ function AuthPage() {
         </p>
         <p className="mt-4 text-center text-xs text-muted-foreground">
           By continuing you agree to our{" "}
-          <Link to="/legal/terms" className="underline hover:text-foreground">Terms</Link> and{" "}
-          <Link to="/legal/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+          <Link to="/legal/terms" className="underline hover:text-foreground">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link to="/legal/privacy" className="underline hover:text-foreground">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </div>
     </main>

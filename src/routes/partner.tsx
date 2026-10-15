@@ -85,8 +85,8 @@ function PartnerPage() {
         <Store className="h-10 w-10 text-primary" />
         <h1 className="font-display text-2xl">Application received</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Our team reviews new restaurants within 1–2 business days. We'll email you as soon as you're
-          approved.
+          Our team reviews new restaurants within 1–2 business days. We'll email you as soon as
+          you're approved.
         </p>
         <Button asChild className="rounded-full">
           <Link to="/restaurants">Back to restaurants</Link>
@@ -99,7 +99,8 @@ function PartnerPage() {
     <div className="page-enter mx-auto w-full max-w-2xl px-4 py-6">
       <h1 className="font-display text-2xl">Partner with MealMate</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Tell us about your restaurant. Once approved you'll get a dashboard to manage your menu and orders.
+        Tell us about your restaurant. Once approved you'll get a dashboard to manage your menu and
+        orders.
       </p>
 
       {user && (
@@ -119,11 +120,19 @@ function PartnerPage() {
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="md3-surface mt-6 space-y-4 rounded-3xl border border-border/60 bg-card p-4">
+        <form
+          onSubmit={handleSubmit}
+          className="md3-surface mt-6 space-y-4 rounded-3xl border border-border/60 bg-card p-4"
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="name">Restaurant name</Label>
-              <Input id="name" required value={form.name} onChange={(e) => set("name", e.target.value)} />
+              <Input
+                id="name"
+                required
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="owner_name">Owner name</Label>
@@ -136,7 +145,12 @@ function PartnerPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" required value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+              <Input
+                id="phone"
+                required
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>

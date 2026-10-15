@@ -22,9 +22,7 @@ const RecipeSchema = z.object({
   protein_g: z.number().nullable().optional(),
   carbs_g: z.number().nullable().optional(),
   fat_g: z.number().nullable().optional(),
-  ingredients: z
-    .array(z.object({ name: z.string(), quantity: z.string().optional() }))
-    .default([]),
+  ingredients: z.array(z.object({ name: z.string(), quantity: z.string().optional() })).default([]),
   steps: z.array(z.string()).default([]),
   fun_fact: z.string().nullable().optional(),
   image_prompt: z.string().nullable().optional(),
@@ -55,7 +53,10 @@ Return ONLY valid JSON matching this shape (no code fences, no commentary):
 }`;
 
 function extractJson(text: string): unknown {
-  const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const cleaned = text
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No JSON in response");
@@ -63,7 +64,6 @@ function extractJson(text: string): unknown {
 }
 
 async function callModel(prompt: string): Promise<GeneratedRecipe> {
-
   const res = await lovableFetch("/chat/completions", {
     method: "POST",
     headers: {
@@ -150,10 +150,24 @@ export const surpriseMe = createServerFn({ method: "POST" })
         .select("id,slug")
         .single();
       if (error) throw new Error(error.message);
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.surprise_me", latency_ms: Date.now() - t0, success: true, metadata: { theme, name: recipe.name } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.surprise_me",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { theme, name: recipe.name },
+      });
       return { slug: data.slug };
     } catch (e) {
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.surprise_me", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e) });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.surprise_me",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+      });
       throw e;
     }
   });
@@ -161,9 +175,7 @@ export const surpriseMe = createServerFn({ method: "POST" })
 // Search / generate a specific recipe — signed-in users only, rate limited.
 export const generateRecipe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((v: unknown) =>
-    z.object({ query: z.string().trim().min(1).max(200) }).parse(v),
-  )
+  .inputValidator((v: unknown) => z.object({ query: z.string().trim().min(1).max(200) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
@@ -176,7 +188,14 @@ export const generateRecipe = createServerFn({ method: "POST" })
         .ilike("name", data.query)
         .limit(1);
       if (exact && exact.length > 0) {
-        void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: true, metadata: { query: data.query, cached: true } });
+        void trackEvent({
+          user_id: context.userId,
+          kind: "ai",
+          name: "ai.generate_recipe",
+          latency_ms: Date.now() - t0,
+          success: true,
+          metadata: { query: data.query, cached: true },
+        });
         return { slug: exact[0]?.slug ?? "", id: exact[0]?.id ?? null, cached: true };
       }
 
@@ -186,7 +205,14 @@ export const generateRecipe = createServerFn({ method: "POST" })
         .ilike("name", `%${data.query}%`)
         .limit(1);
       if (fuzzy && fuzzy.length > 0) {
-        void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: true, metadata: { query: data.query, cached: true } });
+        void trackEvent({
+          user_id: context.userId,
+          kind: "ai",
+          name: "ai.generate_recipe",
+          latency_ms: Date.now() - t0,
+          success: true,
+          metadata: { query: data.query, cached: true },
+        });
         return { slug: fuzzy[0]?.slug ?? "", id: fuzzy[0]?.id ?? null, cached: true };
       }
 
@@ -207,10 +233,25 @@ export const generateRecipe = createServerFn({ method: "POST" })
         target_id: inserted.slug,
         metadata: { query: data.query, name: recipe.name },
       });
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: true, metadata: { query: data.query, cached: false, name: recipe.name } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.generate_recipe",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { query: data.query, cached: false, name: recipe.name },
+      });
       return { slug: inserted.slug, id: inserted.id as string | null, cached: false };
     } catch (e) {
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.generate_recipe", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e), metadata: { query: data.query } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.generate_recipe",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+        metadata: { query: data.query },
+      });
       throw e;
     }
   });
@@ -247,17 +288,34 @@ export const scanKitchen = createServerFn({ method: "POST" })
       if (!res.ok) throw new Error(`Vision API ${res.status}: ${await res.text()}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
       const text = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+      const cleaned = text
+        .replace(/^```(?:json)?/i, "")
+        .replace(/```$/i, "")
+        .trim();
       const start = cleaned.indexOf("{");
       const end = cleaned.lastIndexOf("}");
       const parsed = JSON.parse(cleaned.slice(start, end + 1)) as {
         items: { name: string; quantity?: string; category?: string }[];
       };
       const items = parsed.items ?? [];
-      void trackEvent({ user_id: context.userId, kind: "scan", name: "scan.kitchen", latency_ms: Date.now() - t0, success: true, metadata: { item_count: items.length } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "scan",
+        name: "scan.kitchen",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { item_count: items.length },
+      });
       return items;
     } catch (e) {
-      void trackEvent({ user_id: context.userId, kind: "scan", name: "scan.kitchen", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e) });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "scan",
+        name: "scan.kitchen",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+      });
       throw e;
     }
   });
@@ -315,19 +373,34 @@ If the photo does not show food, set is_food to false and name to "Not food".`,
       if (!res.ok) throw new Error(`Vision API ${res.status}: ${await res.text()}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
       const dish = DishSchema.parse(extractJson(j.choices?.[0]?.message?.content ?? "{}"));
-      void trackEvent({ user_id: context.userId, kind: "scan", name: "scan.dish", latency_ms: Date.now() - t0, success: true, metadata: { name: dish.name, confidence: dish.confidence, is_food: dish.is_food } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "scan",
+        name: "scan.dish",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { name: dish.name, confidence: dish.confidence, is_food: dish.is_food },
+      });
       return dish;
     } catch (e) {
-      void trackEvent({ user_id: context.userId, kind: "scan", name: "scan.dish", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e) });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "scan",
+        name: "scan.dish",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+      });
       throw e;
     }
   });
 
-
 // Ask anything about food — a single-turn Q&A used by the AI Chat quick action
 export const askFoodQuestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((v: unknown) => z.object({ question: z.string().trim().min(1).max(500) }).parse(v))
+  .inputValidator((v: unknown) =>
+    z.object({ question: z.string().trim().min(1).max(500) }).parse(v),
+  )
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_chat", context.userId, 20);
@@ -350,10 +423,24 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
       if (!res.ok) throw new Error(`AI gateway ${res.status}: ${await res.text()}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
       const answer = j.choices?.[0]?.message?.content ?? "";
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.chat_question", latency_ms: Date.now() - t0, success: true, metadata: { q_len: data.question.length, a_len: answer.length } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.chat_question",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { q_len: data.question.length, a_len: answer.length },
+      });
       return { answer };
     } catch (e) {
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.chat_question", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e) });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.chat_question",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+      });
       throw e;
     }
   });
@@ -390,7 +477,6 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
       .eq("slug", data.slug)
       .single();
     if (rErr || !recipe) throw new Error("Recipe not found");
-
 
     const prompt =
       `Authentic ${recipe.name}${recipe.cuisine ? ` from ${recipe.cuisine} cuisine` : ""}` +
@@ -432,10 +518,25 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
         .eq("id", recipe.id);
       if (updErr) throw new Error(updErr.message);
 
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.regen_image", latency_ms: Date.now() - t0, success: true, metadata: { slug: recipe.slug } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.regen_image",
+        latency_ms: Date.now() - t0,
+        success: true,
+        metadata: { slug: recipe.slug },
+      });
       return { image_url: publicUrl };
     } catch (e) {
-      void trackEvent({ user_id: context.userId, kind: "ai", name: "ai.regen_image", latency_ms: Date.now() - t0, success: false, error: e instanceof Error ? e.message.slice(0, 500) : String(e), metadata: { slug: recipe.slug } });
+      void trackEvent({
+        user_id: context.userId,
+        kind: "ai",
+        name: "ai.regen_image",
+        latency_ms: Date.now() - t0,
+        success: false,
+        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+        metadata: { slug: recipe.slug },
+      });
       throw e;
     }
   });

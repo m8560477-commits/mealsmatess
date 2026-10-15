@@ -7,7 +7,11 @@ import { myPlannerQuery, myFavoritesQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
-import { generatePersonalizedPlan, buildGroceryFromPlan, aiPlanAndShop } from "@/lib/planner.functions";
+import {
+  generatePersonalizedPlan,
+  buildGroceryFromPlan,
+  aiPlanAndShop,
+} from "@/lib/planner.functions";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
 import {
   Select,
@@ -18,14 +22,22 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/planner")({
-  head: () => ({ meta: [
-    { title: "Meal planner | MealMate" },
-    { name: "description", content: "Plan a week of meals and turn your plan into a grocery list." },
-    { property: "og:title", content: "Meal planner | MealMate" },
-    { property: "og:description", content: "Plan a week of meals and turn your plan into a grocery list." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Meal planner | MealMate" },
+      {
+        name: "description",
+        content: "Plan a week of meals and turn your plan into a grocery list.",
+      },
+      { property: "og:title", content: "Meal planner | MealMate" },
+      {
+        property: "og:description",
+        content: "Plan a week of meals and turn your plan into a grocery list.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: PlannerPage,
 });
 
@@ -98,9 +110,14 @@ function PlannerPage() {
     if (!user) return;
     setAiLoading(true);
     try {
-      const { suggestions } = await generatePersonalizedPlan({ data: { days: 7, startDate: fromISO } });
+      const { suggestions } = await generatePersonalizedPlan({
+        data: { days: 7, startDate: fromISO },
+      });
       toast.success(`Generated ${suggestions.length} meal ideas`, {
-        description: suggestions.slice(0, 3).map((s) => `${s.meal_type}: ${s.name}`).join(" · "),
+        description: suggestions
+          .slice(0, 3)
+          .map((s) => `${s.meal_type}: ${s.name}`)
+          .join(" · "),
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't generate plan");
@@ -174,18 +191,35 @@ function PlannerPage() {
         <div className="col-span-2 flex flex-wrap gap-2 sm:col-auto">
           {aiPlannerEnabled && (
             <Button size="sm" onClick={planAndShop} disabled={planShop}>
-              {planShop ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+              {planShop ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="mr-2 h-4 w-4" />
+              )}
               Plan & shop
             </Button>
           )}
           {aiPlannerEnabled && (
             <Button size="sm" variant="outline" onClick={generateAiPlan} disabled={aiLoading}>
-              {aiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              {aiLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
               AI ideas
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={autoGrocery} disabled={autoGroc || !plans || plans.length === 0}>
-            {autoGroc ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={autoGrocery}
+            disabled={autoGroc || !plans || plans.length === 0}
+          >
+            {autoGroc ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ShoppingCart className="mr-2 h-4 w-4" />
+            )}
             Auto grocery
           </Button>
         </div>
@@ -222,9 +256,7 @@ function PlannerPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() =>
-                    setAddingDay(addingDay === dayISO ? null : dayISO)
-                  }
+                  onClick={() => setAddingDay(addingDay === dayISO ? null : dayISO)}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -288,11 +320,7 @@ function PlannerPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
-                    size="sm"
-                    onClick={() => addMeal(dayISO)}
-                    disabled={!recipeId || saving}
-                  >
+                  <Button size="sm" onClick={() => addMeal(dayISO)} disabled={!recipeId || saving}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
                   </Button>
                 </div>

@@ -36,9 +36,7 @@ export const getMyEntitlement = createServerFn({ method: "GET" })
     const now = Date.now();
     const active =
       !!sub &&
-      (sub.tier === "lifetime" ||
-        !sub.period_end ||
-        new Date(sub.period_end).getTime() > now);
+      (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
 
     return {
       isPremium: active,
@@ -61,16 +59,53 @@ export const getMyUsage = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase.rpc("my_ai_usage");
     if (error) throw new Error(error.message);
     const u = data as {
-      day_used: number; day_max: number; month_used: number; month_max: number | null;
-      favorites_used: number; favorites_max: number | null; plans_used: number; plans_max: number | null;
-      day_resets_at: string; month_resets_at: string;
+      day_used: number;
+      day_max: number;
+      month_used: number;
+      month_max: number | null;
+      favorites_used: number;
+      favorites_max: number | null;
+      plans_used: number;
+      plans_max: number | null;
+      day_resets_at: string;
+      month_resets_at: string;
     };
-    const usage: Record<string, { count: number; max: number; period: string; label: string; resetsAt: string | null }> = {
-      ai_day: { count: u.day_used, max: u.day_max, period: "day", label: "Mia AI today", resetsAt: u.day_resets_at },
+    const usage: Record<
+      string,
+      { count: number; max: number; period: string; label: string; resetsAt: string | null }
+    > = {
+      ai_day: {
+        count: u.day_used,
+        max: u.day_max,
+        period: "day",
+        label: "Mia AI today",
+        resetsAt: u.day_resets_at,
+      },
     };
-    if (u.month_max != null) usage["ai_month"] = { count: u.month_used, max: u.month_max, period: "month", label: "Mia AI this month", resetsAt: u.month_resets_at };
-    if (u.favorites_max != null) usage["favorites"] = { count: u.favorites_used, max: u.favorites_max, period: "total", label: "Saved favourites", resetsAt: null };
-    if (u.plans_max != null) usage["meal_plans"] = { count: u.plans_used, max: u.plans_max, period: "active", label: "Active meal plans", resetsAt: null };
+    if (u.month_max != null)
+      usage["ai_month"] = {
+        count: u.month_used,
+        max: u.month_max,
+        period: "month",
+        label: "Mia AI this month",
+        resetsAt: u.month_resets_at,
+      };
+    if (u.favorites_max != null)
+      usage["favorites"] = {
+        count: u.favorites_used,
+        max: u.favorites_max,
+        period: "total",
+        label: "Saved favourites",
+        resetsAt: null,
+      };
+    if (u.plans_max != null)
+      usage["meal_plans"] = {
+        count: u.plans_used,
+        max: u.plans_max,
+        period: "active",
+        label: "Active meal plans",
+        resetsAt: null,
+      };
     return usage;
   });
 
@@ -94,9 +129,7 @@ export async function enforceAndIncrement(
   const now = Date.now();
   const isPremium =
     !!sub &&
-    (sub.tier === "lifetime" ||
-      !sub.period_end ||
-      new Date(sub.period_end).getTime() > now);
+    (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
   if (isPremium) return { allowed: true, remaining: Infinity, premium: true };
 
   const cfg = FREE_LIMITS[feature];
@@ -112,19 +145,17 @@ export async function enforceAndIncrement(
   const current = existing?.count ?? 0;
   if (current >= cfg.max) return { allowed: false, remaining: 0, premium: false };
 
-  await supabaseAdmin
-    .from("usage_limits")
-    .upsert(
-      {
-        user_id: userId,
-        feature,
-        feature_key: feature,
-        period_start: new Date().toISOString(),
-        period_key: pk,
-        count: current + 1,
-      },
-      { onConflict: "user_id,feature_key,period_key" },
-    );
+  await supabaseAdmin.from("usage_limits").upsert(
+    {
+      user_id: userId,
+      feature,
+      feature_key: feature,
+      period_start: new Date().toISOString(),
+      period_key: pk,
+      count: current + 1,
+    },
+    { onConflict: "user_id,feature_key,period_key" },
+  );
   return { allowed: true, remaining: cfg.max - current - 1, premium: false };
 }
 
@@ -189,7 +220,10 @@ export const applyReferralCode = createServerFn({ method: "POST" })
       reward_days: 14,
       status: "pending",
     });
-    return { ok: true, message: "Referral saved — both of you get 14 free Premium days when you first subscribe." };
+    return {
+      ok: true,
+      message: "Referral saved — both of you get 14 free Premium days when you first subscribe.",
+    };
   });
 
 // ---------- Promo Codes ----------
@@ -254,9 +288,10 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
         .limit(1)
         .maybeSingle();
 
-      const baseline = current?.period_end && new Date(current.period_end).getTime() > Date.now()
-        ? new Date(current.period_end).getTime()
-        : Date.now();
+      const baseline =
+        current?.period_end && new Date(current.period_end).getTime() > Date.now()
+          ? new Date(current.period_end).getTime()
+          : Date.now();
       const newEnd = grantedLifetime
         ? null
         : new Date(baseline + grantedDays * 86400000).toISOString();
@@ -333,7 +368,9 @@ export const adminListSubscribers = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
-      .select("id,user_id,tier,status,store,period_start,period_end,trial_end,auto_renew,is_manual,created_at")
+      .select(
+        "id,user_id,tier,status,store,period_start,period_end,trial_end,auto_renew,is_manual,created_at",
+      )
       .order("created_at", { ascending: false })
       .limit(500);
     const ids = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
@@ -350,22 +387,38 @@ export const adminStats = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ count: active }, { count: trialing }, { count: lifetime }, { count: refTotal }, { count: refRewarded }] =
-      await Promise.all([
-        supabaseAdmin.from("subscriptions").select("*", { count: "exact", head: true }).eq("status", "active"),
-        supabaseAdmin.from("subscriptions").select("*", { count: "exact", head: true }).eq("status", "trialing"),
-        supabaseAdmin.from("subscriptions").select("*", { count: "exact", head: true }).eq("tier", "lifetime"),
-        supabaseAdmin.from("referrals").select("*", { count: "exact", head: true }),
-        supabaseAdmin.from("referrals").select("*", { count: "exact", head: true }).eq("status", "rewarded"),
-      ]);
+    const [
+      { count: active },
+      { count: trialing },
+      { count: lifetime },
+      { count: refTotal },
+      { count: refRewarded },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active"),
+      supabaseAdmin
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "trialing"),
+      supabaseAdmin
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("tier", "lifetime"),
+      supabaseAdmin.from("referrals").select("*", { count: "exact", head: true }),
+      supabaseAdmin
+        .from("referrals")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "rewarded"),
+    ]);
     const since = new Date(Date.now() - 30 * 86400000).toISOString();
     const { data: payments30 } = await supabaseAdmin
       .from("payments")
       .select("amount_usd,kind")
       .gte("occurred_at", since)
       .in("kind", ["initial", "renewal", "trial_conversion"]);
-    const revenue30 =
-      (payments30 ?? []).reduce((sum, p) => sum + Number(p.amount_usd ?? 0), 0);
+    const revenue30 = (payments30 ?? []).reduce((sum, p) => sum + Number(p.amount_usd ?? 0), 0);
     return {
       active: active ?? 0,
       trialing: trialing ?? 0,
@@ -462,7 +515,13 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
     if (current) {
       await supabaseAdmin
         .from("subscriptions")
-        .update({ status: "active", tier: current.tier === "free" ? "promo" : current.tier, period_end: newEnd, store: "admin", is_manual: true })
+        .update({
+          status: "active",
+          tier: current.tier === "free" ? "promo" : current.tier,
+          period_end: newEnd,
+          store: "admin",
+          is_manual: true,
+        })
         .eq("id", current.id);
     } else {
       await supabaseAdmin.from("subscriptions").insert({

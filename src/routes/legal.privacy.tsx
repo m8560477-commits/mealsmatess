@@ -18,13 +18,17 @@ export const Route = createFileRoute("/legal/privacy")({
 function PrivacyPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-      <Link to="/profile" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/profile"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ChevronLeft className="h-4 w-4" />
         Back to settings
       </Link>
       <h1 className="mt-4 font-display text-4xl">Privacy Policy</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        This page is maintained by the MealMate team to answer common privacy questions about the app.
+        This page is maintained by the MealMate team to answer common privacy questions about the
+        app.
       </p>
 
       <section className="prose prose-sm dark:prose-invert mt-8 max-w-none space-y-6 text-sm leading-relaxed text-foreground/90">
@@ -39,15 +43,15 @@ function PrivacyPage() {
         <div>
           <h2 className="font-display text-xl">How we use it</h2>
           <p>
-            Your data is used to power the features you interact with — showing your saved
-            recipes, your feed, and content from cooks you follow. We do not sell your data.
+            Your data is used to power the features you interact with — showing your saved recipes,
+            your feed, and content from cooks you follow. We do not sell your data.
           </p>
         </div>
         <div>
           <h2 className="font-display text-xl">Deletion</h2>
           <p>
-            You can request deletion of your account and associated data at any time by
-            contacting support.
+            You can request deletion of your account and associated data at any time by contacting
+            support.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">

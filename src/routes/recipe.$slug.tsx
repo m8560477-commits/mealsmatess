@@ -36,9 +36,7 @@ import { RecipeRatings } from "@/components/recipe-ratings";
 
 export const Route = createFileRoute("/recipe/$slug")({
   loader: async ({ context, params }) => {
-    const recipe = await context.queryClient.ensureQueryData(
-      recipeBySlugQuery(params.slug),
-    );
+    const recipe = await context.queryClient.ensureQueryData(recipeBySlugQuery(params.slug));
     if (!recipe) throw notFound();
     return recipe;
   },
@@ -47,13 +45,26 @@ export const Route = createFileRoute("/recipe/$slug")({
       ? {
           meta: [
             { title: `${loaderData.name} — MealMate` },
-            { name: "description", content: loaderData.description || `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.` },
+            {
+              name: "description",
+              content:
+                loaderData.description ||
+                `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.`,
+            },
             { property: "og:title", content: `${loaderData.name} — MealMate` },
-            { property: "og:description", content: loaderData.description || `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.` },
+            {
+              property: "og:description",
+              content:
+                loaderData.description ||
+                `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.`,
+            },
             { property: "og:type", content: "website" },
             { name: "twitter:card", content: "summary_large_image" },
             ...(loaderData.image_url?.startsWith("https://")
-              ? [{ property: "og:image", content: loaderData.image_url }, { name: "twitter:image", content: loaderData.image_url }]
+              ? [
+                  { property: "og:image", content: loaderData.image_url },
+                  { name: "twitter:image", content: loaderData.image_url },
+                ]
               : []),
           ],
         }
@@ -88,7 +99,11 @@ function RecipePage() {
     ensureRecipeImage({ data: { recipeId: r.id } })
       .then(async (res) => {
         if (res.imageUrl) await queryClient.invalidateQueries({ queryKey: ["recipe", r.slug] });
-        else if (res.reason === "limit") toast.message("Daily photo allowance reached", { description: "This recipe's photo will be created when your allowance resets. Premium includes more." });
+        else if (res.reason === "limit")
+          toast.message("Daily photo allowance reached", {
+            description:
+              "This recipe's photo will be created when your allowance resets. Premium includes more.",
+          });
       })
       .catch(() => undefined)
       .finally(() => setMakingImage(false));
@@ -115,7 +130,6 @@ function RecipePage() {
       setRegen(false);
     }
   }
-
 
   useEffect(() => {
     setContinueCooking({
@@ -149,11 +163,7 @@ function RecipePage() {
     setSavingFav(true);
     try {
       if (isFav) {
-        await supabase
-          .from("favorites")
-          .delete()
-          .eq("recipe_id", r.id)
-          .eq("user_id", user.id);
+        await supabase.from("favorites").delete().eq("recipe_id", r.id).eq("user_id", user.id);
       } else {
         await supabase.from("favorites").insert({ recipe_id: r.id, user_id: user.id });
       }
@@ -204,20 +214,24 @@ function RecipePage() {
 
         <div className="mt-4 grid gap-8 md:grid-cols-2">
           <div>
-          <div className="overflow-hidden rounded-3xl bg-muted">
-            <RecipeImage
-              recipe={r}
-              size="hero"
-              priority
-              generating={makingImage}
-              className="aspect-square w-full object-cover"
-            />
-
-          </div>
-          <div>
-            <ImageCredit source={r.image_source} attribution={r.image_attribution} />
-            {r.id && <ChangeImageButton recipe={{ id: r.id, slug: r.slug, created_by: r.created_by }} userId={user?.id} />}
-          </div>
+            <div className="overflow-hidden rounded-3xl bg-muted">
+              <RecipeImage
+                recipe={r}
+                size="hero"
+                priority
+                generating={makingImage}
+                className="aspect-square w-full object-cover"
+              />
+            </div>
+            <div>
+              <ImageCredit source={r.image_source} attribution={r.image_attribution} />
+              {r.id && (
+                <ChangeImageButton
+                  recipe={{ id: r.id, slug: r.slug, created_by: r.created_by }}
+                  userId={user?.id}
+                />
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col">
@@ -227,9 +241,7 @@ function RecipePage() {
               {r.category && <span>· {r.category}</span>}
             </div>
             <h1 className="mt-2 font-display text-4xl md:text-5xl">{r.name}</h1>
-            {r.description && (
-              <p className="mt-3 text-lg text-muted-foreground">{r.description}</p>
-            )}
+            {r.description && <p className="mt-3 text-lg text-muted-foreground">{r.description}</p>}
 
             {r.diet_tags && r.diet_tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -257,7 +269,11 @@ function RecipePage() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button onClick={toggleFavorite} variant={isFav ? "default" : "secondary"} disabled={savingFav}>
+              <Button
+                onClick={toggleFavorite}
+                variant={isFav ? "default" : "secondary"}
+                disabled={savingFav}
+              >
                 {savingFav ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -355,25 +371,25 @@ function RecipePage() {
       </div>
       {cookingOpen && (
         <Suspense fallback={null}>
-        <CookingMode
-          name={r.name}
-          steps={steps}
-          onClose={() => setCookingOpen(false)}
-          onComplete={async () => {
-            if (!user) return;
-            try {
-              const res = await awardXp({
-                data: { action: "recipe_cooked", entityId: r.id },
-              });
-              if (res.awarded) {
-                toast.success(`+${res.points} XP — well cooked!`);
-                queryClient.invalidateQueries({ queryKey: ["gamification"] });
+          <CookingMode
+            name={r.name}
+            steps={steps}
+            onClose={() => setCookingOpen(false)}
+            onComplete={async () => {
+              if (!user) return;
+              try {
+                const res = await awardXp({
+                  data: { action: "recipe_cooked", entityId: r.id },
+                });
+                if (res.awarded) {
+                  toast.success(`+${res.points} XP — well cooked!`);
+                  queryClient.invalidateQueries({ queryKey: ["gamification"] });
+                }
+              } catch {
+                /* XP is best-effort */
               }
-            } catch {
-              /* XP is best-effort */
-            }
-          }}
-        />
+            }}
+          />
         </Suspense>
       )}
     </main>

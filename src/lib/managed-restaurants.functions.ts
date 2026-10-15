@@ -57,28 +57,51 @@ export const createManagedRestaurant = createServerFn({ method: "POST" })
     await assertManagedAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const email = data.email.trim().toLowerCase();
-    const { data: invite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: data.ownerName, account_type: "restaurant" },
-          });
-    if (inviteError && !inviteError.message.toLowerCase().includes("already registered")) throw inviteError;
+    const { data: invite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
+      {
+        data: { full_name: data.ownerName, account_type: "restaurant" },
+      },
+    );
+    if (inviteError && !inviteError.message.toLowerCase().includes("already registered"))
+      throw inviteError;
 
     let ownerId = invite.user?.id ?? null;
     if (!ownerId) {
-      const { data: existing } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const { data: existing } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
       ownerId = existing.users.find((user) => user.email?.toLowerCase() === email)?.id ?? null;
     }
 
     if (!ownerId) throw new Error("Could not find or invite the owner account.");
-    const slug = `${data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${crypto.randomUUID().slice(0, 8)}`;
+    const slug = `${data.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")}-${crypto.randomUUID().slice(0, 8)}`;
     const { data: restaurant, error: restaurantError } = await supabaseAdmin
       .from("restaurants")
-      .insert({ name: data.name.trim(), slug, owner_id: ownerId, owner_name: data.ownerName.trim(), email, approval_status: "pending" })
+      .insert({
+        name: data.name.trim(),
+        slug,
+        owner_id: ownerId,
+        owner_name: data.ownerName.trim(),
+        email,
+        approval_status: "pending",
+      })
       .select("id,name,slug,email")
       .single();
     if (restaurantError) throw restaurantError;
-    await supabaseAdmin.from("restaurant_staff").insert({ restaurant_id: restaurant.id, user_id: ownerId, role: "owner" });
-    return { restaurant: { ...restaurant, owner_email: restaurant.email }, trialEndsAt: null, invited: Boolean(invite.user), sponsored: false };
+    await supabaseAdmin
+      .from("restaurant_staff")
+      .insert({ restaurant_id: restaurant.id, user_id: ownerId, role: "owner" });
+    return {
+      restaurant: { ...restaurant, owner_email: restaurant.email },
+      trialEndsAt: null,
+      invited: Boolean(invite.user),
+      sponsored: false,
+    };
   });
 
 export { ADMIN_EMAIL };
-

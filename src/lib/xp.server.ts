@@ -21,7 +21,9 @@ export function monthKey(d = new Date()) {
 }
 
 async function unlock(userId: string, code: string) {
-  await supabaseAdmin.from("user_achievements").upsert({ user_id: userId, code }, { onConflict: "user_id,code" });
+  await supabaseAdmin
+    .from("user_achievements")
+    .upsert({ user_id: userId, code }, { onConflict: "user_id,code" });
 }
 
 async function syncLevelAchievements(userId: string, totalXp: number) {
@@ -72,11 +74,20 @@ export async function touchStreak(userId: string) {
   return next;
 }
 
-async function insertXp(userId: string, action: XpAction, dedupeKey: string, metadata: Record<string, unknown> = {}) {
+async function insertXp(
+  userId: string,
+  action: XpAction,
+  dedupeKey: string,
+  metadata: Record<string, unknown> = {},
+) {
   const points = XP_ACTIONS[action].points;
-  const { error } = await supabaseAdmin
-    .from("xp_events")
-    .insert({ user_id: userId, action, points, dedupe_key: dedupeKey, metadata: metadata as never });
+  const { error } = await supabaseAdmin.from("xp_events").insert({
+    user_id: userId,
+    action,
+    points,
+    dedupe_key: dedupeKey,
+    metadata: metadata as never,
+  });
   // 23505 = duplicate, meaning this exact award already happened. Not an error.
   if (error && error.code !== "23505") throw new Error(error.message);
   return !error;
@@ -170,7 +181,12 @@ export async function awardXpFor(
     if ((count ?? 0) >= 5) await unlock(userId, "grocery_5");
   }
 
-  return { awarded, points: awarded ? XP_ACTIONS[action].points : 0, totalXp, level: levelFor(totalXp) };
+  return {
+    awarded,
+    points: awarded ? XP_ACTIONS[action].points : 0,
+    totalXp,
+    level: levelFor(totalXp),
+  };
 }
 
 export async function fetchGamification(userId: string) {
@@ -187,7 +203,9 @@ export async function fetchGamification(userId: string) {
   ]);
 
   const challenges = challengeRes.data ?? [];
-  const periods = [...new Set(challenges.map((c) => (c.kind === "weekly" ? weekKey() : monthKey())))];
+  const periods = [
+    ...new Set(challenges.map((c) => (c.kind === "weekly" ? weekKey() : monthKey()))),
+  ];
   const { data: userChallenges } = await supabaseAdmin
     .from("user_challenges")
     .select("challenge_id,period_key,progress,completed_at")
@@ -216,7 +234,9 @@ export async function fetchGamification(userId: string) {
     })),
     challenges: challenges.map((c) => {
       const period = c.kind === "weekly" ? weekKey() : monthKey();
-      const uc = (userChallenges ?? []).find((u) => u.challenge_id === c.id && u.period_key === period);
+      const uc = (userChallenges ?? []).find(
+        (u) => u.challenge_id === c.id && u.period_key === period,
+      );
       return {
         code: c.code,
         title: c.title,

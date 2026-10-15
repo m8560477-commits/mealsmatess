@@ -6,7 +6,13 @@ import { suggestSubstitutions } from "@/lib/planner.functions";
 
 type Sub = { name: string; ratio?: string; notes?: string };
 
-export function SubstitutionsButton({ ingredient, recipeName }: { ingredient: string; recipeName?: string }) {
+export function SubstitutionsButton({
+  ingredient,
+  recipeName,
+}: {
+  ingredient: string;
+  recipeName?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [subs, setSubs] = useState<Sub[] | null>(null);
@@ -38,7 +44,10 @@ export function SubstitutionsButton({ ingredient, recipeName }: { ingredient: st
         <Sparkles className="h-3.5 w-3.5" />
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => setOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => setOpen(false)}
+        >
           <div
             role="dialog"
             aria-label="Ingredient substitutions"
@@ -47,10 +56,16 @@ export function SubstitutionsButton({ ingredient, recipeName }: { ingredient: st
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Substitutes</p>
+                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                  Substitutes
+                </p>
                 <h3 className="font-display text-xl">{ingredient}</h3>
               </div>
-              <button aria-label="Close" onClick={() => setOpen(false)} className="rounded-full p-1 hover:bg-muted">
+              <button
+                aria-label="Close"
+                onClick={() => setOpen(false)}
+                className="rounded-full p-1 hover:bg-muted"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>

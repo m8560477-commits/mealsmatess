@@ -13,12 +13,14 @@ export const Route = createFileRoute("/welcome")({
       { title: "Welcome to MealMate" },
       {
         name: "description",
-        content: "Discover restaurants, order your food, plan your meals, and make every bite count.",
+        content:
+          "Discover restaurants, order your food, plan your meals, and make every bite count.",
       },
       { property: "og:title", content: "Welcome to MealMate" },
       {
         property: "og:description",
-        content: "Discover restaurants, order your food, plan your meals, and make every bite count.",
+        content:
+          "Discover restaurants, order your food, plan your meals, and make every bite count.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -28,11 +30,31 @@ export const Route = createFileRoute("/welcome")({
 });
 
 const STEPS = [
-  { target: "home", title: "Your MealMate home.", body: "Discover meals, restaurants, recommendations, and everything you need to make your next meal easier." },
-  { target: "dining", title: "Find somewhere to eat.", body: "Discover restaurants, explore menus, and find your next meal." },
-  { target: "planner", title: "Plan your meals.", body: "Organize your meals for the week and make planning what to eat simple." },
-  { target: "chef", title: "Turn ingredients into meals.", body: "Explore recipes, understand ingredients, and discover new things to cook." },
-  { target: "profile", title: "Make MealMate yours.", body: "Manage your preferences, account, saved content, subscription, themes, and personal MealMate experience." },
+  {
+    target: "home",
+    title: "Your MealMate home.",
+    body: "Discover meals, restaurants, recommendations, and everything you need to make your next meal easier.",
+  },
+  {
+    target: "dining",
+    title: "Find somewhere to eat.",
+    body: "Discover restaurants, explore menus, and find your next meal.",
+  },
+  {
+    target: "planner",
+    title: "Plan your meals.",
+    body: "Organize your meals for the week and make planning what to eat simple.",
+  },
+  {
+    target: "chef",
+    title: "Turn ingredients into meals.",
+    body: "Explore recipes, understand ingredients, and discover new things to cook.",
+  },
+  {
+    target: "profile",
+    title: "Make MealMate yours.",
+    body: "Manage your preferences, account, saved content, subscription, themes, and personal MealMate experience.",
+  },
 ] as const;
 
 type Phase = "welcome" | "tour" | "ready";
@@ -267,7 +289,13 @@ function Tour({
           <p className="mt-2 text-sm text-muted-foreground">{s.body}</p>
           <div className="mt-6 flex items-center gap-3">
             {step > 0 && (
-              <Button variant="outline" size="icon" className="h-12 w-12 rounded-full" onClick={onBack} aria-label="Back">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12 rounded-full"
+                onClick={onBack}
+                aria-label="Back"
+              >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}

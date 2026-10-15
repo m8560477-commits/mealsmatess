@@ -1,0 +1,6 @@
+{
+  "name": "MealMate",
+  "description": "Smart cooking companion, AI recipe generator, meal planner, and pantry grocery manager.",
+  "requestFeedback": false,
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

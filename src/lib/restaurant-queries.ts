@@ -42,7 +42,11 @@ function mapRestaurant(row: any): PublicRestaurant {
     rating_count: Number(row.rating_count ?? 0),
     restaurant_locations: ((row.restaurant_locations ?? []) as any[])
       .filter((l) => l.is_active !== false)
-      .map((l) => ({ latitude: Number(l.latitude), longitude: Number(l.longitude), label: l.label ?? null })),
+      .map((l) => ({
+        latitude: Number(l.latitude),
+        longitude: Number(l.longitude),
+        label: l.label ?? null,
+      })),
   } as PublicRestaurant;
 }
 
@@ -97,7 +101,9 @@ export const restaurantMenuQuery = (restaurantId: string | undefined) =>
       if (!restaurantId) return [];
       const { data, error } = await supabase
         .from("menu_items")
-        .select("id,restaurant_id,name,description,image_url,price,is_available,category,sort_order")
+        .select(
+          "id,restaurant_id,name,description,image_url,price,is_available,category,sort_order",
+        )
         .eq("restaurant_id", restaurantId)
         .eq("is_available", true)
         .eq("is_hidden", false)

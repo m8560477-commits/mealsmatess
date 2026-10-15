@@ -14,13 +14,22 @@ export function ThemePicker() {
   return (
     <section className="mt-6" aria-labelledby="theme-heading">
       <div className="mb-2 flex items-center justify-between px-1">
-        <h2 id="theme-heading" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2
+          id="theme-heading"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           App theme
         </h2>
-        {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label="Saving" />}
+        {saving && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label="Saving" />
+        )}
       </div>
       <div className="rounded-3xl border border-border bg-card p-3">
-        <div role="radiogroup" aria-label="Mascot theme" className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+        <div
+          role="radiogroup"
+          aria-label="Mascot theme"
+          className="grid grid-cols-3 gap-3 sm:grid-cols-6"
+        >
           {MASCOT_THEMES.map((t) => {
             const selected = t.id === theme.id;
             const locked = t.premium && !isPremium;
@@ -31,7 +40,11 @@ export function ThemePicker() {
                 role="radio"
                 aria-checked={selected}
                 aria-label={`${t.name}${locked ? " (Premium)" : ""}`}
-                onClick={() => (locked ? open(`Unlock the ${t.name} theme with MealMate Premium.`) : void setTheme(t.id))}
+                onClick={() =>
+                  locked
+                    ? open(`Unlock the ${t.name} theme with MealMate Premium.`)
+                    : void setTheme(t.id)
+                }
                 className="group flex flex-col items-center gap-2 rounded-2xl p-1.5 text-center transition-transform active:scale-95"
               >
                 <span
@@ -53,7 +66,11 @@ export function ThemePicker() {
                   )}
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-medium">
-                  <span className="h-2 w-2 rounded-full" style={{ background: t.accent }} aria-hidden="true" />
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: t.accent }}
+                    aria-hidden="true"
+                  />
                   {t.name}
                 </span>
               </button>

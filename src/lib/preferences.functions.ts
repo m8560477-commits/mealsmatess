@@ -35,16 +35,14 @@ export const saveMyPreferences = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => prefsSchema.parse(v))
   .handler(async ({ data, context }) => {
     const payload = { ...data, updated_at: new Date().toISOString() };
-    const { error } = await context.supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: context.userId,
-          preferences: payload,
-          onboarding_completed: data.onboarding_completed,
-        },
-        { onConflict: "id" },
-      );
+    const { error } = await context.supabase.from("profiles").upsert(
+      {
+        id: context.userId,
+        preferences: payload,
+        onboarding_completed: data.onboarding_completed,
+      },
+      { onConflict: "id" },
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });

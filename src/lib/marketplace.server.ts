@@ -78,8 +78,8 @@ export async function assertRestaurantMember(
 export type PaymentConfig = { configured: boolean; provider: string | null };
 
 export function paymentConfig(): PaymentConfig {
-  const provider = process.env['PAYMENT_PROVIDER'];
-  const secret = process.env['PAYMENT_PROVIDER_SECRET_KEY'];
+  const provider = process.env["PAYMENT_PROVIDER"];
+  const secret = process.env["PAYMENT_PROVIDER_SECRET_KEY"];
   if (provider && secret) return { configured: true, provider };
   return { configured: false, provider: null };
 }
@@ -179,13 +179,21 @@ export async function priceCart(
   const restaurant = await loadRestaurant(input.restaurantId);
   const availability = restaurantAvailability(restaurant);
   if (!availability.canOrder) {
-    throw new MarketplaceError("restaurant_closed", availability.reason ?? "Orders unavailable.", 409);
+    throw new MarketplaceError(
+      "restaurant_closed",
+      availability.reason ?? "Orders unavailable.",
+      409,
+    );
   }
 
   const branch = await loadBranch(restaurant.id, input.branchId ?? null);
   if (branch) {
     if (!branch.is_active || !branch.is_accepting_orders) {
-      throw new MarketplaceError("branch_closed", "This branch is not taking orders right now.", 409);
+      throw new MarketplaceError(
+        "branch_closed",
+        "This branch is not taking orders right now.",
+        409,
+      );
     }
     if (openNow(branch.opening_hours) === false) {
       throw new MarketplaceError("branch_closed", "This branch is currently closed.", 409);
@@ -212,7 +220,10 @@ export async function priceCart(
   const lines: PricedLine[] = input.items.map((item) => {
     const row = menu.get(item.menu_item_id);
     if (!row) {
-      throw new MarketplaceError("item_unavailable", "An item in your cart is no longer on the menu.");
+      throw new MarketplaceError(
+        "item_unavailable",
+        "An item in your cart is no longer on the menu.",
+      );
     }
     if (!row.is_available || (row as any).is_hidden) {
       throw new MarketplaceError("item_sold_out", `${row.name} is sold out right now.`);
@@ -320,7 +331,10 @@ async function resolvePromotion(
   if (evaluated.length === 0) return null;
   // Best value for the customer wins.
   return evaluated.sort(
-    (a, b) => b.discount + (b.freeDelivery ? ctx.deliveryFee : 0) - (a.discount + (a.freeDelivery ? ctx.deliveryFee : 0)),
+    (a, b) =>
+      b.discount +
+      (b.freeDelivery ? ctx.deliveryFee : 0) -
+      (a.discount + (a.freeDelivery ? ctx.deliveryFee : 0)),
   )[0]!;
 }
 
@@ -503,7 +517,10 @@ export async function savePromotion(userId: string, input: PromotionInput) {
   if (input.starts_at && input.ends_at && new Date(input.starts_at) >= new Date(input.ends_at)) {
     throw new MarketplaceError("promo_dates", "The end date must be after the start date.");
   }
-  if ((input.kind === "percent_off" || input.kind === "first_order") && (input.value <= 0 || input.value > 100)) {
+  if (
+    (input.kind === "percent_off" || input.kind === "first_order") &&
+    (input.value <= 0 || input.value > 100)
+  ) {
     throw new MarketplaceError("promo_value", "Percentage discounts must be between 1 and 100.");
   }
   const row = {
@@ -605,7 +622,12 @@ export async function deleteBranch(userId: string, id: string) {
 
 export async function setOrderingPause(
   userId: string,
-  input: { restaurantId: string; is_accepting_orders: boolean; pause_message?: string | null; paused_until?: string | null },
+  input: {
+    restaurantId: string;
+    is_accepting_orders: boolean;
+    pause_message?: string | null;
+    paused_until?: string | null;
+  },
 ) {
   await assertRestaurantMember(userId, input.restaurantId, { managersOnly: true });
   const { error } = await supabaseAdmin
@@ -678,7 +700,7 @@ export async function partnerAnalytics(userId: string, restaurantId: string, day
   const funnel: Record<string, number> = {};
   for (const e of events.data ?? []) {
     const meta = (e.metadata ?? {}) as Record<string, unknown>;
-    if (meta['restaurant_id'] !== restaurantId) continue;
+    if (meta["restaurant_id"] !== restaurantId) continue;
     funnel[e.name] = (funnel[e.name] ?? 0) + 1;
   }
 
@@ -697,19 +719,24 @@ export async function partnerAnalytics(userId: string, restaurantId: string, day
     completed: completed.length,
     cancelled: orderRows.filter((o) => o.status === "cancelled").length,
     pickupShare: orderRows.length
-      ? Math.round((orderRows.filter((o) => o.fulfillment_type === "pickup").length / orderRows.length) * 100)
+      ? Math.round(
+          (orderRows.filter((o) => o.fulfillment_type === "pickup").length / orderRows.length) *
+            100,
+        )
       : 0,
     revenue,
     avgOrder: completed.length ? round2(revenue / completed.length) : 0,
-    promoDiscount: round2((redemptions.data ?? []).reduce((s, r) => s + Number(r.discount_amount ?? 0), 0)),
+    promoDiscount: round2(
+      (redemptions.data ?? []).reduce((s, r) => s + Number(r.discount_amount ?? 0), 0),
+    ),
     funnel: {
-      restaurant_view: funnel['restaurant_view'] ?? 0,
-      menu_view: funnel['menu_view'] ?? 0,
-      item_view: funnel['item_view'] ?? 0,
-      add_to_cart: funnel['add_to_cart'] ?? 0,
-      checkout_started: funnel['checkout_started'] ?? 0,
-      order_created: funnel['order_created'] ?? 0,
-      order_completed: funnel['order_completed'] ?? 0,
+      restaurant_view: funnel["restaurant_view"] ?? 0,
+      menu_view: funnel["menu_view"] ?? 0,
+      item_view: funnel["item_view"] ?? 0,
+      add_to_cart: funnel["add_to_cart"] ?? 0,
+      checkout_started: funnel["checkout_started"] ?? 0,
+      order_created: funnel["order_created"] ?? 0,
+      order_completed: funnel["order_completed"] ?? 0,
     },
     daily: [...byDay.entries()].sort().map(([date, v]) => ({ date, ...v })),
   };

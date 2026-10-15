@@ -97,7 +97,7 @@ function RestaurantPage() {
 
   const cartLine = (id: string) =>
     cart?.restaurant_id === restaurant.id
-      ? cart.lines.find((l) => l.menu_item_id === id)?.quantity ?? 0
+      ? (cart.lines.find((l) => l.menu_item_id === id)?.quantity ?? 0)
       : 0;
 
   return (

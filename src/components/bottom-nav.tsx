@@ -38,7 +38,12 @@ function Tab({
       )}
     >
       <Icon className="h-5 w-5 transition-transform duration-200 group-active:scale-90" />
-      {active && <span className="absolute inset-x-3 -top-0.5 h-0.5 rounded-full bg-primary motion-reveal" aria-hidden="true" />}
+      {active && (
+        <span
+          className="absolute inset-x-3 -top-0.5 h-0.5 rounded-full bg-primary motion-reveal"
+          aria-hidden="true"
+        />
+      )}
       {label}
     </Link>
   );
@@ -70,7 +75,12 @@ export function BottomNav() {
           <span className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card shadow-lg ring-4 ring-background transition-transform group-hover:scale-105 group-active:scale-95">
             <ChefMascot className="h-12 w-12" />
           </span>
-          {isActive("/chat") && <span className="absolute inset-x-3 top-5 h-0.5 rounded-full bg-primary motion-reveal" aria-hidden="true" />}
+          {isActive("/chat") && (
+            <span
+              className="absolute inset-x-3 top-5 h-0.5 rounded-full bg-primary motion-reveal"
+              aria-hidden="true"
+            />
+          )}
           AI Chef
         </Link>
         {RIGHT_TABS.map((t) => (

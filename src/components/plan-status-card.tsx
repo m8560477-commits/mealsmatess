@@ -1,10 +1,21 @@
 import { Link } from "@tanstack/react-router";
-import { Crown, Sparkles, ChefHat, MessageCircleQuestion, Calendar, Check, Zap } from "lucide-react";
+import {
+  Crown,
+  Sparkles,
+  ChefHat,
+  MessageCircleQuestion,
+  Calendar,
+  Check,
+  Zap,
+} from "lucide-react";
 import { usePremium, useUsage } from "@/hooks/use-premium";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
-const FEATURE_META: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string }> = {
+const FEATURE_META: Record<
+  string,
+  { icon: React.ComponentType<{ className?: string }>; label: string }
+> = {
   ai_day: { icon: MessageCircleQuestion, label: "Mia AI today" },
   ai_month: { icon: Sparkles, label: "Mia AI this month" },
   favorites: { icon: ChefHat, label: "Saved favourites" },
@@ -39,7 +50,9 @@ export function PlanStatusCard() {
         className="flex items-center justify-between rounded-3xl border border-border bg-card p-4 shadow-sm"
       >
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Not signed in</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Not signed in
+          </p>
           <p className="mt-0.5 font-display text-lg">Sign in to track your usage</p>
         </div>
         <span className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">
@@ -80,14 +93,19 @@ export function PlanStatusCard() {
   }
 
   const entries = usage
-    ? (Object.entries(usage) as [string, { count: number; max: number; period: string; label: string; resetsAt: string | null }][])
+    ? (Object.entries(usage) as [
+        string,
+        { count: number; max: number; period: string; label: string; resetsAt: string | null },
+      ][])
     : [];
 
   return (
     <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">MealMate Free</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            MealMate Free
+          </p>
           <h3 className="mt-1 font-display text-xl leading-tight">Your allowance</h3>
         </div>
         <Link
@@ -129,11 +147,7 @@ export function PlanStatusCard() {
                     <div
                       className={cn(
                         "h-full rounded-full transition-all",
-                        outOf
-                          ? "bg-rose-500"
-                          : pct > 66
-                            ? "bg-amber-500"
-                            : "bg-primary",
+                        outOf ? "bg-rose-500" : pct > 66 ? "bg-amber-500" : "bg-primary",
                       )}
                       style={{ width: `${pct}%` }}
                     />

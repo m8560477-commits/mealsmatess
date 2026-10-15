@@ -36,12 +36,7 @@ export type PricedLine = {
 };
 
 export type PromotionKind =
-  | "percent_off"
-  | "amount_off"
-  | "bogo"
-  | "free_delivery"
-  | "combo"
-  | "first_order";
+  "percent_off" | "amount_off" | "bogo" | "free_delivery" | "combo" | "first_order";
 
 export type PromotionRow = {
   id: string;
@@ -70,27 +65,27 @@ export function parseModifierGroups(raw: unknown): ModifierGroup[] {
   return raw.flatMap((g) => {
     if (!g || typeof g !== "object") return [];
     const group = g as Record<string, unknown>;
-    const options = Array.isArray(group['options'])
-      ? (group['options'] as unknown[]).flatMap((o) => {
+    const options = Array.isArray(group["options"])
+      ? (group["options"] as unknown[]).flatMap((o) => {
           if (!o || typeof o !== "object") return [];
           const opt = o as Record<string, unknown>;
-          if (typeof opt['id'] !== "string" || typeof opt['name'] !== "string") return [];
+          if (typeof opt["id"] !== "string" || typeof opt["name"] !== "string") return [];
           return [
             {
-              id: opt['id'],
-              name: opt['name'],
-              price_delta: Number(opt['price_delta'] ?? 0) || 0,
+              id: opt["id"],
+              name: opt["name"],
+              price_delta: Number(opt["price_delta"] ?? 0) || 0,
             } satisfies ModifierOption,
           ];
         })
       : [];
-    if (typeof group['id'] !== "string" || typeof group['name'] !== "string") return [];
+    if (typeof group["id"] !== "string" || typeof group["name"] !== "string") return [];
     return [
       {
-        id: group['id'],
-        name: group['name'],
-        min: Math.max(0, Number(group['min'] ?? 0) || 0),
-        max: Math.max(0, Number(group['max'] ?? 0) || 0),
+        id: group["id"],
+        name: group["name"],
+        min: Math.max(0, Number(group["min"] ?? 0) || 0),
+        max: Math.max(0, Number(group["max"] ?? 0) || 0),
         options,
       } satisfies ModifierGroup,
     ];
@@ -135,7 +130,10 @@ export function priceModifiers(
     for (const pick of picks) {
       const option = group.options.find((o) => o.id === pick.option_id);
       if (!option) {
-        throw new MarketplaceError("modifier_unknown", `An add-on on ${itemName} is no longer available.`);
+        throw new MarketplaceError(
+          "modifier_unknown",
+          `An add-on on ${itemName} is no longer available.`,
+        );
       }
       chosen.push({
         group_id: group.id,
@@ -147,7 +145,10 @@ export function priceModifiers(
   }
   const knownGroups = new Set(groups.map((g) => g.id));
   if (selectedIds.some((s) => !knownGroups.has(s.group_id))) {
-    throw new MarketplaceError("modifier_unknown", `An add-on on ${itemName} is no longer available.`);
+    throw new MarketplaceError(
+      "modifier_unknown",
+      `An add-on on ${itemName} is no longer available.`,
+    );
   }
   return chosen;
 }
@@ -186,16 +187,25 @@ export function evaluatePromotion(
   if (promotion.ends_at && new Date(promotion.ends_at) < ctx.now) {
     return fail("promo_expired", "This promotion has expired.");
   }
-  if (promotion.applicable_branch_ids.length > 0 && (!ctx.branchId || !promotion.applicable_branch_ids.includes(ctx.branchId))) {
+  if (
+    promotion.applicable_branch_ids.length > 0 &&
+    (!ctx.branchId || !promotion.applicable_branch_ids.includes(ctx.branchId))
+  ) {
     return fail("promo_branch", "This promotion is not available at the selected branch.");
   }
   if (ctx.subtotal < Number(promotion.min_order_amount ?? 0)) {
-    return fail("promo_min_order", `Spend at least ${promotion.min_order_amount} to use this promotion.`);
+    return fail(
+      "promo_min_order",
+      `Spend at least ${promotion.min_order_amount} to use this promotion.`,
+    );
   }
   if (promotion.usage_limit_total != null && promotion.usage_count >= promotion.usage_limit_total) {
     return fail("promo_exhausted", "This promotion has reached its usage limit.");
   }
-  if (promotion.usage_limit_per_customer != null && ctx.customerUsageCount >= promotion.usage_limit_per_customer) {
+  if (
+    promotion.usage_limit_per_customer != null &&
+    ctx.customerUsageCount >= promotion.usage_limit_per_customer
+  ) {
     return fail("promo_used", "You've already used this promotion the maximum number of times.");
   }
   if (promotion.kind === "first_order" && ctx.customerOrderCount > 0) {

@@ -6,10 +6,7 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className={cn(
-        "relative overflow-hidden rounded-md bg-muted skeleton-shimmer",
-        className,
-      )}
+      className={cn("relative overflow-hidden rounded-md bg-muted skeleton-shimmer", className)}
       {...props}
     />
   );

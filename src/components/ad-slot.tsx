@@ -101,7 +101,12 @@ export function AdSlot({ slot, className }: { slot: AdSlotName; className?: stri
   const href = ad.target_url ?? "";
   if (href.startsWith("http")) {
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer sponsored" aria-label={`Sponsored: ${ad.title}`}>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        aria-label={`Sponsored: ${ad.title}`}
+      >
         {inner}
       </a>
     );

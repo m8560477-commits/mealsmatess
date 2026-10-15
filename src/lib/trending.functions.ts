@@ -39,9 +39,7 @@ const ALLOWED = new Set([
 ]);
 
 export const incrementDishSearch = createServerFn({ method: "POST" })
-  .inputValidator((v: unknown) =>
-    z.object({ name: z.string().min(1).max(80) }).parse(v),
-  )
+  .inputValidator((v: unknown) => z.object({ name: z.string().min(1).max(80) }).parse(v))
   .handler(async ({ data }) => {
     const name = data.name.trim();
     if (!ALLOWED.has(name)) return { count: 0, tracked: false };

@@ -20,7 +20,8 @@ export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: 
     hero: "/__l5e/assets-v1/237ffda6-7d43-444d-a62e-e227c36349c9/chicken-bunny-chow.webp",
   },
   "classic-american-apple-pie-rgq3c": {
-    thumb: "/__l5e/assets-v1/dde15523-7bd6-4966-9477-417b08dc4a09/classic-american-apple-pie-rgq3c-thumb.webp",
+    thumb:
+      "/__l5e/assets-v1/dde15523-7bd6-4966-9477-417b08dc4a09/classic-american-apple-pie-rgq3c-thumb.webp",
     card: "/__l5e/assets-v1/53c72d1e-3a3c-4903-aa36-f414a0a83984/classic-american-apple-pie-rgq3c-card.webp",
     hero: "/__l5e/assets-v1/b20eaee3-5e76-4438-a0ff-c34ffddf52e0/classic-american-apple-pie-rgq3c.webp",
   },
@@ -30,12 +31,14 @@ export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: 
     hero: "/__l5e/assets-v1/ad9b37b5-a405-40ae-bb16-0198089f42e3/classic-banana-bread.webp",
   },
   "creamy-chicken-alfredo": {
-    thumb: "/__l5e/assets-v1/c128b9ae-1ab7-4073-8c54-1fba521c9645/creamy-chicken-alfredo-thumb.webp",
+    thumb:
+      "/__l5e/assets-v1/c128b9ae-1ab7-4073-8c54-1fba521c9645/creamy-chicken-alfredo-thumb.webp",
     card: "/__l5e/assets-v1/909014c3-3741-44b0-852e-8c0c572334aa/creamy-chicken-alfredo-card.webp",
     hero: "/__l5e/assets-v1/ce86817e-ef35-4005-b183-e30e79d119cc/creamy-chicken-alfredo.webp",
   },
   "fluffy-buttermilk-pancakes": {
-    thumb: "/__l5e/assets-v1/0ded4bd6-3a8f-4ae5-a18f-91b391ed1687/fluffy-buttermilk-pancakes-thumb.webp",
+    thumb:
+      "/__l5e/assets-v1/0ded4bd6-3a8f-4ae5-a18f-91b391ed1687/fluffy-buttermilk-pancakes-thumb.webp",
     card: "/__l5e/assets-v1/1030d5f7-badc-4b94-8974-6da9512b2316/fluffy-buttermilk-pancakes-card.webp",
     hero: "/__l5e/assets-v1/666fa47a-ab13-45fd-a17e-bb327e2d8190/fluffy-buttermilk-pancakes.webp",
   },
@@ -45,7 +48,8 @@ export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: 
     hero: "/__l5e/assets-v1/74d578e5-f96b-4f45-add1-1f922631ebb3/greek-chicken-salad.webp",
   },
   "kota-south-african-spatlo-7rwhl": {
-    thumb: "/__l5e/assets-v1/267c5966-8096-43db-b41d-65cf639a0903/kota-south-african-spatlo-7rwhl-thumb.webp",
+    thumb:
+      "/__l5e/assets-v1/267c5966-8096-43db-b41d-65cf639a0903/kota-south-african-spatlo-7rwhl-thumb.webp",
     card: "/__l5e/assets-v1/4c519662-1410-4a19-b19a-909149aa5f09/kota-south-african-spatlo-7rwhl-card.webp",
     hero: "/__l5e/assets-v1/585fa900-1831-409f-8d2c-0a81e1d59cda/kota-south-african-spatlo-7rwhl.webp",
   },
@@ -55,7 +59,8 @@ export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: 
     hero: "/__l5e/assets-v1/0587cfe2-f8e6-4ce7-be77-0877004b666d/malva-pudding.webp",
   },
   "malva-pudding-with-warm-custard-lgoiw": {
-    thumb: "/__l5e/assets-v1/a1d1762a-d36a-40a7-8697-c2fb6071da7f/malva-pudding-with-warm-custard-lgoiw-thumb.webp",
+    thumb:
+      "/__l5e/assets-v1/a1d1762a-d36a-40a7-8697-c2fb6071da7f/malva-pudding-with-warm-custard-lgoiw-thumb.webp",
     card: "/__l5e/assets-v1/5529b231-55b3-4424-9a38-57aec7141e5a/malva-pudding-with-warm-custard-lgoiw-card.webp",
     hero: "/__l5e/assets-v1/093a1a40-6503-41ca-ba65-d75daf62dcad/malva-pudding-with-warm-custard-lgoiw.webp",
   },
@@ -70,7 +75,8 @@ export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: 
     hero: "/__l5e/assets-v1/072a4ba8-e9d6-4e2f-8528-a7fc6c11f3a7/smoky-beef-tacos.webp",
   },
   "west-african-jollof-rice": {
-    thumb: "/__l5e/assets-v1/2c103ba4-cf07-46d9-94cc-5973b845e502/west-african-jollof-rice-thumb.webp",
+    thumb:
+      "/__l5e/assets-v1/2c103ba4-cf07-46d9-94cc-5973b845e502/west-african-jollof-rice-thumb.webp",
     card: "/__l5e/assets-v1/d501bcd2-570a-4046-89fa-27b438a0b318/west-african-jollof-rice-card.webp",
     hero: "/__l5e/assets-v1/53a1f39a-ad39-4d80-81df-870bb588af00/west-african-jollof-rice.webp",
   },
