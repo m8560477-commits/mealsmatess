@@ -22,7 +22,6 @@
     "@capacitor/core": "^8.5.2",
     "@capacitor/ios": "^8.5.2",
     "@hookform/resolvers": "^5.2.2",
-    "@lovable.dev/cloud-auth-js": "^1.2.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -62,6 +61,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^13.0.0",
+    "firebase-admin": "^14.5.0",
     "i18next": "^26.4.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
@@ -84,7 +84,6 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
-    "@lovable.dev/vite-tanstack-config": "2.25.3",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
     "@types/node": "^22.16.5",
