@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  getRedirectResult,
+  auth,
   signInWithGoogle as signInWithFirebaseGoogle,
   signInWithEmail as signInWithFirebaseEmail,
   signUpWithEmail as signUpWithFirebaseEmail,
@@ -20,16 +22,23 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 async function ensureUserProfile(user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null }) {
   const userRef = doc(db, "users", user.uid);
   const snap = await getDoc(userRef);
-  if (snap.exists()) return;
+  const profile = {
+    id: user.uid,
+    email: user.email ?? "",
+    displayName: user.displayName || user.email?.split("@")[0] || "Chef",
+    photoURL: user.photoURL ?? "",
+    goal: "healthy_cooking",
+  };
 
-  await setDoc(userRef, {
+  await setDoc(userRef, snap.exists() ? profile : {
+    ...profile,
     id: user.uid,
     email: user.email ?? "",
     displayName: user.displayName || user.email?.split("@")[0] || "Chef",
     photoURL: user.photoURL ?? "",
     goal: "healthy_cooking",
     createdAt: new Date().toISOString(),
-  });
+  }, { merge: true });
 }
 
 export const Route = createFileRoute("/auth")({
@@ -71,6 +80,28 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getRedirectResult(auth)
+      .then(async (result) => {
+        if (!active || !result?.user) return;
+        try {
+          await ensureUserProfile(result.user);
+          toast.success("Welcome to MealMate!");
+          navigate({ to: "/", replace: true });
+        } catch (error) {
+          console.error("[Auth] Google redirect completion failed:", error);
+          toast.error("Google sign-in completed, but your profile could not be loaded.");
+        }
+      })
+      .catch((error) => {
+        if (error?.code === "auth/popup-closed-by-user") return;
+        console.error("[Auth] Google redirect error:", error);
+        toast.error(extractErrorMessage(error, "Google sign-in is unavailable."));
+      });
+    return () => { active = false; };
+  }, [navigate]);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/", replace: true });
@@ -147,17 +178,12 @@ function AuthPage() {
             return;
           }
         } catch (fbErr: any) {
-          if (
-            fbErr?.code !== "auth/operation-not-allowed" &&
-            fbErr?.code !== "auth/user-not-found" &&
-            fbErr?.code !== "auth/invalid-credential"
-          ) {
-            console.warn("[Auth] Firebase sign-in attempt notice:", fbErr?.code);
+          if (fbErr?.code === "auth/user-not-found" || fbErr?.code === "auth/invalid-credential" || fbErr?.code === "auth/wrong-password") {
+            throw new Error("Invalid email or password.");
           }
+          throw fbErr;
         }
-
       }
-      navigate({ to: "/", replace: true });
     } catch (err) {
       console.error("[Auth] submit error:", err);
       const message = extractErrorMessage(err, "Authentication failed").toLowerCase();
@@ -269,7 +295,7 @@ function AuthPage() {
             disabled={busy}
             onClick={signInWithGoogle}
           >
-            Continue with Google
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue with Google"}
           </Button>
           {mode === "signin" && (
             <button
@@ -284,7 +310,7 @@ function AuthPage() {
                 setBusy(true);
                 try {
                   try {
-                    await sendFirebasePasswordReset(email);
+                    await sendFirebasePasswordReset(email.trim().toLowerCase());
                     toast.success("Check your inbox for a reset link.");
                     return;
                   } catch (error) {

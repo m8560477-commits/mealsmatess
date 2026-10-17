@@ -2,6 +2,7 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -150,4 +151,4 @@ export async function signOutUser() {
   return firebaseSignOut(auth);
 }
 
-export { onAuthStateChanged, type User };
+export { getRedirectResult, onAuthStateChanged, type User };
