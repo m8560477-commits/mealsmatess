@@ -78,6 +78,7 @@ function RecipePage() {
   const recipe = Route.useLoaderData();
   const { data } = useQuery(recipeBySlugQuery(recipe.slug));
   const r = data ?? recipe;
+  if (!r) return null;
   const { user } = useSession();
   const { isPremium } = usePremium();
   const navigate = useNavigate();

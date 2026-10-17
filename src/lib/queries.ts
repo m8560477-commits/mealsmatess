@@ -12,8 +12,8 @@ import {
 import { auth, db, handleFirestoreError, OperationType } from "@/lib/firebase";
 
 const recipes = collection(db, "recipes");
-export type FirestoreRecord = Record<string, unknown> & { id: string };
-export type RecipeRecord = FirestoreRecord & {
+export type FirestoreRecord = Record<string, any> & {
+  id: string;
   name?: string;
   slug?: string;
   description?: string | null;
@@ -22,7 +22,39 @@ export type RecipeRecord = FirestoreRecord & {
   country?: string | null;
   diet_tags?: string[] | null;
   recipe_id?: string;
+  image_url?: string | null;
+  image_source?: string | null;
+  image_attribution?: string | null;
+  cooking_time_minutes?: number | null;
+  servings?: number | null;
+  calories?: number | null;
+  difficulty?: string | null;
+  ingredients?: unknown;
+  steps?: unknown;
+  fun_fact?: string | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  checked?: boolean;
+  quantity?: string | null;
+  plan_date?: string;
+  meal_type?: string;
+  custom_name?: string | null;
+  recipes?: RecipeRecord | null;
 };
+export type RecipeRecord = Omit<FirestoreRecord, "name" | "slug" | "image_url" | "cooking_time_minutes" | "calories" | "servings" | "ingredients" | "steps"> & {
+  name: string;
+  slug: string;
+  image_url: string | null;
+  cooking_time_minutes: number | null;
+  calories: number | null;
+  servings: number | null;
+  ingredients: unknown;
+  steps: unknown;
+};
+export type FavoriteRecord = FirestoreRecord & { recipe_id: string; recipes?: RecipeRecord | null };
+export type MealPlanRecord = FirestoreRecord & { plan_date: string; meal_type: string; recipe_id?: string; recipes?: RecipeRecord | null };
+export type GroceryRecord = FirestoreRecord & { name: string; checked: boolean; quantity?: string | null };
 export type PantryRecord = FirestoreRecord & {
   name: string;
   expires_at?: string | null;
@@ -74,22 +106,22 @@ export const recipeBySlugQuery = (slug: string) => queryOptions({
   queryKey: ["recipe", slug],
   queryFn: async (): Promise<RecipeRecord | null> => {
     const snapshot = await getDocs(query(recipes, where("slug", "==", slug), limit(1)));
-    return snapshot.docs[0] ? { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } : null;
+    return snapshot.docs[0] ? ({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as unknown as RecipeRecord) : null;
   },
 });
 
 export const myFavoritesQuery = () => queryOptions({
   queryKey: ["favorites"],
-  queryFn: async (): Promise<FirestoreRecord[]> => {
+  queryFn: async (): Promise<FavoriteRecord[]> => {
     const user = auth.currentUser;
     if (!user) return [];
-    return list(`users/${user.uid}/favorites`, [orderBy("created_at", "desc")]);
+    return (await list(`users/${user.uid}/favorites`, [orderBy("created_at", "desc")])) as FavoriteRecord[];
   },
 });
 
 export const myGroceryQuery = () => queryOptions({
   queryKey: ["grocery"],
-  queryFn: async (): Promise<FirestoreRecord[]> => auth.currentUser ? list(`users/${auth.currentUser.uid}/grocery`, [orderBy("checked"), orderBy("created_at", "desc")]) : [],
+  queryFn: async (): Promise<GroceryRecord[]> => auth.currentUser ? (await list(`users/${auth.currentUser.uid}/grocery`, [orderBy("checked"), orderBy("created_at", "desc")])) as GroceryRecord[] : [],
 });
 
 export const myPantryQuery = () => queryOptions<PantryRecord[]>({
@@ -99,7 +131,7 @@ export const myPantryQuery = () => queryOptions<PantryRecord[]>({
 
 export const myPlannerQuery = (fromISO: string, toISO: string) => queryOptions({
   queryKey: ["planner", fromISO, toISO],
-  queryFn: async (): Promise<FirestoreRecord[]> => auth.currentUser ? list(`users/${auth.currentUser.uid}/mealPlans`, [where("plan_date", ">=", fromISO), where("plan_date", "<=", toISO), orderBy("plan_date")]) : [],
+  queryFn: async (): Promise<MealPlanRecord[]> => auth.currentUser ? (await list(`users/${auth.currentUser.uid}/mealPlans`, [where("plan_date", ">=", fromISO), where("plan_date", "<=", toISO), orderBy("plan_date")])) as MealPlanRecord[] : [],
 });
 
 export const myProfileQuery = () => queryOptions({
