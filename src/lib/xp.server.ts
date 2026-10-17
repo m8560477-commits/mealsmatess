@@ -89,7 +89,8 @@ async function insertXp(
     metadata: metadata as never,
   });
   // 23505 = duplicate, meaning this exact award already happened. Not an error.
-  if (error && error.code !== "23505") throw new Error(error.message);
+  const code = error && "code" in error ? error.code : undefined;
+  if (error && code !== "23505") throw new Error(error.message);
   return !error;
 }
 
@@ -101,7 +102,12 @@ async function progressChallenges(userId: string, action: XpAction) {
     .eq("is_active", true)
     .eq("action", action);
 
-  for (const c of challenges ?? []) {
+  for (const c of (challenges ?? []) as {
+    id: string;
+    code: string;
+    kind: "weekly" | "monthly";
+    goal: number;
+  }[]) {
     const period = c.kind === "weekly" ? weekKey() : monthKey();
     const { data: existing } = await firebaseAdmin
       .from("user_challenges")
@@ -202,9 +208,19 @@ export async function fetchGamification(userId: string) {
     firebaseAdmin.from("challenges").select("*").eq("is_active", true),
   ]);
 
-  const challenges = challengeRes.data ?? [];
+  const challenges = (challengeRes.data ?? []) as {
+    id: string;
+    code: string;
+    kind: "weekly" | "monthly";
+    goal: number;
+    title: string;
+    description: string;
+    xp_reward: number;
+  }[];
   const periods = [
-    ...new Set(challenges.map((c) => (c.kind === "weekly" ? weekKey() : monthKey()))),
+    ...new Set(
+      challenges.map((challenge) => (challenge.kind === "weekly" ? weekKey() : monthKey())),
+    ),
   ];
   const { data: userChallenges } = await firebaseAdmin
     .from("user_challenges")
@@ -213,7 +229,19 @@ export async function fetchGamification(userId: string) {
     .in("period_key", periods.length ? periods : ["none"]);
 
   const totalXp = statsRes.data?.total_xp ?? 0;
-  const unlocked = new Map((achRes.data ?? []).map((a) => [a.code, a.unlocked_at]));
+  const unlocked = new Map(
+    ((achRes.data ?? []) as { code: string; unlocked_at: string | null }[]).map((achievement) => [
+      achievement.code,
+      achievement.unlocked_at,
+    ]),
+  );
+
+  const userChallengeRows = (userChallenges ?? []) as {
+    challenge_id: string;
+    period_key: string;
+    progress: number;
+    completed_at: string | null;
+  }[];
 
   return {
     totalXp,
@@ -222,11 +250,13 @@ export async function fetchGamification(userId: string) {
     longestStreak: statsRes.data?.longest_streak ?? 0,
     eliteRewardClaimedAt: statsRes.data?.elite_reward_claimed_at ?? null,
     eliteRewardAvailable: totalXp >= ELITE_XP && !statsRes.data?.elite_reward_claimed_at,
-    recentEvents: (eventsRes.data ?? []).map((e) => ({
-      action: e.action,
-      points: e.points,
-      created_at: e.created_at,
-      label: XP_ACTIONS[e.action as XpAction]?.label ?? e.action,
+    recentEvents: (
+      (eventsRes.data ?? []) as { action: string; points: number; created_at: string }[]
+    ).map((event) => ({
+      action: event.action,
+      points: event.points,
+      created_at: event.created_at,
+      label: XP_ACTIONS[event.action as XpAction]?.label ?? event.action,
     })),
     achievements: ACHIEVEMENTS.map((a) => ({
       ...a,
@@ -234,8 +264,9 @@ export async function fetchGamification(userId: string) {
     })),
     challenges: challenges.map((c) => {
       const period = c.kind === "weekly" ? weekKey() : monthKey();
-      const uc = (userChallenges ?? []).find(
-        (u) => u.challenge_id === c.id && u.period_key === period,
+      const uc = userChallengeRows.find(
+        (userChallenge) =>
+          userChallenge.challenge_id === c.id && userChallenge.period_key === period,
       );
       return {
         code: c.code,

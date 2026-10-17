@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { normalizePreferences, type FoodPreferences } from "@/lib/preferences";
 
 const prefsSchema = z.object({

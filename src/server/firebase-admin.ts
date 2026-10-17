@@ -1,15 +1,25 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore, Timestamp, type DocumentData, type Firestore, type Query } from "firebase-admin/firestore";
+import {
+  getFirestore,
+  Timestamp,
+  type DocumentData,
+  type Firestore,
+  type Query,
+} from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 type Filter = { field: string; operator: string; value: unknown };
 type DbResult<T = unknown> = { data: T; error: Error | null; count?: number | null };
 type Row = Record<string, any> & { id: string };
 
 let initialized:
-  | { db: Firestore; auth: ReturnType<typeof getAuth>; bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]> }
+  | {
+      db: Firestore;
+      auth: ReturnType<typeof getAuth>;
+      bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>;
+    }
   | undefined;
 
 function getServices() {
@@ -28,7 +38,9 @@ function getServices() {
     throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON must contain valid service-account JSON.");
   }
   if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
-    throw new Error("Firebase service-account JSON is missing project_id, client_email, or private_key.");
+    throw new Error(
+      "Firebase service-account JSON is missing project_id, client_email, or private_key.",
+    );
   }
 
   const projectId =
@@ -55,8 +67,13 @@ function getServices() {
       "mealmate-admin",
     );
   const bucketName = process.env["VITE_FIREBASE_STORAGE_BUCKET"];
-  if (!bucketName) throw new Error("VITE_FIREBASE_STORAGE_BUCKET is required for Firebase Storage.");
-  initialized = { db: getFirestore(app), auth: getAuth(app), bucket: getStorage(app).bucket(bucketName) };
+  if (!bucketName)
+    throw new Error("VITE_FIREBASE_STORAGE_BUCKET is required for Firebase Storage.");
+  initialized = {
+    db: getFirestore(app),
+    auth: getAuth(app),
+    bucket: getStorage(app).bucket(bucketName),
+  };
   return initialized;
 }
 
@@ -105,7 +122,8 @@ function documentKey(table: string, row: Record<string, unknown>) {
   if (table === "app_settings" || table === "feature_flags") return String(row["key"] ?? "");
   if (table === "dish_searches") return String(row["name"] ?? "");
   if (table === "admin_allowlist") return String(row["email"] ?? "").toLowerCase();
-  if ((table === "subscription_events" || table === "payments") && row["rc_event_id"]) return String(row["rc_event_id"]);
+  if ((table === "subscription_events" || table === "payments") && row["rc_event_id"])
+    return String(row["rc_event_id"]);
   return String(row["id"] ?? randomUUID());
 }
 
@@ -137,11 +155,17 @@ function matches(row: Row, filter: Filter): boolean {
       return filter.value === null ? row[filter.field] == null : row[filter.field] === filter.value;
     case "ilike":
     case "like": {
-      const term = String(filter.value ?? "").replaceAll("%", "").toLowerCase();
-      return String(row[filter.field] ?? "").toLowerCase().includes(term);
+      const term = String(filter.value ?? "")
+        .replaceAll("%", "")
+        .toLowerCase();
+      return String(row[filter.field] ?? "")
+        .toLowerCase()
+        .includes(term);
     }
     case "contains":
-      return Array.isArray(left) && Array.isArray(right) && right.every((value) => left.includes(value));
+      return (
+        Array.isArray(left) && Array.isArray(right) && right.every((value) => left.includes(value))
+      );
     case "not.is":
       return filter.value === null ? row[filter.field] != null : row[filter.field] !== filter.value;
     default:
@@ -166,7 +190,13 @@ const USER_OWNED_FIELDS: Record<string, string> = {
   restaurant_orders: "customer_id",
 };
 const PUBLIC_READ_TABLES = new Set([
-  "recipes", "restaurants", "restaurant_locations", "menu_items", "restaurant_promotions", "announcements", "ad_placements",
+  "recipes",
+  "restaurants",
+  "restaurant_locations",
+  "menu_items",
+  "restaurant_promotions",
+  "announcements",
+  "ad_placements",
 ]);
 
 class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
@@ -182,13 +212,18 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
   private headMode = false;
   private conflictFields: string[] = [];
 
-  constructor(private readonly table: string, private readonly userId?: string) {}
+  constructor(
+    private readonly table: string,
+    private readonly userId?: string,
+  ) {}
 
   private get scopedFilters(): Filter[] {
     if (!this.userId) return this.filters;
     const ownerField = USER_OWNED_FIELDS[this.table];
-    if (ownerField) return [...this.filters, { field: ownerField, operator: "eq", value: this.userId }];
-    if (this.table === "user_roles") return [...this.filters, { field: "user_id", operator: "eq", value: this.userId }];
+    if (ownerField)
+      return [...this.filters, { field: ownerField, operator: "eq", value: this.userId }];
+    if (this.table === "user_roles")
+      return [...this.filters, { field: "user_id", operator: "eq", value: this.userId }];
     return this.filters;
   }
 
@@ -213,36 +248,106 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
     this.headMode = options?.head === true;
     return this;
   }
-  eq(field: string, value: unknown) { this.filters.push({ field, operator: "eq", value }); return this; }
-  neq(field: string, value: unknown) { this.filters.push({ field, operator: "neq", value }); return this; }
-  gt(field: string, value: unknown) { this.filters.push({ field, operator: "gt", value }); return this; }
-  gte(field: string, value: unknown) { this.filters.push({ field, operator: "gte", value }); return this; }
-  lt(field: string, value: unknown) { this.filters.push({ field, operator: "lt", value }); return this; }
-  lte(field: string, value: unknown) { this.filters.push({ field, operator: "lte", value }); return this; }
-  in(field: string, value: unknown[]) { this.filters.push({ field, operator: "in", value }); return this; }
-  is(field: string, value: unknown) { this.filters.push({ field, operator: "is", value }); return this; }
-  ilike(field: string, value: unknown) { this.filters.push({ field, operator: "ilike", value }); return this; }
-  like(field: string, value: unknown) { this.filters.push({ field, operator: "like", value }); return this; }
-  contains(field: string, value: unknown) { this.filters.push({ field, operator: "contains", value }); return this; }
-  not(field: string, operator: string, value: unknown) { this.filters.push({ field, operator: `not.${operator}`, value }); return this; }
-  match(values: Record<string, unknown>) { for (const [field, value] of Object.entries(values)) this.eq(field, value); return this; }
-  order(field: string, options?: { ascending?: boolean; nullsFirst?: boolean }) {
-    this.sort.push({ field, ascending: options?.ascending !== false, nullsFirst: options?.nullsFirst });
+  eq(field: string, value: unknown) {
+    this.filters.push({ field, operator: "eq", value });
     return this;
   }
-  limit(rows: number) { this.maxRows = Math.max(0, rows); return this; }
-  range(start: number, end: number) { this.rowRange = [Math.max(0, start), Math.max(start, end)]; return this; }
-  single() { this.singleMode = "single"; return this.execute(); }
-  maybeSingle() { this.singleMode = "maybeSingle"; return this.execute(); }
+  neq(field: string, value: unknown) {
+    this.filters.push({ field, operator: "neq", value });
+    return this;
+  }
+  gt(field: string, value: unknown) {
+    this.filters.push({ field, operator: "gt", value });
+    return this;
+  }
+  gte(field: string, value: unknown) {
+    this.filters.push({ field, operator: "gte", value });
+    return this;
+  }
+  lt(field: string, value: unknown) {
+    this.filters.push({ field, operator: "lt", value });
+    return this;
+  }
+  lte(field: string, value: unknown) {
+    this.filters.push({ field, operator: "lte", value });
+    return this;
+  }
+  in(field: string, value: unknown[]) {
+    this.filters.push({ field, operator: "in", value });
+    return this;
+  }
+  is(field: string, value: unknown) {
+    this.filters.push({ field, operator: "is", value });
+    return this;
+  }
+  ilike(field: string, value: unknown) {
+    this.filters.push({ field, operator: "ilike", value });
+    return this;
+  }
+  like(field: string, value: unknown) {
+    this.filters.push({ field, operator: "like", value });
+    return this;
+  }
+  contains(field: string, value: unknown) {
+    this.filters.push({ field, operator: "contains", value });
+    return this;
+  }
+  not(field: string, operator: string, value: unknown) {
+    this.filters.push({ field, operator: `not.${operator}`, value });
+    return this;
+  }
+  match(values: Record<string, unknown>) {
+    for (const [field, value] of Object.entries(values)) this.eq(field, value);
+    return this;
+  }
+  order(field: string, options?: { ascending?: boolean; nullsFirst?: boolean }) {
+    this.sort.push({
+      field,
+      ascending: options?.ascending !== false,
+      nullsFirst: options?.nullsFirst,
+    });
+    return this;
+  }
+  limit(rows: number) {
+    this.maxRows = Math.max(0, rows);
+    return this;
+  }
+  range(start: number, end: number) {
+    this.rowRange = [Math.max(0, start), Math.max(start, end)];
+    return this;
+  }
+  single() {
+    this.singleMode = "single";
+    return this.execute();
+  }
+  maybeSingle() {
+    this.singleMode = "maybeSingle";
+    return this.execute();
+  }
 
   insert(values: Record<string, unknown> | Record<string, unknown>[]) {
-    this.action = "insert"; this.values = values; return this;
+    this.action = "insert";
+    this.values = values;
+    return this;
   }
-  update(values: Record<string, unknown>) { this.action = "update"; this.values = values; return this; }
-  upsert(values: Record<string, unknown> | Record<string, unknown>[], options?: { onConflict?: string }) {
-    this.action = "upsert"; this.values = values; this.conflictFields = (options?.onConflict ?? "id").split(",").map((field) => field.trim()); return this;
+  update(values: Record<string, unknown>) {
+    this.action = "update";
+    this.values = values;
+    return this;
   }
-  delete() { this.action = "delete"; return this; }
+  upsert(
+    values: Record<string, unknown> | Record<string, unknown>[],
+    options?: { onConflict?: string },
+  ) {
+    this.action = "upsert";
+    this.values = values;
+    this.conflictFields = (options?.onConflict ?? "id").split(",").map((field) => field.trim());
+    return this;
+  }
+  delete() {
+    this.action = "delete";
+    return this;
+  }
 
   then<TResult1 = DbResult<any>, TResult2 = never>(
     onfulfilled?: ((value: DbResult<any>) => TResult1 | PromiseLike<TResult1>) | null,
@@ -256,7 +361,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
       const { db } = getServices();
       const collectionRef = collectionFor(db, this.table);
       if (this.action === "insert") return await this.insertRows(db);
-      if (this.action === "upsert") return await this.upsertRows(db, collectionRef);
+      if (this.action === "upsert") return await this.upsertRows(collectionRef);
 
       this.assertUserAccess([]);
       const snapshot = await collectionRef.get();
@@ -264,7 +369,9 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
         ref: item.ref,
         row: { id: item.id, ...item.data() } as Row,
       }));
-      entries = entries.filter(({ row }) => this.scopedFilters.every((filter) => matches(row, filter)));
+      entries = entries.filter(({ row }) =>
+        this.scopedFilters.every((filter) => matches(row, filter)),
+      );
       if (this.userId && (this.action === "update" || this.action === "delete")) {
         this.assertUserAccess(entries.map(({ row }) => row));
       }
@@ -272,14 +379,22 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
         entries.sort((a, b) => {
           const av = comparable(a.row[ordering.field]);
           const bv = comparable(b.row[ordering.field]);
-          if (av == null || bv == null) return av == null ? (ordering.nullsFirst === false ? 1 : -1) : ordering.nullsFirst === false ? -1 : 1;
+          if (av == null || bv == null)
+            return av == null
+              ? ordering.nullsFirst === false
+                ? 1
+                : -1
+              : ordering.nullsFirst === false
+                ? -1
+                : 1;
           const result = av < bv ? -1 : av > bv ? 1 : 0;
           return ordering.ascending ? result : -result;
         });
       }
       const count = entries.length;
       if (this.action === "delete" || this.action === "update") {
-        if (this.filters.length === 0) throw new Error(`Refusing an unfiltered ${this.action} on ${this.table}.`);
+        if (this.filters.length === 0)
+          throw new Error(`Refusing an unfiltered ${this.action} on ${this.table}.`);
         if (this.userId && this.action === "update") {
           const ownerField = USER_OWNED_FIELDS[this.table];
           const values = this.values as Record<string, unknown>;
@@ -290,37 +405,54 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
         const batch = db.batch();
         for (const entry of entries) {
           if (this.action === "delete") batch.delete(entry.ref);
-          else batch.set(entry.ref, this.values, { merge: true });
+          else batch.set(entry.ref, this.values as DocumentData, { merge: true });
         }
         await batch.commit();
-        return { data: this.selected ? entries.map(({ row }) => row) : null, error: null, ...(this.countMode ? { count } : {}) };
+        return {
+          data: this.selected ? entries.map(({ row }) => row) : null,
+          error: null,
+          ...(this.countMode ? { count } : {}),
+        };
       }
 
       if (this.rowRange) entries = entries.slice(this.rowRange[0], this.rowRange[1] + 1);
       if (this.maxRows != null) entries = entries.slice(0, this.maxRows);
       const rows = entries.map(({ row }) => row);
       if (this.singleMode === "single") {
-        if (rows.length !== 1) throw new Error(`Expected one ${this.table} record, found ${rows.length}.`);
+        if (rows.length !== 1)
+          throw new Error(`Expected one ${this.table} record, found ${rows.length}.`);
         return { data: rows[0], error: null, ...(this.countMode ? { count } : {}) };
       }
       if (this.singleMode === "maybeSingle") {
-        if (rows.length > 1) throw new Error(`Expected at most one ${this.table} record, found ${rows.length}.`);
+        if (rows.length > 1)
+          throw new Error(`Expected at most one ${this.table} record, found ${rows.length}.`);
         return { data: rows[0] ?? null, error: null, ...(this.countMode ? { count } : {}) };
       }
-      return { data: this.headMode ? null : rows, error: null, ...(this.countMode ? { count } : {}) };
+      return {
+        data: this.headMode ? null : rows,
+        error: null,
+        ...(this.countMode ? { count } : {}),
+      };
     } catch (error) {
-      return { data: null, error: error instanceof Error ? error : new Error(String(error)), count: null };
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+        count: null,
+      };
     }
   }
 
   private async insertRows(db: Firestore): Promise<DbResult<any>> {
-    const inputRows = (Array.isArray(this.values) ? this.values : [this.values]) as Record<string, unknown>[];
+    const inputRows = (Array.isArray(this.values) ? this.values : [this.values]) as Record<
+      string,
+      unknown
+    >[];
     this.assertUserAccess(inputRows);
     const batch = db.batch();
     const rows = inputRows.map((input) => {
       const id = documentKey(this.table, input);
       if (!id) throw new Error(`A document key is required to write ${this.table}.`);
-      const value = { ...input, id };
+      const value: Record<string, unknown> = { ...input, id };
       if (USER_SUBCOLLECTIONS[this.table]) {
         value["created_at"] ??= new Date().toISOString();
         if (this.table === "grocery_items") value["checked"] ??= false;
@@ -335,11 +467,18 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
 
   private async upsertRows(collectionRef: Query<DocumentData>): Promise<DbResult<any>> {
     const { db } = getServices();
-    const inputRows = (Array.isArray(this.values) ? this.values : [this.values]) as Record<string, unknown>[];
+    const inputRows = (Array.isArray(this.values) ? this.values : [this.values]) as Record<
+      string,
+      unknown
+    >[];
     this.assertUserAccess(inputRows);
     const results: Row[] = [];
     for (const input of inputRows) {
-      const query = collectionRef.where(this.conflictFields[0] ?? "id", "==", input[this.conflictFields[0] ?? "id"]);
+      const query = collectionRef.where(
+        this.conflictFields[0] ?? "id",
+        "==",
+        input[this.conflictFields[0] ?? "id"],
+      );
       const snapshot = await query.get();
       const existing = snapshot.docs.find((item) =>
         this.conflictFields.every((field) => item.get(field) === input[field]),
@@ -364,8 +503,20 @@ function startOfUtcMonth(date = new Date()) {
 }
 
 async function premiumActive(userId: string) {
-  const { data } = await firebaseAdmin.from("subscriptions").select("tier,status,period_end").eq("user_id", userId).in("status", ["trialing", "active", "in_grace"]).order("period_end", { ascending: false }).limit(1).maybeSingle();
-  return !!data && (data.tier === "lifetime" || !data.period_end || new Date(data.period_end).getTime() > Date.now());
+  const { data } = await firebaseAdmin
+    .from("subscriptions")
+    .select("tier,status,period_end")
+    .eq("user_id", userId)
+    .in("status", ["trialing", "active", "in_grace"])
+    .order("period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (
+    !!data &&
+    (data.tier === "lifetime" ||
+      !data.period_end ||
+      new Date(data.period_end).getTime() > Date.now())
+  );
 }
 
 async function runRpc(name: string, args: Record<string, unknown>): Promise<DbResult<any>> {
@@ -385,7 +536,13 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
         const start = Number(record?.window_start ?? 0);
         const count = start > now - 60_000 ? Number(record?.count ?? 0) : 0;
         if (count >= max) return false;
-        transaction.set(ref, { bucket, identifier, window_start: start > now - 60_000 ? start : now, count: count + 1, expires_at: new Date(now + 120_000).toISOString() });
+        transaction.set(ref, {
+          bucket,
+          identifier,
+          window_start: start > now - 60_000 ? start : now,
+          count: count + 1,
+          expires_at: new Date(now + 120_000).toISOString(),
+        });
         return true;
       });
       return { data: allowed, error: null };
@@ -393,8 +550,13 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
     case "consume_ai_credit":
     case "consume_image_credit": {
       const userId = String(args["_user_id"] ?? "");
-      if (!userId) return { data: { allowed: false, reason: "daily", resets_at: startOfUtcDay().toISOString() }, error: null };
-      if (await premiumActive(userId)) return { data: { allowed: true, premium: true }, error: null };
+      if (!userId)
+        return {
+          data: { allowed: false, reason: "daily", resets_at: startOfUtcDay().toISOString() },
+          error: null,
+        };
+      if (await premiumActive(userId))
+        return { data: { allowed: true, premium: true }, error: null };
       const feature = name === "consume_ai_credit" ? "ai_chat" : "recipe_image";
       const limit = name === "consume_ai_credit" ? 10 : 3;
       const start = startOfUtcDay();
@@ -403,20 +565,44 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
       const result = await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         const count = Number(snap.data()?.count ?? 0);
-        if (count >= limit) return { allowed: false, max: limit, reason: "daily", resets_at: new Date(start.getTime() + 86_400_000).toISOString() };
-        transaction.set(ref, { id: ref.id, user_id: userId, feature_key: feature, feature, period_key: periodKey, period_start: start.toISOString(), count: count + 1 }, { merge: true });
+        if (count >= limit)
+          return {
+            allowed: false,
+            max: limit,
+            reason: "daily",
+            resets_at: new Date(start.getTime() + 86_400_000).toISOString(),
+          };
+        transaction.set(
+          ref,
+          {
+            id: ref.id,
+            user_id: userId,
+            feature_key: feature,
+            feature,
+            period_key: periodKey,
+            period_start: start.toISOString(),
+            count: count + 1,
+          },
+          { merge: true },
+        );
         return { allowed: true, max: limit, remaining: limit - count - 1, premium: false };
       });
       return { data: result, error: null };
     }
     case "increment_dish_search": {
-      const dish = String(args["_name"] ?? "").trim().toLowerCase();
+      const dish = String(args["_name"] ?? "")
+        .trim()
+        .toLowerCase();
       if (!dish) return { data: 0, error: null };
       const ref = db.collection("dish_searches").doc(dish);
       const count = await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
         const next = Number(snap.data()?.count ?? 0) + 1;
-        transaction.set(ref, { name: dish, count: next, updated_at: new Date().toISOString() }, { merge: true });
+        transaction.set(
+          ref,
+          { name: dish, count: next, updated_at: new Date().toISOString() },
+          { merge: true },
+        );
         return next;
       });
       return { data: count, error: null };
@@ -424,33 +610,69 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
     case "is_premium":
       return { data: await premiumActive(String(args["_user_id"] ?? "")), error: null };
     case "setting_int": {
-      const { data } = await firebaseAdmin.from("app_settings").select("value").eq("key", String(args["_key"] ?? "")).maybeSingle();
+      const { data } = await firebaseAdmin
+        .from("app_settings")
+        .select("value")
+        .eq("key", String(args["_key"] ?? ""))
+        .maybeSingle();
       return { data: Number(data?.value ?? args["_default"] ?? 0), error: null };
     }
     case "recalc_recipe_rating": {
       const recipeId = String(args["_recipe_id"] ?? "");
-      const { data: ratings } = await firebaseAdmin.from("recipe_ratings").select("rating").eq("recipe_id", recipeId);
+      const { data: ratings } = await firebaseAdmin
+        .from("recipe_ratings")
+        .select("rating")
+        .eq("recipe_id", recipeId);
       const values = (ratings ?? []).map((row: Row) => Number(row.rating)).filter(Number.isFinite);
-      const average = values.length ? values.reduce((sum: number, value: number) => sum + value, 0) / values.length : 0;
-      await firebaseAdmin.from("recipes").update({ rating: average, rating_count: values.length }).eq("id", recipeId);
+      const average = values.length
+        ? values.reduce((sum: number, value: number) => sum + value, 0) / values.length
+        : 0;
+      await firebaseAdmin
+        .from("recipes")
+        .update({ rating: average, rating_count: values.length })
+        .eq("id", recipeId);
       return { data: null, error: null };
     }
     case "my_ai_usage": {
       const userId = String(args["_user_id"] ?? "");
       const dayKey = startOfUtcDay().toISOString().slice(0, 10);
       const monthKey = startOfUtcMonth().toISOString().slice(0, 7);
-      const { data: daily } = await firebaseAdmin.from("usage_limits").select("count").eq("user_id", userId).eq("feature_key", "ai_chat").eq("period_key", dayKey).maybeSingle();
-      const { data: monthly } = await firebaseAdmin.from("usage_limits").select("count").eq("user_id", userId).eq("feature_key", "ai_month").eq("period_key", monthKey).maybeSingle();
-      const { count: favoritesCount } = await firebaseAdmin.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", userId);
-      const { count: plansCount } = await firebaseAdmin.from("meal_plans").select("id", { count: "exact", head: true }).eq("user_id", userId);
+      const { data: daily } = await firebaseAdmin
+        .from("usage_limits")
+        .select("count")
+        .eq("user_id", userId)
+        .eq("feature_key", "ai_chat")
+        .eq("period_key", dayKey)
+        .maybeSingle();
+      const { data: monthly } = await firebaseAdmin
+        .from("usage_limits")
+        .select("count")
+        .eq("user_id", userId)
+        .eq("feature_key", "ai_month")
+        .eq("period_key", monthKey)
+        .maybeSingle();
+      const { count: favoritesCount } = await firebaseAdmin
+        .from("favorites")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      const { count: plansCount } = await firebaseAdmin
+        .from("meal_plans")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
       return {
         data: {
-          day_used: Number(daily?.count ?? 0), day_max: 10,
-          month_used: Number(monthly?.count ?? 0), month_max: null,
-          favorites_used: favoritesCount ?? 0, favorites_max: null,
-          plans_used: plansCount ?? 0, plans_max: null,
+          day_used: Number(daily?.count ?? 0),
+          day_max: 10,
+          month_used: Number(monthly?.count ?? 0),
+          month_max: null,
+          favorites_used: favoritesCount ?? 0,
+          favorites_max: null,
+          plans_used: plansCount ?? 0,
+          plans_max: null,
           day_resets_at: new Date(startOfUtcDay().getTime() + 86_400_000).toISOString(),
-          month_resets_at: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString(),
+          month_resets_at: new Date(
+            Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1),
+          ).toISOString(),
         },
         error: null,
       };
@@ -462,7 +684,9 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
 
 export function firebaseUserDb(userId: string) {
   return {
-    from(table: string) { return new FirestoreTableQuery(table, userId); },
+    from(table: string) {
+      return new FirestoreTableQuery(table, userId);
+    },
     async rpc(name: string, args: Record<string, unknown> = {}) {
       return runRpc(name, { ...args, _user_id: args["_user_id"] ?? userId });
     },
@@ -470,16 +694,28 @@ export function firebaseUserDb(userId: string) {
 }
 
 export const firebaseAdmin = {
-  from(table: string) { return new FirestoreTableQuery(table); },
-  async rpc(name: string, args: Record<string, unknown> = {}) { return runRpc(name, args); },
+  from(table: string) {
+    return new FirestoreTableQuery(table);
+  },
+  async rpc(name: string, args: Record<string, unknown> = {}) {
+    return runRpc(name, args);
+  },
   storage: {
     from(bucketName: string) {
       return {
-        async upload(path: string, body: Uint8Array | Buffer | string, options?: { contentType?: string; upsert?: boolean }) {
+        async upload(
+          path: string,
+          body: Uint8Array | Buffer | string,
+          options?: { contentType?: string; upsert?: boolean },
+        ) {
           try {
             const { bucket } = getServices();
             const file = bucket.file(`${bucketName}/${path}`);
-            await file.save(body, { resumable: false, metadata: { contentType: options?.contentType }, preconditionOpts: options?.upsert ? undefined : { ifGenerationMatch: 0 } });
+            await file.save(body, {
+              resumable: false,
+              metadata: { contentType: options?.contentType },
+              preconditionOpts: options?.upsert ? undefined : { ifGenerationMatch: 0 },
+            });
             return { data: { path }, error: null };
           } catch (error) {
             return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
@@ -489,7 +725,9 @@ export const firebaseAdmin = {
           try {
             const { bucket } = getServices();
             const expires = Date.now() + expiresInSeconds * 1000;
-            const [signedUrl] = await bucket.file(`${bucketName}/${path}`).getSignedUrl({ action: "read", expires });
+            const [signedUrl] = await bucket
+              .file(`${bucketName}/${path}`)
+              .getSignedUrl({ action: "read", expires });
             return { data: { signedUrl }, error: null };
           } catch (error) {
             return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
@@ -499,6 +737,25 @@ export const firebaseAdmin = {
     },
   },
 };
+
+export async function getOrCreateFirebaseUser(email: string, displayName: string) {
+  const { auth } = getServices();
+  let existingUser: Awaited<ReturnType<typeof auth.getUserByEmail>> | undefined;
+  try {
+    existingUser = await auth.getUserByEmail(email);
+  } catch (error) {
+    const code = error instanceof Error && "code" in error ? error.code : undefined;
+    if (code !== "auth/user-not-found") throw error;
+  }
+
+  if (existingUser) return { user: existingUser, created: false };
+  const user = await auth.createUser({
+    email,
+    displayName,
+    password: randomBytes(48).toString("base64url"),
+  });
+  return { user, created: true };
+}
 
 export async function verifyFirebaseIdToken(token: string) {
   return getServices().auth.verifyIdToken(token, true);

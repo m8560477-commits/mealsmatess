@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
 const PlanInput = z.object({
@@ -27,7 +28,7 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
 
     const { data: profile } = await firebaseAdmin
       .from("profiles")
@@ -316,7 +317,9 @@ Days: 1..${data.days}. One entry per meal per day.`;
       .from("grocery_items")
       .select("name")
       .eq("checked", false);
-    const have = new Set((existing ?? []).map((r) => r.name.trim().toLowerCase()));
+    const have = new Set(
+      ((existing ?? []) as { name: string }[]).map((r) => r.name.trim().toLowerCase()),
+    );
 
     const rows = Array.from(map.entries())
       .filter(([k]) => !have.has(k))

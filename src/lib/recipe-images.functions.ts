@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 const RECIPE_COLS =
   "id,name,cuisine,category,meal_type,description,diet_tags,ingredients,steps,created_by,image_url,image_source,image_confidence,image_locked,image_signature,image_checked_at";
@@ -8,7 +9,7 @@ const RECIPE_COLS =
 const IdSchema = z.object({ recipeId: z.string().uuid() });
 
 async function loadRecipe(recipeId: string) {
-  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { firebaseAdmin } = await loadFirebaseAdmin();
   const { data, error } = await firebaseAdmin
     .from("recipes")
     .select(RECIPE_COLS)
@@ -51,7 +52,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
         searched: false,
       };
     }
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     // Each recipe gets its own AI photo built from its ingredients and steps, generated once and reused.
     {
       const { data: ok } = await firebaseAdmin.rpc("check_rate_limit", {

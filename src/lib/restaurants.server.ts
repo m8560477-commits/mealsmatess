@@ -406,7 +406,11 @@ export async function fetchRestaurantStats(userId: string, restaurantId: string)
     .gte("placed_at", since);
   if (error) throw new Error(error.message);
 
-  const rows = data ?? [];
+  const rows = (data ?? []) as {
+    status: string;
+    total?: number | string | null;
+    placed_at: string;
+  }[];
   const completed = rows.filter((r) => r.status === "completed");
   const revenue = completed.reduce((s, r) => s + Number(r.total ?? 0), 0);
   const byDay = new Map<string, number>();
@@ -445,7 +449,17 @@ export async function persistOrder(userId: string, input: OrderInput) {
     .eq("restaurant_id", input.restaurantId);
   if (menuErr) throw new Error(menuErr.message);
 
-  const map = new Map((menuItems ?? []).map((m) => [m.id, m]));
+  const map = new Map(
+    (
+      (menuItems ?? []) as {
+        id: string;
+        name: string;
+        price: number;
+        is_available: boolean;
+        is_hidden: boolean;
+      }[]
+    ).map((m) => [m.id, m]),
+  );
   const lines = input.items.map((i) => {
     const item = map.get(i.menu_item_id);
     if (!item || item.is_hidden || !item.is_available) {

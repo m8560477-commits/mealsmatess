@@ -21,6 +21,7 @@ import {
 import { format, subDays, subMonths } from "date-fns";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
+import { sendPasswordReset as sendFirebasePasswordReset } from "@/lib/firebase";
 import {
   adminDeletePromo,
   adminGrantPremium,
@@ -131,7 +132,20 @@ function ManagedRestaurantsTab() {
     setBusy(true);
     try {
       const result = await createManagedRestaurant({ data: { email, name, ownerName } });
-      toast.success("Invite sent. The restaurant will appear once approved.");
+      if (result.invited) {
+        try {
+          await sendFirebasePasswordReset(email.trim().toLowerCase());
+          toast.success(
+            "Password setup email sent. The owner must also verify their email before first sign-in.",
+          );
+        } catch {
+          toast.error(
+            "Restaurant created, but Firebase could not send the setup email. Check Firebase Auth email settings.",
+          );
+        }
+      } else {
+        toast.success("Restaurant linked to the existing Firebase account.");
+      }
       setEmail("");
       setName("");
       setOwnerName("");
@@ -612,19 +626,27 @@ function UsersTab({ analytics, loading }: { analytics?: Analytics; loading: bool
                 </tr>
               </thead>
               <tbody>
-                {(users.data ?? []).map((u) => (
-                  <tr key={u.id} className="border-t border-border/60">
-                    <td className="px-3 py-2">{u.display_name ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{u.username ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{u.locale}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {format(new Date(u.created_at), "MMM d, yyyy")}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                      {u.id.slice(0, 8)}…
-                    </td>
-                  </tr>
-                ))}
+                {(users.data ?? []).map(
+                  (u: {
+                    id: string;
+                    display_name?: string | null;
+                    username?: string | null;
+                    locale?: string | null;
+                    created_at: string;
+                  }) => (
+                    <tr key={u.id} className="border-t border-border/60">
+                      <td className="px-3 py-2">{u.display_name ?? "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{u.username ?? "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{u.locale}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {format(new Date(u.created_at), "MMM d, yyyy")}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                        {u.id.slice(0, 8)}…
+                      </td>
+                    </tr>
+                  ),
+                )}
                 {(users.data ?? []).length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
@@ -788,7 +810,17 @@ function SubscribersTab() {
     queryFn: () => adminListSubscribers(),
   });
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
-  const rows = data ?? [];
+  const rows = (data ?? []) as {
+    id: string;
+    user_id: string;
+    display_name: string;
+    tier: string;
+    status: string;
+    store?: string | null;
+    period_end?: string | null;
+    trial_end?: string | null;
+    is_manual?: boolean;
+  }[];
 
   function exportCsv() {
     const header = [
@@ -931,50 +963,63 @@ function PromosTab() {
         <Loader2 className="h-5 w-5 animate-spin" />
       ) : (
         <ul className="space-y-2">
-          {(promos ?? []).map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <code className="font-mono font-semibold">{p.code}</code>
-                  {!p.enabled && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase">
-                      Disabled
-                    </span>
-                  )}
+          {(promos ?? []).map(
+            (p: {
+              id: string;
+              code: string;
+              enabled: boolean;
+              reward_kind:
+                "percent_discount" | "free_days" | "free_month" | "free_year" | "lifetime";
+              reward_value: number;
+              redemption_count: number;
+              max_redemptions: number | null;
+              expires_at: string | null;
+              notes: string | null;
+            }) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono font-semibold">{p.code}</code>
+                    {!p.enabled && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {p.reward_kind} · value {p.reward_value} · redeemed {p.redemption_count}
+                    {p.max_redemptions ? `/${p.max_redemptions}` : ""}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {p.reward_kind} · value {p.reward_value} · redeemed {p.redemption_count}
-                  {p.max_redemptions ? `/${p.max_redemptions}` : ""}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    setEditing({
-                      id: p.id,
-                      code: p.code,
-                      reward_kind: p.reward_kind,
-                      reward_value: p.reward_value,
-                      max_redemptions: p.max_redemptions,
-                      expires_at: p.expires_at,
-                      enabled: p.enabled,
-                      notes: p.notes,
-                    })
-                  }
-                >
-                  Edit
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => remove(p.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            </li>
-          ))}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      setEditing({
+                        id: p.id,
+                        code: p.code,
+                        reward_kind: p.reward_kind,
+                        reward_value: p.reward_value,
+                        max_redemptions: p.max_redemptions,
+                        expires_at: p.expires_at,
+                        enabled: p.enabled,
+                        notes: p.notes,
+                      })
+                    }
+                  >
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => remove(p.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </li>
+            ),
+          )}
           {promos && promos.length === 0 && (
             <p className="text-center text-sm text-muted-foreground">No promo codes yet.</p>
           )}
@@ -1162,22 +1207,32 @@ function AuditTab() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t border-border/60">
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {format(new Date(r.created_at), "MMM d, HH:mm")}
-                  </td>
-                  <td className="px-3 py-2">{r.action}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                    {r.target_table ?? "—"}
-                    {r.target_id ? ` · ${r.target_id.slice(0, 8)}…` : ""}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                    {r.actor_id ? r.actor_id.slice(0, 8) + "…" : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.ip_address ?? "—"}</td>
-                </tr>
-              ))}
+              {rows.map(
+                (r: {
+                  id: string;
+                  created_at: string;
+                  action: string;
+                  target_table?: string | null;
+                  target_id?: string | null;
+                  actor_id?: string | null;
+                  ip_address?: string | null;
+                }) => (
+                  <tr key={r.id} className="border-t border-border/60">
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {format(new Date(r.created_at), "MMM d, HH:mm")}
+                    </td>
+                    <td className="px-3 py-2">{r.action}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      {r.target_table ?? "—"}
+                      {r.target_id ? ` · ${r.target_id.slice(0, 8)}…` : ""}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      {r.actor_id ? r.actor_id.slice(0, 8) + "…" : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{r.ip_address ?? "—"}</td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         </div>

@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 async function assertAdmin(userId: string) {
-  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { firebaseAdmin } = await loadFirebaseAdmin();
   const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
@@ -15,7 +16,7 @@ async function assertAdmin(userId: string) {
 
 // Public read (anon + authenticated) — flags drive UI availability
 export const listFeatureFlags = createServerFn({ method: "GET" }).handler(async () => {
-  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { firebaseAdmin } = await loadFirebaseAdmin();
   const { data, error } = await firebaseAdmin
     .from("feature_flags")
     .select("key, enabled, description, rollout_percent")
@@ -38,7 +39,7 @@ export const adminUpsertFeatureFlag = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { error } = await firebaseAdmin.from("feature_flags").upsert(
       {
         key: data.key,
@@ -58,7 +59,7 @@ export const adminDeleteFeatureFlag = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => z.object({ key: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { error } = await firebaseAdmin.from("feature_flags").delete().eq("key", data.key);
     if (error) throw new Error(error.message);
     return { ok: true };

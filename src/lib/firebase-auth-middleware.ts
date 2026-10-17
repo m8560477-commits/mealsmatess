@@ -1,5 +1,6 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 export const requireFirebaseAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
@@ -8,19 +9,20 @@ export const requireFirebaseAuth = createMiddleware({ type: "function" }).server
     const match = /^Bearer\s+(.+)$/i.exec(authorization);
     if (!match?.[1]) throw new Response("Unauthorized", { status: 401 });
 
-    let userId: string;
-    let claims: Record<string, unknown>;
-    let firebase: ReturnType<(typeof import("@/server/firebase-admin"))["firebaseUserDb"]>;
+    const backend = await loadFirebaseAdmin();
+    let verified;
     try {
-      const backend = await import("@/server/firebase-admin");
-      const verified = await backend.verifyFirebaseIdToken(match[1]);
-      if (!verified.uid) throw new Error("Missing Firebase UID");
-      userId = verified.uid;
-      claims = verified as unknown as Record<string, unknown>;
-      firebase = backend.firebaseUserDb(userId);
+      verified = await backend.verifyFirebaseIdToken(match[1]);
     } catch {
       throw new Response("Unauthorized", { status: 401 });
     }
-    return next({ context: { firebase, userId, claims } });
+    if (!verified.uid) throw new Response("Unauthorized", { status: 401 });
+    return next({
+      context: {
+        firebase: backend.firebaseUserDb(verified.uid),
+        userId: verified.uid,
+        claims: verified,
+      },
+    });
   },
 );

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import {
   ApplicationSchema,
   MenuItemSchema,
@@ -97,7 +98,7 @@ export const listRestaurantReviews = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
   .handler(async ({ data }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: reviews, error } = await firebaseAdmin
       .from("restaurant_reviews")
       .select("id,rating,comment,created_at")

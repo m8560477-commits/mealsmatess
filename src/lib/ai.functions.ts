@@ -4,7 +4,8 @@ import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { curatedRecipeImageUrl } from "@/lib/recipe-image";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, auditLog, trackEvent } from "@/lib/security.server";
 
 const RecipeSchema = z.object({
@@ -142,7 +143,7 @@ export const surpriseMe = createServerFn({ method: "POST" })
       const recipe = await callModel(
         `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact.`,
       );
-      const { firebaseAdmin } = await import("@/server/firebase-admin");
+      const { firebaseAdmin } = await loadFirebaseAdmin();
       const row = toDbRecipe(recipe, context.userId);
       const { data, error } = await firebaseAdmin
         .from("recipes")
@@ -179,7 +180,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const t0 = Date.now();
     try {
       const { data: exact } = await firebaseAdmin
@@ -452,7 +453,7 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => z.object({ slug: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
 
     // Premium gate — check for an active subscription
     const { data: sub } = await firebaseAdmin

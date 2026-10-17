@@ -74,31 +74,40 @@ function OrdersPage() {
         </div>
       ) : (
         <ul className="mt-6 space-y-3">
-          {(data ?? []).map((o) => {
-            const restaurant = o.restaurants as { name: string; slug: string } | null;
-            return (
-              <li key={o.id}>
-                <Link
-                  to="/order/$id"
-                  params={{ id: o.id }}
-                  className="md3-surface flex items-center justify-between gap-3 rounded-3xl border border-border/60 bg-card p-4 transition-shadow hover:shadow-lg"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{restaurant?.name ?? "Restaurant"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(o.placed_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="secondary" className="rounded-full">
-                      {ORDER_STATUS_LABEL[o.status as OrderStatus]}
-                    </Badge>
-                    <p className="mt-1 text-sm font-semibold">{money(o.total, o.currency)}</p>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
+          {(data ?? []).map(
+            (o: {
+              id: string;
+              restaurants?: unknown;
+              placed_at: string;
+              status: string;
+              total: number;
+              currency: string;
+            }) => {
+              const restaurant = o.restaurants as { name: string; slug: string } | null;
+              return (
+                <li key={o.id}>
+                  <Link
+                    to="/order/$id"
+                    params={{ id: o.id }}
+                    className="md3-surface flex items-center justify-between gap-3 rounded-3xl border border-border/60 bg-card p-4 transition-shadow hover:shadow-lg"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{restaurant?.name ?? "Restaurant"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(o.placed_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="secondary" className="rounded-full">
+                        {ORDER_STATUS_LABEL[o.status as OrderStatus]}
+                      </Badge>
+                      <p className="mt-1 text-sm font-semibold">{money(o.total, o.currency)}</p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            },
+          )}
         </ul>
       )}
     </div>

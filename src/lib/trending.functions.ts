@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { z } from "zod";
 
 // Curated allowlist — only these dish names can be tracked. Prevents junk data.
@@ -44,7 +45,7 @@ export const incrementDishSearch = createServerFn({ method: "POST" })
     const name = data.name.trim();
     if (!ALLOWED.has(name)) return { count: 0, tracked: false };
 
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
 
     const { data: existing } = await firebaseAdmin
       .from("dish_searches")

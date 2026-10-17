@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 const ADMIN_EMAIL = "tatendamkhwanazi6@gmail.com";
 const CreateManagedRestaurantSchema = z.object({
@@ -22,7 +23,7 @@ export const listManagedRestaurants = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertManagedAdmin(context);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data, error } = await (firebaseAdmin as any)
       .from("restaurants")
       .select("id,name,email,owner_name,approval_status,created_at")
@@ -41,7 +42,7 @@ export const launchManagedRestaurant = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => RestaurantIdSchema.parse(value))
   .handler(async ({ data, context }) => {
     await assertManagedAdmin(context);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { error } = await firebaseAdmin
       .from("restaurants")
       .update({ approval_status: "approved" })
@@ -55,27 +56,25 @@ export const createManagedRestaurant = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => CreateManagedRestaurantSchema.parse(value))
   .handler(async ({ data, context }) => {
     await assertManagedAdmin(context);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const email = data.email.trim().toLowerCase();
-    const { data: invite, error: inviteError } = await firebaseAdmin.auth.admin.inviteUserByEmail(
+    const { getOrCreateFirebaseUser } = await loadFirebaseAdmin();
+    const { user: owner, created: ownerCreated } = await getOrCreateFirebaseUser(
       email,
-      {
-        data: { full_name: data.ownerName, account_type: "restaurant" },
-      },
+      data.ownerName.trim(),
     );
-    if (inviteError && !inviteError.message.toLowerCase().includes("already registered"))
-      throw inviteError;
+    const ownerId = owner.uid;
+    const { error: profileError } = await firebaseAdmin.from("profiles").upsert(
+      {
+        id: ownerId,
+        email,
+        display_name: owner.displayName || data.ownerName.trim(),
+        created_at: owner.metadata.creationTime ?? new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    if (profileError) throw new Error(profileError.message);
 
-    let ownerId = invite.user?.id ?? null;
-    if (!ownerId) {
-      const { data: existing } = await firebaseAdmin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-      });
-      ownerId = existing.users.find((user) => user.email?.toLowerCase() === email)?.id ?? null;
-    }
-
-    if (!ownerId) throw new Error("Could not find or invite the owner account.");
     const slug = `${data.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -99,7 +98,7 @@ export const createManagedRestaurant = createServerFn({ method: "POST" })
     return {
       restaurant: { ...restaurant, owner_email: restaurant.email },
       trialEndsAt: null,
-      invited: Boolean(invite.user),
+      invited: ownerCreated,
       sponsored: false,
     };
   });

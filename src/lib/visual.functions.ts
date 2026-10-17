@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
 const VisualInput = z.object({
@@ -110,7 +111,7 @@ export const generateVisualExplanation = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => VisualInput.parse(v))
   .handler(async ({ data, context }): Promise<VisualExplanation> => {
     await requireAiCredit(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: sub } = await firebaseAdmin
       .from("subscriptions")
       .select("tier,status,period_end")

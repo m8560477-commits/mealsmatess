@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { firebaseData } from "@/lib/firebase-data";
+import { useSession } from "@/hooks/use-session";
 import { useOrderRealtime } from "@/lib/marketplace.realtime";
 import { money, StatusTracker } from "@/components/restaurant/bits";
 import { type OrderStatus } from "@/lib/restaurants.schemas";
@@ -27,11 +28,14 @@ export const Route = createFileRoute("/order/$id")({
 
 function OrderPage() {
   const { id } = Route.useParams();
+  const { user } = useSession();
   useOrderRealtime(id);
   const { data, isLoading } = useQuery({
-    queryKey: ["order", id],
+    queryKey: ["order", id, user?.id],
+    enabled: Boolean(user),
     refetchInterval: 15000,
     queryFn: async () => {
+      if (!user) return null;
       const { data, error } = await firebaseData
         .from("restaurant_orders")
         .select(

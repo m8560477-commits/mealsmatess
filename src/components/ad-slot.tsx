@@ -38,7 +38,7 @@ export function adPlacementsQuery(slot: AdSlotName) {
         .limit(10);
       if (error) throw error;
       const now = Date.now();
-      return (data ?? []).filter(
+      return ((data ?? []) as Placement[]).filter(
         (p) =>
           (!p.starts_at || new Date(p.starts_at).getTime() <= now) &&
           (!p.ends_at || new Date(p.ends_at).getTime() >= now),

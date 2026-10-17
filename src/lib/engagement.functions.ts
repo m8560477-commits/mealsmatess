@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 // Track a recipe view (upsert recently_viewed)
 export const trackRecipeView = createServerFn({ method: "POST" })
@@ -29,7 +30,7 @@ export const listRecentlyViewed = createServerFn({ method: "GET" })
       .order("viewed_at", { ascending: false })
       .limit(12);
     if (error) throw new Error(error.message);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const recipes = await Promise.all(
       (views ?? []).map(async (view: { recipe_id: string }) => {
         const { data: recipe } = await firebaseAdmin
@@ -74,8 +75,8 @@ export const rateRecipe = createServerFn({ method: "POST" })
 export const listRecipeRatings = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
-  .handler(async ({ data }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+  .handler(async ({ data, context }) => {
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: rows, error } = await firebaseAdmin
       .from("recipe_ratings")
       .select("id, user_id, rating, review, created_at")

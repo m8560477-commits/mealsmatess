@@ -3,7 +3,8 @@ import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 const RecipeSchema = z.object({
   not_recipe: z.boolean().optional(),
@@ -127,7 +128,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
       throw new Error("No recipe could be detected from this video.");
     }
 
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const userId = context.userId;
 
     const slug = `${slugify(parsed.name)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -187,7 +188,7 @@ export const updateRecipeBasics = createServerFn({ method: "POST" })
       .parse(v),
   )
   .handler(async ({ data, context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { error } = await firebaseAdmin
       .from("recipes")
       .update({
@@ -206,7 +207,7 @@ export const deleteImportedRecipe = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     await firebaseAdmin
       .from("favorites")
       .delete()

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/server/firebase-auth";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 // Free-tier limits — enforced server-side before any AI work
 export const FREE_LIMITS = {
@@ -23,7 +24,7 @@ function periodKey(period: "day" | "month"): string {
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: sub } = await firebaseAdmin
       .from("subscriptions")
       .select("*")
@@ -115,7 +116,7 @@ export async function enforceAndIncrement(
   userId: string,
   feature: FeatureKey,
 ): Promise<{ allowed: boolean; remaining: number; premium: boolean }> {
-  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { firebaseAdmin } = await loadFirebaseAdmin();
   // Premium check
   const { data: sub } = await firebaseAdmin
     .from("subscriptions")
@@ -163,7 +164,7 @@ export async function enforceAndIncrement(
 export const getMyReferral = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     let { data: row } = await firebaseAdmin
       .from("referral_codes")
       .select("code")
@@ -197,7 +198,7 @@ export const applyReferralCode = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ code: z.string().min(4).max(16) }).parse(v))
   .handler(async ({ data, context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const code = data.code.trim().toUpperCase();
     const { data: owner } = await firebaseAdmin
       .from("referral_codes")
@@ -231,7 +232,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ code: z.string().min(2).max(40) }).parse(v))
   .handler(async ({ data, context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const code = data.code.trim().toUpperCase();
     const { data: promo } = await firebaseAdmin
       .from("promo_codes")
@@ -351,7 +352,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
 
 // ---------- Admin ----------
 async function assertAdmin(userId: string) {
-  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { firebaseAdmin } = await loadFirebaseAdmin();
   const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
@@ -365,7 +366,7 @@ export const adminListSubscribers = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: subs } = await firebaseAdmin
       .from("subscriptions")
       .select(
@@ -373,20 +374,37 @@ export const adminListSubscribers = createServerFn({ method: "GET" })
       )
       .order("created_at", { ascending: false })
       .limit(500);
-    const ids = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
+    const subscriptionRows = (subs ?? []) as {
+      id: string;
+      user_id: string;
+      tier: string;
+      status: string;
+      store?: string | null;
+      period_start?: string | null;
+      period_end?: string | null;
+      trial_end?: string | null;
+      auto_renew?: boolean | null;
+      is_manual?: boolean | null;
+      created_at: string;
+    }[];
+    const ids = Array.from(new Set(subscriptionRows.map((subscription) => subscription.user_id)));
     const { data: profiles } = await firebaseAdmin
       .from("profiles")
       .select("id,display_name")
       .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
-    const profMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
-    return (subs ?? []).map((s) => ({ ...s, display_name: profMap.get(s.user_id) ?? "—" }));
+    const profileRows = (profiles ?? []) as { id: string; display_name?: string | null }[];
+    const profMap = new Map(profileRows.map((profile) => [profile.id, profile.display_name]));
+    return subscriptionRows.map((subscription) => ({
+      ...subscription,
+      display_name: profMap.get(subscription.user_id) ?? "—",
+    }));
   });
 
 export const adminStats = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const [
       { count: active },
       { count: trialing },
@@ -418,7 +436,10 @@ export const adminStats = createServerFn({ method: "GET" })
       .select("amount_usd,kind")
       .gte("occurred_at", since)
       .in("kind", ["initial", "renewal", "trial_conversion"]);
-    const revenue30 = (payments30 ?? []).reduce((sum, p) => sum + Number(p.amount_usd ?? 0), 0);
+    const revenue30 = ((payments30 ?? []) as { amount_usd?: number | string | null }[]).reduce(
+      (sum, payment) => sum + Number(payment.amount_usd ?? 0),
+      0,
+    );
     return {
       active: active ?? 0,
       trialing: trialing ?? 0,
@@ -433,7 +454,7 @@ export const adminListPromos = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data } = await firebaseAdmin
       .from("promo_codes")
       .select("*")
@@ -456,7 +477,7 @@ export const adminSavePromo = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => PromoInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const row = {
       code: data.code.trim().toUpperCase(),
       reward_kind: data.reward_kind,
@@ -486,7 +507,7 @@ export const adminDeletePromo = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { error } = await firebaseAdmin.from("promo_codes").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -499,7 +520,7 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: current } = await firebaseAdmin
       .from("subscriptions")
       .select("*")
@@ -549,7 +570,7 @@ export const adminRevokePremium = createServerFn({ method: "POST" })
   .inputValidator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     await firebaseAdmin
       .from("subscriptions")
       .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
@@ -568,7 +589,7 @@ export const adminRevokePremium = createServerFn({ method: "POST" })
 export const adminIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data } = await firebaseAdmin
       .from("user_roles")
       .select("role")

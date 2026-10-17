@@ -693,8 +693,15 @@ export async function partnerAnalytics(userId: string, restaurantId: string, day
       .gte("created_at", since),
   ]);
 
-  const orderRows = orders.data ?? [];
-  const completed = orderRows.filter((o) => o.status === "completed");
+  const orderRows = (orders.data ?? []) as {
+    id: string;
+    status: string;
+    total?: number | string | null;
+    discount_total?: number | string | null;
+    placed_at: string;
+    fulfillment_type?: string | null;
+  }[];
+  const completed = orderRows.filter((order) => order.status === "completed");
   const revenue = round2(completed.reduce((s, o) => s + Number(o.total ?? 0), 0));
 
   const funnel: Record<string, number> = {};
@@ -727,7 +734,10 @@ export async function partnerAnalytics(userId: string, restaurantId: string, day
     revenue,
     avgOrder: completed.length ? round2(revenue / completed.length) : 0,
     promoDiscount: round2(
-      (redemptions.data ?? []).reduce((s, r) => s + Number(r.discount_amount ?? 0), 0),
+      ((redemptions.data ?? []) as { discount_amount?: number | string | null }[]).reduce(
+        (sum, redemption) => sum + Number(redemption.discount_amount ?? 0),
+        0,
+      ),
     ),
     funnel: {
       restaurant_view: funnel["restaurant_view"] ?? 0,
