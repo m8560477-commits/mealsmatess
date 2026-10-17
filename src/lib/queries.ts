@@ -1,180 +1,150 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  collection,
+  getDocs,
+  getDoc,
+  doc,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
+import { auth, db, handleFirestoreError, OperationType } from "@/lib/firebase";
 
-export const featuredRecipesQuery = () =>
-  queryOptions({
-    queryKey: ["recipes", "featured"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recipes")
-        .select(
-          "id,slug,name,image_url,image_source,cooking_time_minutes,cuisine,category,diet_tags,calories,difficulty",
-        )
-        .order("created_at", { ascending: false })
-        .limit(12);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+const recipes = collection(db, "recipes");
+export type FirestoreRecord = Record<string, any> & {
+  id: string;
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  cuisine?: string | null;
+  category?: string | null;
+  country?: string | null;
+  diet_tags?: string[] | null;
+  recipe_id?: string;
+  image_url?: string | null;
+  image_source?: string | null;
+  image_attribution?: string | null;
+  cooking_time_minutes?: number | null;
+  servings?: number | null;
+  calories?: number | null;
+  difficulty?: string | null;
+  ingredients?: unknown;
+  steps?: unknown;
+  fun_fact?: string | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  checked?: boolean;
+  quantity?: string | null;
+  plan_date?: string;
+  meal_type?: string;
+  custom_name?: string | null;
+  recipes?: RecipeRecord | null;
+};
+export type RecipeRecord = Omit<FirestoreRecord, "name" | "slug" | "image_url" | "cooking_time_minutes" | "calories" | "servings" | "ingredients" | "steps"> & {
+  name: string;
+  slug: string;
+  image_url: string | null;
+  cooking_time_minutes: number | null;
+  calories: number | null;
+  servings: number | null;
+  ingredients: unknown;
+  steps: unknown;
+};
+export type FavoriteRecord = FirestoreRecord & { recipe_id: string; recipes?: RecipeRecord | null };
+export type MealPlanRecord = FirestoreRecord & { plan_date: string; meal_type: string; recipe_id?: string; recipes?: RecipeRecord | null };
+export type GroceryRecord = FirestoreRecord & { name: string; checked: boolean; quantity?: string | null };
+export type PantryRecord = FirestoreRecord & {
+  name: string;
+  expires_at?: string | null;
+};
 
-export const trendingRecipesQuery = () =>
-  queryOptions({
-    queryKey: ["recipes", "trending"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recipes")
-        .select(
-          "id,slug,name,image_url,image_source,cooking_time_minutes,cuisine,category,diet_tags,calories,difficulty",
-        )
-        .order("created_at", { ascending: false })
-        .limit(8);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+const recipeFields = (item: FirestoreRecord): RecipeRecord => item as RecipeRecord;
 
-export const southAfricanFavoritesQuery = () =>
-  queryOptions({
-    queryKey: ["recipes", "south-african"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("id,slug,name,image_url,image_source")
-        .or(
-          "category.eq.South African Favorites,country.ilike.%south africa%,cuisine.ilike.%south african%",
-        )
-        .limit(8);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+const list = async (collectionName: string, constraints: Parameters<typeof query>[1][] = []): Promise<FirestoreRecord[]> => {
+  try {
+    const snapshot = await getDocs(query(collection(db, collectionName), ...constraints));
+    return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, collectionName);
+    return [];
+  }
+}
 
-export const recipesByCategoryQuery = (category: string | undefined, search = "") =>
-  queryOptions({
-    queryKey: ["recipes", "category", category ?? "all", search.trim().toLowerCase()],
-    queryFn: async () => {
-      let q = supabase
-        .from("recipes")
-        .select(
-          "id,slug,name,image_url,image_source,cooking_time_minutes,cuisine,category,diet_tags,country",
-        )
-        .order("created_at", { ascending: false })
-        .limit(60);
-      if (category) {
-        q = q.or(
-          `category.eq.${category},country.eq.${category},cuisine.eq.${category},diet_tags.cs.{${category}}`,
-        );
-      }
-      if (search.trim()) {
-        const term = search.trim().replace(/[(),]/g, " ");
-        q = q.or(
-          `name.ilike.%${term}%,cuisine.ilike.%${term}%,category.ilike.%${term}%,country.ilike.%${term}%`,
-        );
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+export const featuredRecipesQuery = () => queryOptions({
+  queryKey: ["recipes", "featured"],
+  queryFn: async (): Promise<RecipeRecord[]> => (await list("recipes", [orderBy("created_at", "desc"), limit(12)])).map(recipeFields),
+});
 
-export const recipeBySlugQuery = (slug: string) =>
-  queryOptions({
-    queryKey: ["recipe", slug],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*")
-        .eq("slug", slug)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
+export const trendingRecipesQuery = () => queryOptions({
+  queryKey: ["recipes", "trending"],
+  queryFn: async (): Promise<RecipeRecord[]> => (await list("recipes", [orderBy("created_at", "desc"), limit(8)])).map(recipeFields),
+});
 
-export const myFavoritesQuery = () =>
-  queryOptions({
-    queryKey: ["favorites"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("favorites")
-        .select(
-          "recipe_id, recipes(id,slug,name,image_url,image_source,cooking_time_minutes,cuisine,category)",
-        );
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+export const southAfricanFavoritesQuery = () => queryOptions({
+  queryKey: ["recipes", "south-african"],
+  queryFn: async (): Promise<RecipeRecord[]> => {
+    const items = await list("recipes", [limit(100)]);
+    return items.filter((item) => [item["category"], item["country"], item["cuisine"]].some((value) => String(value ?? "").toLowerCase().includes("south african") || String(value ?? "").toLowerCase().includes("south africa"))).slice(0, 8).map(recipeFields);
+  },
+});
 
-export const myGroceryQuery = () =>
-  queryOptions({
-    queryKey: ["grocery"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("grocery_items")
-        .select("*")
-        .order("checked", { ascending: true })
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+export const recipesByCategoryQuery = (category: string | undefined, search = "") => queryOptions({
+  queryKey: ["recipes", "category", category ?? "all", search.trim().toLowerCase()],
+  queryFn: async (): Promise<RecipeRecord[]> => {
+    const term = search.trim().toLowerCase();
+    const items = await list("recipes", [orderBy("created_at", "desc"), limit(100)]);
+    return items.filter((item) => {
+      const values = [item["name"], item["cuisine"], item["category"], item["country"], ...(Array.isArray(item["diet_tags"]) ? item["diet_tags"] : [])].map((value) => String(value ?? "").toLowerCase());
+      return (!category || values.includes(category.toLowerCase())) && (!term || values.some((value) => value.includes(term)));
+    }).slice(0, 60).map(recipeFields);
+  },
+});
 
-export const myPantryQuery = () =>
-  queryOptions({
-    queryKey: ["pantry"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pantry_items")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+export const recipeBySlugQuery = (slug: string) => queryOptions({
+  queryKey: ["recipe", slug],
+  queryFn: async (): Promise<RecipeRecord | null> => {
+    const snapshot = await getDocs(query(recipes, where("slug", "==", slug), limit(1)));
+    return snapshot.docs[0] ? ({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as unknown as RecipeRecord) : null;
+  },
+});
 
-export const myPlannerQuery = (fromISO: string, toISO: string) =>
-  queryOptions({
-    queryKey: ["planner", fromISO, toISO],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .select("*, recipes(id,slug,name,image_url,image_source,cuisine)")
-        .gte("plan_date", fromISO)
-        .lte("plan_date", toISO);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+export const myFavoritesQuery = () => queryOptions({
+  queryKey: ["favorites"],
+  queryFn: async (): Promise<FavoriteRecord[]> => {
+    const user = auth.currentUser;
+    if (!user) return [];
+    return (await list(`users/${user.uid}/favorites`, [orderBy("created_at", "desc")])) as FavoriteRecord[];
+  },
+});
 
-export const myProfileQuery = () =>
-  queryOptions({
-    queryKey: ["profile"],
-    queryFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return null;
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", u.user.id)
-        .maybeSingle();
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", u.user.id);
-      return { user: u.user, profile: data, roles: roles?.map((r) => r.role) ?? [] };
-    },
-  });
+export const myGroceryQuery = () => queryOptions({
+  queryKey: ["grocery"],
+  queryFn: async (): Promise<GroceryRecord[]> => auth.currentUser ? (await list(`users/${auth.currentUser.uid}/grocery`, [orderBy("checked"), orderBy("created_at", "desc")])) as GroceryRecord[] : [],
+});
 
-export const announcementsQuery = () =>
-  queryOptions({
-    queryKey: ["announcements"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("announcements")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+export const myPantryQuery = () => queryOptions<PantryRecord[]>({
+  queryKey: ["pantry"],
+  queryFn: async (): Promise<PantryRecord[]> => auth.currentUser ? (await list(`users/${auth.currentUser.uid}/pantry`, [orderBy("created_at", "desc")])) as PantryRecord[] : [],
+});
+
+export const myPlannerQuery = (fromISO: string, toISO: string) => queryOptions({
+  queryKey: ["planner", fromISO, toISO],
+  queryFn: async (): Promise<MealPlanRecord[]> => auth.currentUser ? (await list(`users/${auth.currentUser.uid}/mealPlans`, [where("plan_date", ">=", fromISO), where("plan_date", "<=", toISO), orderBy("plan_date")])) as MealPlanRecord[] : [],
+});
+
+export const myProfileQuery = () => queryOptions({
+  queryKey: ["profile"],
+  queryFn: async (): Promise<{ user: typeof auth.currentUser; profile: FirestoreRecord | null; roles: string[] } | null> => {
+    const user = auth.currentUser;
+    if (!user) return null;
+    const profile = await getDoc(doc(db, "users", user.uid));
+    return { user, profile: profile.exists() ? { id: profile.id, ...profile.data() } : null, roles: [] };
+  },
+});
+
+export const announcementsQuery = () => queryOptions({
+  queryKey: ["announcements"],
+  queryFn: () => list("announcements", [orderBy("created_at", "desc"), limit(10)]),
+});

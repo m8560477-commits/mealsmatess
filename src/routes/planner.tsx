@@ -274,7 +274,7 @@ function PlannerPage() {
                         {p.recipes?.slug ? (
                           <Link
                             to="/recipe/$slug"
-                            params={{ slug: p.recipes.slug }}
+                            params={{ slug: p.recipes.slug ?? p.recipe_id ?? "" }}
                             className="hover:underline"
                           >
                             {p.recipes?.name ?? p.custom_name}

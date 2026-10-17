@@ -4,8 +4,6 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { MealMateLogo } from "@/components/mealmate-logo";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +76,6 @@ function AuthPage() {
     if (busy) return;
     setBusy(true);
     try {
-      // Primary: Firebase Google Sign-In with popup
       const cred = await signInWithFirebaseGoogle();
       if (cred?.user) {
         // Ensure user profile document in Firestore
@@ -102,29 +99,12 @@ function AuthPage() {
         navigate({ to: "/", replace: true });
         return;
       }
-    } catch (fbErr: any) {
-      if (fbErr?.code === "auth/popup-closed-by-user") {
-        setBusy(false);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "auth/popup-closed-by-user") {
         return;
       }
-      console.warn("[Auth] Firebase Google auth notice, trying fallback:", fbErr);
-      try {
-        const result = await lovable.auth.signInWithOAuth("google", {
-          redirect_uri: window.location.origin,
-          extraParams: { prompt: "select_account" },
-        });
-        if (result.error) throw result.error;
-        if (result.redirected) return;
-        navigate({ to: "/", replace: true });
-      } catch (fallbackErr) {
-        console.error("[Auth] Google sign-in error:", fallbackErr);
-        toast.error(
-          extractErrorMessage(
-            fbErr || fallbackErr,
-            "Google sign-in is unavailable. Please use email and password.",
-          ),
-        );
-      }
+      console.error("[Auth] Google sign-in error:", error);
+      toast.error(extractErrorMessage(error, "Google sign-in is unavailable. Please use email and password."));
     } finally {
       setBusy(false);
     }
@@ -170,33 +150,7 @@ function AuthPage() {
             setPassword("");
             return;
           }
-          // If Firebase email provider is not enabled in Firebase console, fall back to Supabase
-          console.info("[Auth] Falling back to Supabase signup:", fbErr?.code);
-        }
-
-        const { data, error } = await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: {
-            emailRedirectTo: getAuthRedirectUrl("/auth/callback"),
-            data: { display_name: displayName || email.split("@")[0] },
-          },
-        });
-        if (error) throw error;
-        // Supabase returns a user with no identities when the email is already registered.
-        if (data.user && (data.user.identities?.length ?? 0) === 0) {
-          toast.error("An account with this email already exists. Sign in instead.");
-          setMode("signin");
-          setPassword("");
-          return;
-        }
-        // With email confirmation required, no session is returned until the user
-        // clicks the verification link. Show guidance instead of navigating.
-        if (!data.session) {
-          toast.success("Check your inbox to verify your email before signing in.");
-          setMode("signin");
-          setPassword("");
-          return;
+          throw fbErr;
         }
         toast.success("Welcome to MealMate!");
       } else {
@@ -218,11 +172,6 @@ function AuthPage() {
           }
         }
 
-        const { error } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        });
-        if (error) throw error;
       }
       navigate({ to: "/", replace: true });
     } catch (err) {
@@ -354,14 +303,9 @@ function AuthPage() {
                     await sendFirebasePasswordReset(email);
                     toast.success("Check your inbox for a reset link.");
                     return;
-                  } catch (fbErr: any) {
-                    console.info("[Auth] Firebase reset password notice:", fbErr?.code);
+                  } catch (error) {
+                    throw error;
                   }
-                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: getAuthRedirectUrl("/reset-password"),
-                  });
-                  if (error) throw error;
-                  toast.success("Check your inbox for a reset link.");
                 } catch (err) {
                   toast.error(
                     "Could not send the reset email. Please check the address and try again.",

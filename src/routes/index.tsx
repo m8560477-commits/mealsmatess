@@ -17,7 +17,7 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { toast } from "sonner";
-import { trendingRecipesQuery, southAfricanFavoritesQuery, myFavoritesQuery } from "@/lib/queries";
+import { trendingRecipesQuery, southAfricanFavoritesQuery, myFavoritesQuery, type RecipeRecord } from "@/lib/queries";
 import { surpriseMe, generateRecipe } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,13 +87,13 @@ function Index() {
     isLoading: southAfricanLoading,
     error: southAfricanError,
   } = useQuery(southAfricanFavoritesQuery());
-  const recipeText = (r: {
-    name: string;
-    description?: string | null;
-    cuisine?: string | null;
-    category?: string | null;
-    diet_tags?: string[] | null;
-  }) => [r.name, r.description ?? null, r.cuisine ?? null, r.category ?? null, r.diet_tags ?? []];
+  const recipeText = (r: RecipeRecord) => [
+    String(r.name),
+    r.description == null ? null : String(r.description),
+    r.cuisine == null ? null : String(r.cuisine),
+    r.category == null ? null : String(r.category),
+    Array.isArray(r.diet_tags) ? r.diet_tags.map(String) : [],
+  ];
   const trending = personalize(hasPreferences ? preferences : null, trendingRaw ?? [], recipeText);
   const southAfrican = southAfricanRaw
     ? personalize(hasPreferences ? preferences : null, southAfricanRaw, recipeText)
@@ -105,10 +105,7 @@ function Index() {
 
   const favoriteIds = new Set((favorites ?? []).map((f) => f.recipe_id));
 
-  const firstName =
-    (user?.user_metadata?.["full_name"] as string | undefined)?.split(" ")[0] ??
-    user?.email?.split("@")[0] ??
-    "there";
+  const firstName = user?.displayName?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "there";
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -372,7 +369,7 @@ function Index() {
             {trending.map((r, i) => (
               <TrendingCard
                 key={r.id}
-                recipe={r}
+                recipe={r as any}
                 isFavorite={favoriteIds.has(r.id)}
                 onToggleFavorite={toggleFavorite}
                 priority={i < 2}
