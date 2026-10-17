@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 
 async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
+  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -15,30 +15,17 @@ async function assertAdmin(userId: string) {
 
 // Public read (anon + authenticated) — flags drive UI availability
 export const listFeatureFlags = createServerFn({ method: "GET" }).handler(async () => {
-  const { createClient } = await import("@supabase/supabase-js");
-  const url = process.env["SUPABASE_URL"]!;
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const client = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: {
-      fetch: (input, init) => {
-        const h = new Headers(init?.headers);
-        if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`)
-          h.delete("Authorization");
-        h.set("apikey", key);
-        return fetch(input, { ...init, headers: h });
-      },
-    },
-  });
-  const { data } = await client
+  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { data, error } = await firebaseAdmin
     .from("feature_flags")
     .select("key, enabled, description, rollout_percent")
     .order("key");
+  if (error) throw new Error(error.message);
   return data ?? [];
 });
 
 export const adminUpsertFeatureFlag = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -51,8 +38,8 @@ export const adminUpsertFeatureFlag = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("feature_flags").upsert(
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { error } = await firebaseAdmin.from("feature_flags").upsert(
       {
         key: data.key,
         enabled: data.enabled,
@@ -67,12 +54,12 @@ export const adminUpsertFeatureFlag = createServerFn({ method: "POST" })
   });
 
 export const adminDeleteFeatureFlag = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ key: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("feature_flags").delete().eq("key", data.key);
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { error } = await firebaseAdmin.from("feature_flags").delete().eq("key", data.key);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

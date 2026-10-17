@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 
 async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
+  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -37,11 +37,11 @@ function daysBetween(from: Date, to: Date): string[] {
 
 // ---------- Unified analytics ----------
 export const getAdminAnalytics = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => RangeInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
     const from = new Date(data.from);
     const to = new Date(data.to);
     const fromIso = from.toISOString();
@@ -71,82 +71,82 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
       { count: mealPlansCount },
       { data: subscriptionsByStore },
     ] = await Promise.all([
-      supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
-      supabaseAdmin
+      firebaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
+      firebaseAdmin
         .from("profiles")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("profiles")
         .select("*", { count: "exact", head: true })
         .gte("created_at", prevFrom.toISOString())
         .lt("created_at", prevTo.toISOString()),
-      supabaseAdmin
+      firebaseAdmin
         .from("profiles")
         .select("created_at")
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin.from("recipes").select("*", { count: "exact", head: true }),
-      supabaseAdmin
+      firebaseAdmin.from("recipes").select("*", { count: "exact", head: true }),
+      firebaseAdmin
         .from("recipes")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("payments")
         .select("amount_usd,currency,kind,occurred_at")
         .gte("occurred_at", fromIso)
         .lte("occurred_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("payments")
         .select("amount_usd")
         .gte("occurred_at", prevFrom.toISOString())
         .lt("occurred_at", prevTo.toISOString()),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "active"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "trialing"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("tier", "lifetime"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .not("cancelled_at", "is", null)
         .gte("cancelled_at", fromIso)
         .lte("cancelled_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "expired"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("recipes")
         .select("id,name,slug,category,cuisine,image_url,created_at")
         .order("created_at", { ascending: false })
         .limit(500),
-      supabaseAdmin.from("favorites").select("recipe_id"),
-      supabaseAdmin
+      firebaseAdmin.from("favorites").select("recipe_id"),
+      firebaseAdmin
         .from("grocery_items")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("meal_plans")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin.from("subscriptions").select("store"),
+      firebaseAdmin.from("subscriptions").select("store"),
     ]);
 
     // Users timeseries
@@ -286,11 +286,11 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
 
 // ---------- Audit logs ----------
 export const adminListAuditLogs = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { data } = await firebaseAdmin
       .from("audit_logs")
       .select("id,actor_id,action,target_table,target_id,ip_address,created_at")
       .order("created_at", { ascending: false })
@@ -300,12 +300,12 @@ export const adminListAuditLogs = createServerFn({ method: "GET" })
 
 // ---------- Users list ----------
 export const adminListUsers = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ search: z.string().optional() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let q = supabaseAdmin
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    let q = firebaseAdmin
       .from("profiles")
       .select("id,display_name,username,currency,locale,created_at,follower_count,post_count")
       .order("created_at", { ascending: false })
@@ -320,7 +320,7 @@ export const adminListUsers = createServerFn({ method: "POST" })
 
 // ---------- Send announcement ----------
 export const adminSendAnnouncement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -331,8 +331,8 @@ export const adminSendAnnouncement = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("announcements").insert({
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { error } = await firebaseAdmin.from("announcements").insert({
       title: data.title,
       body: data.body,
       created_by: context.userId,
@@ -343,17 +343,17 @@ export const adminSendAnnouncement = createServerFn({ method: "POST" })
 
 // ---------- Telemetry (AI / Scan / Nutrition events) ----------
 export const getAdminTelemetry = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => RangeInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
     const from = new Date(data.from);
     const to = new Date(data.to);
     const fromIso = from.toISOString();
     const toIso = to.toISOString();
 
-    const { data: events } = await supabaseAdmin
+    const { data: events } = await firebaseAdmin
       .from("telemetry_events")
       .select("kind,name,latency_ms,success,user_id,created_at")
       .gte("created_at", fromIso)

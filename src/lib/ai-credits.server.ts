@@ -23,8 +23,8 @@ export class AiLimitError extends Error {
 }
 
 export async function requireAiCredit(userId: string): Promise<void> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.rpc("consume_ai_credit", { _user_id: userId });
+  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { data, error } = await firebaseAdmin.rpc("consume_ai_credit", { _user_id: userId });
   if (error) throw new Error(`Could not check your Mia AI allowance: ${error.message}`);
   const r = data as { allowed: boolean; reason?: "daily" | "monthly"; resets_at?: string } | null;
   if (!r?.allowed) throw new AiLimitError(r?.reason ?? "daily", r?.resets_at ?? null);

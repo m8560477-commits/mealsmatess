@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
+import { listRestaurantReviews } from "@/lib/restaurants.functions";
 
 export const RESTAURANT_PUBLIC_COLUMNS =
   "id,slug,name,description,cuisine,logo_url,cover_image_url,food_photos,opening_hours,price_range,delivery_fee,delivery_radius_km,min_order_amount,delivery_estimate_minutes,currency,avg_rating,rating_count,is_verified,is_demo,is_accepting_orders,supports_pickup,supports_delivery,address,phone,whatsapp,restaurant_locations(latitude,longitude,label,is_active)";
@@ -55,7 +56,7 @@ export const approvedRestaurantsQuery = () =>
   queryOptions({
     queryKey: ["restaurants", "approved"],
     queryFn: async (): Promise<PublicRestaurant[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurants")
         .select(RESTAURANT_PUBLIC_COLUMNS)
         .eq("approval_status", "approved")
@@ -70,7 +71,7 @@ export const restaurantBySlugQuery = (slug: string) =>
   queryOptions({
     queryKey: ["restaurant", slug],
     queryFn: async (): Promise<PublicRestaurant | null> => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurants")
         .select(RESTAURANT_PUBLIC_COLUMNS)
         .eq("slug", slug)
@@ -99,7 +100,7 @@ export const restaurantMenuQuery = (restaurantId: string | undefined) =>
     queryKey: ["restaurant-menu", restaurantId ?? "none"],
     queryFn: async (): Promise<PublicMenuItem[]> => {
       if (!restaurantId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("menu_items")
         .select(
           "id,restaurant_id,name,description,image_url,price,is_available,category,sort_order",
@@ -122,14 +123,7 @@ export const restaurantReviewsQuery = (restaurantId: string | undefined) =>
     queryKey: ["restaurant-reviews", restaurantId ?? "none"],
     queryFn: async () => {
       if (!restaurantId) return [];
-      const { data, error } = await supabase
-        .from("restaurant_reviews")
-        .select("id,rating,comment,created_at,user_id")
-        .eq("restaurant_id", restaurantId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (error) throw error;
-      return data ?? [];
+      return listRestaurantReviews({ data: { restaurantId } });
     },
   });
 
@@ -138,7 +132,7 @@ export const myOrdersQuery = (userId: string | undefined) =>
     queryKey: ["my-restaurant-orders", userId ?? "anon"],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurant_orders")
         .select(
           "id,status,total,currency,placed_at,delivery_fee,subtotal,restaurant_id,restaurants(name,slug,logo_url)",
@@ -156,7 +150,7 @@ export const orderDetailQuery = (orderId: string | undefined) =>
     queryKey: ["restaurant-order", orderId ?? "none"],
     queryFn: async () => {
       if (!orderId) return null;
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurant_orders")
         .select(
           "id,status,subtotal,delivery_fee,total,currency,delivery_address,contact_phone,notes,rejection_reason,placed_at,completed_at,restaurant_id,restaurants(name,slug,logo_url,phone,whatsapp,delivery_estimate_minutes),order_items(id,name,unit_price,quantity,notes)",

@@ -5,7 +5,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 import {
   AnalyticsEventSchema,
   BranchSchema,
@@ -26,7 +26,7 @@ export const quoteCart = createServerFn({ method: "POST" })
   });
 
 export const submitOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => OrderV2Schema.parse(v))
   .handler(async ({ data, context }) => {
     const { createOrder } = await import("@/lib/marketplace.server");
@@ -34,7 +34,7 @@ export const submitOrder = createServerFn({ method: "POST" })
   });
 
 export const cancelMyOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ orderId: z.string().uuid(), reason: z.string().max(300).optional() }).parse(v),
   )
@@ -51,7 +51,7 @@ export const trackMarketplaceEvent = createServerFn({ method: "POST" })
   });
 
 export const trackMyMarketplaceEvent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => AnalyticsEventSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { recordEvent } = await import("@/lib/marketplace.server");
@@ -68,7 +68,7 @@ export const getPaymentStatusConfig = createServerFn({ method: "GET" }).handler(
 const RestaurantIdSchema = z.object({ restaurantId: z.string().uuid() });
 
 export const partnerListPromotions = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => RestaurantIdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { listPromotionsForPartner } = await import("@/lib/marketplace.server");
@@ -76,7 +76,7 @@ export const partnerListPromotions = createServerFn({ method: "POST" })
   });
 
 export const partnerSavePromotion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => PromotionSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { savePromotion } = await import("@/lib/marketplace.server");
@@ -84,7 +84,7 @@ export const partnerSavePromotion = createServerFn({ method: "POST" })
   });
 
 export const partnerDeletePromotion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { deletePromotion } = await import("@/lib/marketplace.server");
@@ -92,7 +92,7 @@ export const partnerDeletePromotion = createServerFn({ method: "POST" })
   });
 
 export const partnerListBranches = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => RestaurantIdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { listBranches } = await import("@/lib/marketplace.server");
@@ -100,7 +100,7 @@ export const partnerListBranches = createServerFn({ method: "POST" })
   });
 
 export const partnerSaveBranch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => BranchSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { saveBranch } = await import("@/lib/marketplace.server");
@@ -108,7 +108,7 @@ export const partnerSaveBranch = createServerFn({ method: "POST" })
   });
 
 export const partnerDeleteBranch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { deleteBranch } = await import("@/lib/marketplace.server");
@@ -116,7 +116,7 @@ export const partnerDeleteBranch = createServerFn({ method: "POST" })
   });
 
 export const partnerSetPause = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => PauseSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { setOrderingPause } = await import("@/lib/marketplace.server");
@@ -129,7 +129,7 @@ export const partnerSetPause = createServerFn({ method: "POST" })
   });
 
 export const partnerAnalyticsSummary = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     RestaurantIdSchema.extend({ days: z.number().int().min(1).max(365).default(30) }).parse(v),
   )

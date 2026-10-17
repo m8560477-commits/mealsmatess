@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
 const VisualInput = z.object({
@@ -106,12 +106,12 @@ async function b64Speech(key: string, text: string): Promise<string | null> {
  * visual explanation (scene script + AI illustrations + voice narration).
  */
 export const generateVisualExplanation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => VisualInput.parse(v))
   .handler(async ({ data, context }): Promise<VisualExplanation> => {
     await requireAiCredit(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: sub } = await supabaseAdmin
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { data: sub } = await firebaseAdmin
       .from("subscriptions")
       .select("tier,status,period_end")
       .eq("user_id", context.userId)

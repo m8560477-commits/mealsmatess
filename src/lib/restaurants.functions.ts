@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 import {
   ApplicationSchema,
   MenuItemSchema,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/restaurants.schemas";
 
 export const submitRestaurantApplication = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => ApplicationSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { createApplication } = await import("@/lib/restaurants.server");
@@ -19,14 +19,14 @@ export const submitRestaurantApplication = createServerFn({ method: "POST" })
   });
 
 export const getMyRestaurant = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     const { fetchMyRestaurant } = await import("@/lib/restaurants.server");
     return fetchMyRestaurant(context.userId);
   });
 
 export const updateMyRestaurant = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => ProfileUpdateSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { updateRestaurantProfile } = await import("@/lib/restaurants.server");
@@ -34,7 +34,7 @@ export const updateMyRestaurant = createServerFn({ method: "POST" })
   });
 
 export const uploadRestaurantMedia = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -52,7 +52,7 @@ export const uploadRestaurantMedia = createServerFn({ method: "POST" })
   });
 
 export const saveMenuItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => MenuItemSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { persistMenuItem } = await import("@/lib/restaurants.server");
@@ -60,7 +60,7 @@ export const saveMenuItem = createServerFn({ method: "POST" })
   });
 
 export const deleteMenuItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { removeMenuItem } = await import("@/lib/restaurants.server");
@@ -68,7 +68,7 @@ export const deleteMenuItem = createServerFn({ method: "POST" })
   });
 
 export const listRestaurantOrders = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ restaurantId: z.string().uuid(), scope: z.enum(["active", "completed"]) }).parse(v),
   )
@@ -78,7 +78,7 @@ export const listRestaurantOrders = createServerFn({ method: "POST" })
   });
 
 export const updateOrderStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -93,8 +93,23 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return setOrderStatus(context.userId, data.orderId, data.status, data.reason);
   });
 
+export const listRestaurantReviews = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .inputValidator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
+  .handler(async ({ data }) => {
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
+    const { data: reviews, error } = await firebaseAdmin
+      .from("restaurant_reviews")
+      .select("id,rating,comment,created_at")
+      .eq("restaurant_id", data.restaurantId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) throw new Error(error.message);
+    return reviews ?? [];
+  });
+
 export const getRestaurantStats = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { fetchRestaurantStats } = await import("@/lib/restaurants.server");
@@ -102,7 +117,7 @@ export const getRestaurantStats = createServerFn({ method: "POST" })
   });
 
 export const placeOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => OrderInputSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { persistOrder } = await import("@/lib/restaurants.server");
@@ -110,7 +125,7 @@ export const placeOrder = createServerFn({ method: "POST" })
   });
 
 export const adminListRestaurantApplications = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -126,7 +141,7 @@ export const adminListRestaurantApplications = createServerFn({ method: "POST" }
   });
 
 export const adminReviewRestaurantApplication = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({

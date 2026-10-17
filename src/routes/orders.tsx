@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ShoppingBag } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { useMyOrdersRealtime } from "@/lib/marketplace.realtime";
 import { money } from "@/components/restaurant/bits";
@@ -35,7 +35,7 @@ function OrdersPage() {
     queryKey: ["my-orders", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurant_orders")
         .select("id,status,total,currency,placed_at,restaurants(name,slug)")
         .order("placed_at", { ascending: false });

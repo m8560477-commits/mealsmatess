@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
 const MessageSchema = z.object({
@@ -75,13 +75,13 @@ async function callChat(messages: { role: string; content: string }[]): Promise<
 }
 
 export const nutritionCoach = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => InputSchema.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_chat", context.userId, 20);
-    const { supabase, userId } = context;
-    const { data: profile } = await supabase
+    const { firebase, userId } = context;
+    const { data: profile } = await firebase
       .from("profiles")
       .select(
         "display_name,dietary_preferences,goal,activity_level,allergies,budget_per_day,age,weight_kg,height_cm,family_size,currency",
@@ -119,9 +119,9 @@ export const nutritionCoach = createServerFn({ method: "POST" })
   });
 
 export const getCoachContext = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { data: profile } = await context.supabase
+    const { data: profile } = await context.firebase
       .from("profiles")
       .select(
         "display_name,goal,activity_level,allergies,dietary_preferences,budget_per_day,age,weight_kg,height_cm,family_size,currency",

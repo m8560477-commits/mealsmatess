@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, onAuthStateChanged } from "@/lib/firebase";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({
@@ -24,40 +24,26 @@ function AuthCallbackPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const errorDescription = params.get("error_description");
-    const code = params.get("code");
     if (errorDescription) {
-      setError(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
-      return undefined;
-    }
-    const finishWhenSessionExists = () => {
-      let attempts = 0;
-      const timer = window.setInterval(async () => {
-        attempts += 1;
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          window.clearInterval(timer);
-          void navigate({ to: "/", replace: true });
-        } else if (attempts >= 20) {
-          window.clearInterval(timer);
-          setError("Google sign-in could not be completed. Please try again.");
-        }
-      }, 150);
-      return () => window.clearInterval(timer);
-    };
-
-    if (!code) {
-      // Lovable OAuth returns tokens in the redirect response and Supabase persists them.
-      return finishWhenSessionExists();
+      setError(errorDescription);
+      return;
     }
 
-    supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
-      if (exchangeError) {
-        setError("Google sign-in could not be completed. Please try again.");
-        return;
-      }
+    if (auth.currentUser) {
       void navigate({ to: "/", replace: true });
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) void navigate({ to: "/", replace: true });
     });
-    return undefined;
+    const timeout = window.setTimeout(() => {
+      if (!auth.currentUser) setError("Google sign-in could not be completed. Please try again.");
+    }, 10000);
+    return () => {
+      unsubscribe();
+      window.clearTimeout(timeout);
+    };
   }, [navigate]);
 
   return (

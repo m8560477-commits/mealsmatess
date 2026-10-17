@@ -19,7 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { myFavoritesQuery } from "@/lib/queries";
 import {
@@ -114,7 +114,7 @@ function CookbookPage() {
     queryKey: ["cookbook", "owned", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("recipes")
         .select(
           "id,slug,name,image_url,image_source,cooking_time_minutes,cuisine,category,servings,ingredients,description,created_by",
@@ -181,7 +181,7 @@ function CookbookPage() {
     if (!user) return;
     setBusyId(recipeId);
     try {
-      await supabase.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
+      await firebaseData.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
       await queryClient.invalidateQueries({ queryKey: ["favorites"] });
       toast.success("Removed from Cookbook");
     } finally {
@@ -231,7 +231,7 @@ function CookbookPage() {
         name: ing.name,
         quantity: ing.quantity ?? null,
       }));
-      const { error } = await supabase.from("grocery_items").insert(rows);
+      const { error } = await firebaseData.from("grocery_items").insert(rows);
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["grocery"] });
       toast.success("Added to your grocery list", {
@@ -607,7 +607,7 @@ function PlanDialog({
   async function save() {
     setSaving(true);
     try {
-      const { error } = await supabase.from("meal_plans").insert({
+      const { error } = await firebaseData.from("meal_plans").insert({
         user_id: userId,
         recipe_id: item.id,
         plan_date: date,

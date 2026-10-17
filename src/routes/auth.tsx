@@ -18,6 +18,7 @@ import {
   db,
 } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { sendEmailVerification } from "firebase/auth";
 
 async function ensureUserProfile(user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null }) {
   const userRef = doc(db, "users", user.uid);
@@ -154,7 +155,8 @@ function AuthPage() {
             } catch (fsErr) {
               console.warn("[Auth] Could not initialize firestore user profile:", fsErr);
             }
-            toast.success("Welcome to MealMate!");
+            await sendEmailVerification(cred.user);
+            toast.message("Check your inbox to verify your email and finish setting up MealMate.");
             navigate({ to: "/", replace: true });
             return;
           }

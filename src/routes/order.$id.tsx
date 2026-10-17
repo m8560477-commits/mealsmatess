@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useOrderRealtime } from "@/lib/marketplace.realtime";
 import { money, StatusTracker } from "@/components/restaurant/bits";
 import { type OrderStatus } from "@/lib/restaurants.schemas";
@@ -32,12 +32,13 @@ function OrderPage() {
     queryKey: ["order", id],
     refetchInterval: 15000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurant_orders")
         .select(
           "id,status,subtotal,delivery_fee,total,currency,placed_at,delivery_address,contact_phone,notes,restaurants(name,slug),order_items(id,name,quantity,unit_price)",
         )
         .eq("id", id)
+        .eq("customer_id", user.id)
         .maybeSingle();
       if (error) throw error;
       return data;

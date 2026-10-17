@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 import { normalizePreferences, type FoodPreferences } from "@/lib/preferences";
 
 const prefsSchema = z.object({
@@ -18,9 +18,9 @@ const prefsSchema = z.object({
 });
 
 export const getMyPreferences = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }): Promise<FoodPreferences | null> => {
-    const { data } = await context.supabase
+    const { data } = await context.firebase
       .from("profiles")
       .select("preferences, onboarding_completed")
       .eq("id", context.userId)
@@ -31,11 +31,11 @@ export const getMyPreferences = createServerFn({ method: "GET" })
   });
 
 export const saveMyPreferences = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => prefsSchema.parse(v))
   .handler(async ({ data, context }) => {
     const payload = { ...data, updated_at: new Date().toISOString() };
-    const { error } = await context.supabase.from("profiles").upsert(
+    const { error } = await context.firebase.from("profiles").upsert(
       {
         id: context.userId,
         preferences: payload,

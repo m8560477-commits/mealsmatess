@@ -13,7 +13,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
+import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
 
@@ -27,7 +28,6 @@ import { UpgradeModalProvider } from "@/components/upgrade-modal";
 import { hasSeenTour } from "@/lib/preferences";
 import { useSession } from "@/hooks/use-session";
 import { useShellMetrics } from "@/hooks/use-shell-metrics";
-import { testFirestoreConnection } from "@/lib/firebase";
 
 function NotFoundComponent() {
   return (
@@ -177,10 +177,6 @@ function RootComponent() {
   const showAppHeader = pathname !== "/" && !isMarketplace && !isFlow;
   useShellMetrics(showAppHeader ? "with-header" : "no-header");
 
-  useEffect(() => {
-    void testFirestoreConnection();
-  }, []);
-
   // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
   useEffect(() => {
     if (user || pathname !== "/") return;
@@ -196,7 +192,7 @@ function RootComponent() {
     )
       return;
     let active = true;
-    supabase
+    firebaseData
       .from("profiles")
       .select("onboarding_completed")
       .eq("id", user.id)
@@ -216,12 +212,11 @@ function RootComponent() {
   }, [user, pathname, router]);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+    return onAuthStateChanged(auth, (firebaseUser) => {
       router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      if (firebaseUser) void queryClient.invalidateQueries();
+      else queryClient.clear();
     });
-    return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
 
   return (

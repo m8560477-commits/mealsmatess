@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { listRecipeRatings, rateRecipe } from "@/lib/engagement.functions";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 
 type Rating = {
   id: string;
-  user_id: string;
+  isMine?: boolean;
   rating: number;
   review: string | null;
   created_at: string;
@@ -20,22 +21,15 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
   const [myRating, setMyRating] = useState(0);
   const [review, setReview] = useState("");
   const [saving, setSaving] = useState(false);
+  const loadRatings = useServerFn(listRecipeRatings);
+  const saveRating = useServerFn(rateRecipe);
 
   const { data: ratings } = useQuery({
     queryKey: ["ratings", recipeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recipe_ratings")
-        .select("id,user_id,rating,review,created_at")
-        .eq("recipe_id", recipeId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return (data ?? []) as Rating[];
-    },
+    queryFn: async () => (await loadRatings({ data: { recipeId } })).slice(0, 20) as Rating[],
   });
 
-  const mine = user ? ratings?.find((r) => r.user_id === user.id) : undefined;
+  const mine = ratings?.find((rating) => rating.isMine);
   useEffect(() => {
     if (mine) {
       setMyRating(mine.rating);
@@ -54,16 +48,9 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("recipe_ratings").upsert(
-        {
-          user_id: user.id,
-          recipe_id: recipeId,
-          rating: myRating,
-          review: review.trim() || null,
-        },
-        { onConflict: "user_id,recipe_id" },
-      );
-      if (error) throw error;
+      await saveRating({
+        data: { recipeId, rating: myRating, review: review.trim() || undefined },
+      });
       toast.success("Thanks for rating!");
       await qc.invalidateQueries({ queryKey: ["ratings", recipeId] });
       await qc.invalidateQueries({ queryKey: ["recipe"] });

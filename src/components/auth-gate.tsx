@@ -2,7 +2,8 @@ import { useEffect, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Loader2, MailWarning } from "lucide-react";
 import { useSession, signOutUnified } from "@/hooks/use-session";
-import { supabase } from "@/integrations/supabase/client";
+import { auth } from "@/lib/firebase";
+import { reload, sendEmailVerification } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -66,12 +67,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   // Email verification enforcement: block until confirmed_at or emailVerified is set.
-  const confirmed = Boolean(
-    user.email_confirmed_at ||
-    user.confirmed_at ||
-    user.emailVerified ||
-    user.provider === "firebase",
-  );
+  const confirmed = Boolean(user.emailVerified);
   if (user.email && !confirmed) {
     return <VerifyEmailPrompt email={user.email} />;
   }
@@ -98,10 +94,30 @@ function SignInPrompt() {
 }
 
 function VerifyEmailPrompt({ email }: { email: string }) {
+  async function confirmVerification() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    try {
+      await reload(currentUser);
+      if (currentUser.emailVerified) window.location.reload();
+      else toast.info("Your email is not verified yet. Check the link in your inbox.");
+    } catch {
+      toast.error("Could not refresh your verification status. Please try again.");
+    }
+  }
+
   async function resend() {
-    const { error } = await supabase.auth.resend({ type: "signup", email });
-    if (error) toast.error(error.message);
-    else toast.success("Verification email sent. Check your inbox.");
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.email !== email) {
+      toast.error("Sign in again before requesting a verification email.");
+      return;
+    }
+    try {
+      await sendEmailVerification(currentUser);
+      toast.success("Verification email sent. Check your inbox.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the verification email.");
+    }
   }
   async function signOut() {
     await signOutUnified();
@@ -118,7 +134,8 @@ function VerifyEmailPrompt({ email }: { email: string }) {
           <span className="font-medium text-foreground">{email}</span>. Click it to unlock MealMate.
         </p>
         <div className="mt-6 flex flex-col gap-2">
-          <Button onClick={resend}>Resend verification email</Button>
+          <Button onClick={confirmVerification}>I&apos;ve verified my email</Button>
+          <Button variant="outline" onClick={resend}>Resend verification email</Button>
           <Button variant="outline" onClick={signOut}>
             Use a different account
           </Button>

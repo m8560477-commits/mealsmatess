@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { auth } from "@/lib/firebase";
+import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,18 +28,17 @@ function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
+  const [oobCode, setOobCode] = useState("");
 
   useEffect(() => {
-    // Supabase puts the recovery session in the URL hash on redirect.
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    if (hash.includes("type=recovery") || hash.includes("access_token")) {
-      // The client auto-parses the hash and sets the session.
-      setReady(true);
-      return;
-    }
-    supabase.auth.getSession().then(({ data }) => {
-      setReady(!!data.session);
-    });
+    const code = new URLSearchParams(window.location.search).get("oobCode");
+    if (!code) return;
+    void verifyPasswordResetCode(auth, code)
+      .then(() => {
+        setOobCode(code);
+        setReady(true);
+      })
+      .catch(() => toast.error("This password reset link is invalid or has expired."));
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,11 +54,10 @@ function ResetPasswordPage() {
     }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      toast.success("Password updated. You're signed in.");
-      navigate({ to: "/", replace: true });
-    } catch (err) {
+      await confirmPasswordReset(auth, oobCode, password);
+      toast.success("Password updated. Sign in with your new password.");
+      navigate({ to: "/auth", replace: true });
+    } catch {
       toast.error("Could not update your password. Please request a new reset link and try again.");
     } finally {
       setBusy(false);

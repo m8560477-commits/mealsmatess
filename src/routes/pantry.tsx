@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { myPantryQuery } from "@/lib/queries";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { generateRecipe } from "@/lib/ai.functions";
 import { pantryRecipeQuery } from "@/lib/pantry-recipe";
@@ -45,7 +45,7 @@ function PantryPage() {
     if (!user || !name.trim() || busy) return;
     setBusy(true);
     try {
-      const { error } = await supabase.from("pantry_items").insert({
+      const { error } = await firebaseData.from("pantry_items").insert({
         user_id: user.id,
         name: name.trim(),
         quantity: quantity.trim() || null,
@@ -65,7 +65,7 @@ function PantryPage() {
     if (!user) return;
     setRemoving(id);
     try {
-      const { error } = await supabase
+      const { error } = await firebaseData
         .from("pantry_items")
         .delete()
         .eq("id", id)

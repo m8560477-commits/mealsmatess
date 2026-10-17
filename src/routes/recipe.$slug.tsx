@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { recipeBySlugQuery, myFavoritesQuery } from "@/lib/queries";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { usePremium } from "@/hooks/use-premium";
 import { regenerateRecipeImage } from "@/lib/ai.functions";
@@ -164,9 +164,9 @@ function RecipePage() {
     setSavingFav(true);
     try {
       if (isFav) {
-        await supabase.from("favorites").delete().eq("recipe_id", r.id).eq("user_id", user.id);
+        await firebaseData.from("favorites").delete().eq("recipe_id", r.id).eq("user_id", user.id);
       } else {
-        await supabase.from("favorites").insert({ recipe_id: r.id, user_id: user.id });
+        await firebaseData.from("favorites").insert({ recipe_id: r.id, user_id: user.id });
       }
       await queryClient.invalidateQueries({ queryKey: ["favorites"] });
     } catch {
@@ -190,7 +190,7 @@ function RecipePage() {
         name: ing.name,
         quantity: ing.quantity ?? null,
       }));
-      const { error } = await supabase.from("grocery_items").insert(rows);
+      const { error } = await firebaseData.from("grocery_items").insert(rows);
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["grocery"] });
       toast.success("Added to your grocery list", {

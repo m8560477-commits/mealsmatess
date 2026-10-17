@@ -1,5 +1,5 @@
 // Server-only security helpers. Import inside handlers only.
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { firebaseAdmin } from "@/server/firebase-admin";
 
 /**
  * Enforce a per-minute rate limit for a (bucket, identifier) pair.
@@ -13,7 +13,7 @@ export async function enforceRateLimit(
   maxPerMinute: number,
 ): Promise<void> {
   if (!identifier) return;
-  const { data, error } = await supabaseAdmin.rpc("check_rate_limit", {
+  const { data, error } = await firebaseAdmin.rpc("check_rate_limit", {
     _bucket: bucket,
     _identifier: identifier,
     _max_per_minute: maxPerMinute,
@@ -36,7 +36,7 @@ export async function auditLog(entry: {
   ip_address?: string | null;
   user_agent?: string | null;
 }): Promise<void> {
-  const { error } = await supabaseAdmin.from("audit_logs").insert({
+  const { error } = await firebaseAdmin.from("audit_logs").insert({
     actor_id: entry.actor_id,
     action: entry.action,
     target_table: entry.target_table ?? null,
@@ -73,7 +73,7 @@ export async function trackEvent(evt: {
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   try {
-    const { error } = await supabaseAdmin.from("telemetry_events").insert({
+    const { error } = await firebaseAdmin.from("telemetry_events").insert({
       user_id: evt.user_id,
       kind: evt.kind,
       name: evt.name,

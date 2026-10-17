@@ -21,7 +21,8 @@ import {
   UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
+import { sendPasswordReset } from "@/lib/firebase";
 import { useSession, signOutUnified } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -138,12 +139,12 @@ function SettingsPage() {
     window.localStorage.setItem("mealmate-notif", notif ? "1" : "0");
   }, [notif]);
 
-  // Profile prefs synced to Supabase for signed-in users.
+  // Profile preferences sync to Firestore for signed-in users.
   const { data: prefs } = useQuery({
     queryKey: ["profile-prefs", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await firebaseData
         .from("profiles")
         .select("currency, locale")
         .eq("id", user!.id)
@@ -166,7 +167,7 @@ function SettingsPage() {
     window.localStorage.setItem("mealmate-currency", next);
     window.dispatchEvent(new CustomEvent("mealmate-currency-changed", { detail: next }));
     if (!user) return;
-    const { error } = await supabase
+    const { error } = await firebaseData
       .from("profiles")
       .update({ currency: next } as never)
       .eq("id", user.id);
@@ -183,7 +184,7 @@ function SettingsPage() {
     window.localStorage.setItem("mealmate-lang", next);
     window.dispatchEvent(new CustomEvent("mealmate-lang-changed", { detail: next }));
     if (!user) return;
-    const { error } = await supabase
+    const { error } = await firebaseData
       .from("profiles")
       .update({ locale: next } as never)
       .eq("id", user.id);
@@ -233,14 +234,12 @@ function SettingsPage() {
       toast.error("No email on file");
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) {
+    try {
+      await sendPasswordReset(user.email, `${window.location.origin}/reset-password`);
+      toast.success("Password reset email sent");
+    } catch {
       toast.error("Couldn't send the reset email. Please try again.");
-      return;
     }
-    toast.success("Password reset email sent");
   }
 
   const profileItems: Item[] = [

@@ -1,0 +1,50 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "restaurants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "approval_status", "order": "ASCENDING" },
+        { "fieldPath": "is_demo", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "menu_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "restaurant_id", "order": "ASCENDING" },
+        { "fieldPath": "is_available", "order": "ASCENDING" },
+        { "fieldPath": "is_hidden", "order": "ASCENDING" },
+        { "fieldPath": "sort_order", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "menu_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_available", "order": "ASCENDING" },
+        { "fieldPath": "is_hidden", "order": "ASCENDING" },
+        { "fieldPath": "sort_order", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "restaurant_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customer_id", "order": "ASCENDING" },
+        { "fieldPath": "placed_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "grocery",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "checked", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

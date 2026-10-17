@@ -143,8 +143,12 @@ export async function signUpWithEmail(email: string, pass: string, displayName?:
   return cred;
 }
 
-export async function sendPasswordReset(email: string) {
-  return sendPasswordResetEmail(auth, email);
+export async function sendPasswordReset(email: string, continueUrl?: string) {
+  return sendPasswordResetEmail(
+    auth,
+    email,
+    continueUrl ? { url: continueUrl, handleCodeInApp: false } : undefined,
+  );
 }
 
 export async function signOutUser() {

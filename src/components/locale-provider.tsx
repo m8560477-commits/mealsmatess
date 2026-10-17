@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import i18nInstance from "@/lib/i18n";
 
@@ -21,7 +21,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     queryKey: ["locale", user?.id ?? "anon"],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await firebaseData
         .from("profiles")
         .select("locale")
         .eq("id", user!.id)

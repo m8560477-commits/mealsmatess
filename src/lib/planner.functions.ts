@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
 const PlanInput = z.object({
@@ -22,14 +22,14 @@ type MealSuggestion = {
 
 // AI Meal Planner v2 — uses profile (goal, allergies, budget, dietary_preferences)
 export const generatePersonalizedPlan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => PlanInput.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await firebaseAdmin
       .from("profiles")
       .select(
         "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age",
@@ -123,11 +123,11 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
 // Auto-generate grocery list from planned meals in a date range
 export const buildGroceryFromPlan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ from: z.string(), to: z.string() }).parse(v))
   .handler(async ({ data, context }) => {
-    const supabase = context.supabase;
-    const { data: plans, error } = await supabase
+    const firebase = context.firebase;
+    const { data: plans, error } = await firebase
       .from("meal_plans")
       .select("recipe_id, recipes(ingredients, name)")
       .gte("plan_date", data.from)
@@ -160,7 +160,7 @@ export const buildGroceryFromPlan = createServerFn({ method: "POST" })
     }));
 
     if (rows.length === 0) return { inserted: 0 };
-    const { error: insErr } = await supabase.from("grocery_items").insert(rows);
+    const { error: insErr } = await firebase.from("grocery_items").insert(rows);
     if (insErr) throw new Error(insErr.message);
     void trackEvent({
       user_id: context.userId,
@@ -190,14 +190,14 @@ type ShopMeal = {
 };
 
 export const aiPlanAndShop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => PlanAndShopInput.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
-    const { supabase, userId } = context;
+    const { firebase, userId } = context;
 
-    const { data: profile } = await supabase
+    const { data: profile } = await firebase
       .from("profiles")
       .select(
         "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age",
@@ -274,7 +274,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
     // Persist meal_plans (as custom entries).
     if (data.replaceExisting) {
-      await supabase.from("meal_plans").delete().gte("plan_date", fromISO).lte("plan_date", toISO);
+      await firebase.from("meal_plans").delete().gte("plan_date", fromISO).lte("plan_date", toISO);
     }
 
     const planRows = suggestions.map((m) => ({
@@ -285,7 +285,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
       recipe_id: null as string | null,
     }));
     if (planRows.length > 0) {
-      const { error: pErr } = await supabase.from("meal_plans").insert(planRows);
+      const { error: pErr } = await firebase.from("meal_plans").insert(planRows);
       if (pErr) throw new Error(pErr.message);
     }
 
@@ -312,7 +312,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
     }
 
     // Skip items the user already has unchecked in their list.
-    const { data: existing } = await supabase
+    const { data: existing } = await firebase
       .from("grocery_items")
       .select("name")
       .eq("checked", false);
@@ -329,7 +329,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
     let inserted = 0;
     if (rows.length > 0) {
-      const { error: gErr } = await supabase.from("grocery_items").insert(rows);
+      const { error: gErr } = await firebase.from("grocery_items").insert(rows);
       if (gErr) throw new Error(gErr.message);
       inserted = rows.length;
     }
@@ -362,7 +362,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
 // Ingredient substitution suggestions
 export const suggestSubstitutions = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({ ingredient: z.string().min(1).max(120), context: z.string().max(300).optional() })

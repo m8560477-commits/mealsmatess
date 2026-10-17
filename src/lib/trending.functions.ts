@@ -44,16 +44,16 @@ export const incrementDishSearch = createServerFn({ method: "POST" })
     const name = data.name.trim();
     if (!ALLOWED.has(name)) return { count: 0, tracked: false };
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await import("@/server/firebase-admin");
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await firebaseAdmin
       .from("dish_searches")
       .select("count")
       .eq("name", name)
       .maybeSingle();
 
     const nextCount = (existing?.count ?? 0) + 1;
-    const { error } = await supabaseAdmin
+    const { error } = await firebaseAdmin
       .from("dish_searches")
       .upsert({ name, count: nextCount, updated_at: new Date().toISOString() });
     if (error) throw new Error(error.message);

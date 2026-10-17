@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/server/firebase-auth";
 
 /**
  * Client-facing XP surface. xp.server.ts owns the service-role client
@@ -8,7 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * go through the server).
  */
 export const getGamification = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     const { fetchGamification } = await import("@/lib/xp.server");
     return fetchGamification(context.userId);
@@ -27,7 +27,7 @@ const CLIENT_ACTIONS = [
 ] as const;
 
 export const awardXp = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -39,15 +39,15 @@ export const awardXp = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { awardXpFor, dayKey } = await import("@/lib/xp.server");
     const refKey = data.entityId ? `${data.entityId}:${dayKey()}` : `${context.userId}:${dayKey()}`;
-    return awardXpFor(supabaseUserId(context.userId), data.action, refKey);
+    return awardXpFor(firebaseUserId(context.userId), data.action, refKey);
   });
 
-function supabaseUserId(userId: string) {
+function firebaseUserId(userId: string) {
   return userId;
 }
 
 export const claimElite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     const { claimEliteRewardFor } = await import("@/lib/xp.server");
     return claimEliteRewardFor(context.userId);
