@@ -17,6 +17,21 @@ import {
 } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
+async function ensureUserProfile(user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null }) {
+  const userRef = doc(db, "users", user.uid);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) return;
+
+  await setDoc(userRef, {
+    id: user.uid,
+    email: user.email ?? "",
+    displayName: user.displayName || user.email?.split("@")[0] || "Chef",
+    photoURL: user.photoURL ?? "",
+    goal: "healthy_cooking",
+    createdAt: new Date().toISOString(),
+  });
+}
+
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
@@ -67,20 +82,8 @@ function AuthPage() {
     try {
       const cred = await signInWithFirebaseGoogle();
       if (cred?.user) {
-        // Ensure user profile document in Firestore
         try {
-          const userRef = doc(db, "users", cred.user.uid);
-          const snap = await getDoc(userRef);
-          if (!snap.exists()) {
-            await setDoc(userRef, {
-              id: cred.user.uid,
-              email: cred.user.email || "",
-              displayName: cred.user.displayName || cred.user.email?.split("@")[0] || "Chef",
-              photoURL: cred.user.photoURL || "",
-              goal: "healthy_cooking",
-              createdAt: new Date().toISOString(),
-            });
-          }
+          await ensureUserProfile(cred.user);
         } catch (dbErr) {
           console.warn("[Auth] Could not create Firestore profile:", dbErr);
         }
@@ -116,15 +119,7 @@ function AuthPage() {
           const cred = await signUpWithFirebaseEmail(normalizedEmail, password, displayName);
           if (cred?.user) {
             try {
-              const userRef = doc(db, "users", cred.user.uid);
-              await setDoc(userRef, {
-                id: cred.user.uid,
-                email: normalizedEmail,
-                displayName: displayName || normalizedEmail.split("@")[0],
-                photoURL: "",
-                goal: "healthy_cooking",
-                createdAt: new Date().toISOString(),
-              });
+              await ensureUserProfile(cred.user);
             } catch (fsErr) {
               console.warn("[Auth] Could not initialize firestore user profile:", fsErr);
             }
