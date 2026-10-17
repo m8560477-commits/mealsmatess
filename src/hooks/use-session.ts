@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 import { auth, onAuthStateChanged, signOutUser, type User as FirebaseUser } from "@/lib/firebase";
 
 const INACTIVITY_LIMIT_MS = 40 * 24 * 60 * 60 * 1000;
@@ -14,7 +12,7 @@ export interface SessionUser {
   email_confirmed_at?: string | null;
   confirmed_at?: string | null;
   emailVerified?: boolean;
-  provider: "firebase" | "supabase";
+  provider: "firebase";
 }
 
 function activityKey(userId: string) {
@@ -40,9 +38,7 @@ function writeActivity(userId: string) {
 }
 
 export function useSession() {
-  const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
-  const [sbLoading, setSbLoading] = useState(true);
   const [fbLoading, setFbLoading] = useState(true);
 
   useEffect(() => {
@@ -67,31 +63,21 @@ export function useSession() {
       }
     });
 
-    const applySupabaseSession = async (nextSession: Session | null) => {
-      if (!active) return;
-      const userId = nextSession?.user.id ?? null;
-      if (userId) {
-        const lastActivity = readLastActivity(userId);
-        if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
-          await supabase.auth.signOut();
-          if (active) setSupabaseSession(null);
-          return;
-        }
-        currentUserId = userId;
-        writeActivity(userId);
-        lastWritten = Date.now();
+    const checkInactivity = async (fbUser: FirebaseUser) => {
+      const lastActivity = readLastActivity(fbUser.uid);
+      if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
+        await signOutUser();
+        return false;
       }
-      setSupabaseSession(nextSession);
+      currentUserId = fbUser.uid;
+      writeActivity(fbUser.uid);
+      lastWritten = Date.now();
+      return true;
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      void applySupabaseSession(data.session).finally(() => {
-        if (active) setSbLoading(false);
-      });
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void applySupabaseSession(nextSession);
+    const unsubscribeActivity = onAuthStateChanged(auth, (fbUser) => {
+      if (!fbUser) return;
+      void checkInactivity(fbUser);
     });
 
     window.addEventListener("pointerdown", recordActivity, { passive: true });
@@ -101,14 +87,14 @@ export function useSession() {
     return () => {
       active = false;
       unsubscribeFb();
-      sub.subscription.unsubscribe();
+      unsubscribeActivity();
       window.removeEventListener("pointerdown", recordActivity);
       window.removeEventListener("keydown", recordActivity);
       window.removeEventListener("visibilitychange", recordActivity);
     };
   }, []);
 
-  const loading = fbLoading && sbLoading;
+  const loading = fbLoading;
 
   let user: SessionUser | null = null;
   if (firebaseUser) {
@@ -130,25 +116,10 @@ export function useSession() {
           : null,
       provider: "firebase",
     };
-  } else if (supabaseSession?.user) {
-    const sbUser = supabaseSession.user;
-    user = {
-      id: sbUser.id,
-      email: sbUser.email ?? null,
-      displayName:
-        (sbUser.user_metadata?.display_name as string | undefined) ??
-        sbUser.email?.split("@")[0] ??
-        null,
-      photoURL: null,
-      email_confirmed_at: sbUser.email_confirmed_at ?? null,
-      confirmed_at: sbUser.confirmed_at ?? null,
-      emailVerified: Boolean(sbUser.email_confirmed_at || sbUser.confirmed_at),
-      provider: "supabase",
-    };
   }
 
   return {
-    session: supabaseSession,
+    session: firebaseUser,
     firebaseUser,
     loading,
     user,
@@ -156,5 +127,5 @@ export function useSession() {
 }
 
 export async function signOutUnified() {
-  await Promise.allSettled([signOutUser(), supabase.auth.signOut()]);
+  await signOutUser();
 }
