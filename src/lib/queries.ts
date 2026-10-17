@@ -12,8 +12,23 @@ import {
 import { auth, db, handleFirestoreError, OperationType } from "@/lib/firebase";
 
 const recipes = collection(db, "recipes");
-type FirestoreRecord = any;
-const recipeFields = (item: FirestoreRecord) => item;
+export type FirestoreRecord = Record<string, unknown> & { id: string };
+export type RecipeRecord = FirestoreRecord & {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  cuisine?: string | null;
+  category?: string | null;
+  country?: string | null;
+  diet_tags?: string[] | null;
+  recipe_id?: string;
+};
+export type PantryRecord = FirestoreRecord & {
+  name: string;
+  expires_at?: string | null;
+};
+
+const recipeFields = (item: FirestoreRecord): RecipeRecord => item as RecipeRecord;
 
 const list = async (collectionName: string, constraints: Parameters<typeof query>[1][] = []): Promise<FirestoreRecord[]> => {
   try {
@@ -27,29 +42,29 @@ const list = async (collectionName: string, constraints: Parameters<typeof query
 
 export const featuredRecipesQuery = () => queryOptions({
   queryKey: ["recipes", "featured"],
-  queryFn: async (): Promise<any> => (await list("recipes", [orderBy("created_at", "desc"), limit(12)])).map(recipeFields),
+  queryFn: async (): Promise<RecipeRecord[]> => (await list("recipes", [orderBy("created_at", "desc"), limit(12)])).map(recipeFields),
 });
 
 export const trendingRecipesQuery = () => queryOptions({
   queryKey: ["recipes", "trending"],
-  queryFn: async (): Promise<any> => (await list("recipes", [orderBy("created_at", "desc"), limit(8)])).map(recipeFields),
+  queryFn: async (): Promise<RecipeRecord[]> => (await list("recipes", [orderBy("created_at", "desc"), limit(8)])).map(recipeFields),
 });
 
 export const southAfricanFavoritesQuery = () => queryOptions({
   queryKey: ["recipes", "south-african"],
-  queryFn: async (): Promise<any> => {
+  queryFn: async (): Promise<RecipeRecord[]> => {
     const items = await list("recipes", [limit(100)]);
-    return items.filter((item) => [item.category, item.country, item.cuisine].some((value) => String(value ?? "").toLowerCase().includes("south african") || String(value ?? "").toLowerCase().includes("south africa"))).slice(0, 8).map(recipeFields);
+    return items.filter((item) => [item["category"], item["country"], item["cuisine"]].some((value) => String(value ?? "").toLowerCase().includes("south african") || String(value ?? "").toLowerCase().includes("south africa"))).slice(0, 8).map(recipeFields);
   },
 });
 
 export const recipesByCategoryQuery = (category: string | undefined, search = "") => queryOptions({
   queryKey: ["recipes", "category", category ?? "all", search.trim().toLowerCase()],
-  queryFn: async (): Promise<any> => {
+  queryFn: async (): Promise<RecipeRecord[]> => {
     const term = search.trim().toLowerCase();
     const items = await list("recipes", [orderBy("created_at", "desc"), limit(100)]);
     return items.filter((item) => {
-      const values = [item.name, item.cuisine, item.category, item.country, ...(Array.isArray(item.diet_tags) ? item.diet_tags : [])].map((value) => String(value ?? "").toLowerCase());
+      const values = [item["name"], item["cuisine"], item["category"], item["country"], ...(Array.isArray(item["diet_tags"]) ? item["diet_tags"] : [])].map((value) => String(value ?? "").toLowerCase());
       return (!category || values.includes(category.toLowerCase())) && (!term || values.some((value) => value.includes(term)));
     }).slice(0, 60).map(recipeFields);
   },
@@ -57,7 +72,7 @@ export const recipesByCategoryQuery = (category: string | undefined, search = ""
 
 export const recipeBySlugQuery = (slug: string) => queryOptions({
   queryKey: ["recipe", slug],
-  queryFn: async (): Promise<any> => {
+  queryFn: async (): Promise<RecipeRecord | null> => {
     const snapshot = await getDocs(query(recipes, where("slug", "==", slug), limit(1)));
     return snapshot.docs[0] ? { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } : null;
   },
@@ -65,7 +80,7 @@ export const recipeBySlugQuery = (slug: string) => queryOptions({
 
 export const myFavoritesQuery = () => queryOptions({
   queryKey: ["favorites"],
-  queryFn: async (): Promise<any> => {
+  queryFn: async (): Promise<FirestoreRecord[]> => {
     const user = auth.currentUser;
     if (!user) return [];
     return list(`users/${user.uid}/favorites`, [orderBy("created_at", "desc")]);
@@ -74,22 +89,22 @@ export const myFavoritesQuery = () => queryOptions({
 
 export const myGroceryQuery = () => queryOptions({
   queryKey: ["grocery"],
-  queryFn: async (): Promise<any> => auth.currentUser ? list(`users/${auth.currentUser.uid}/grocery`, [orderBy("checked"), orderBy("created_at", "desc")]) : [],
+  queryFn: async (): Promise<FirestoreRecord[]> => auth.currentUser ? list(`users/${auth.currentUser.uid}/grocery`, [orderBy("checked"), orderBy("created_at", "desc")]) : [],
 });
 
-export const myPantryQuery = () => queryOptions({
+export const myPantryQuery = () => queryOptions<PantryRecord[]>({
   queryKey: ["pantry"],
-  queryFn: async (): Promise<any> => auth.currentUser ? list(`users/${auth.currentUser.uid}/pantry`, [orderBy("created_at", "desc")]) : [],
+  queryFn: async (): Promise<PantryRecord[]> => auth.currentUser ? (await list(`users/${auth.currentUser.uid}/pantry`, [orderBy("created_at", "desc")])) as PantryRecord[] : [],
 });
 
 export const myPlannerQuery = (fromISO: string, toISO: string) => queryOptions({
   queryKey: ["planner", fromISO, toISO],
-  queryFn: async (): Promise<any> => auth.currentUser ? list(`users/${auth.currentUser.uid}/mealPlans`, [where("plan_date", ">=", fromISO), where("plan_date", "<=", toISO), orderBy("plan_date")]) : [],
+  queryFn: async (): Promise<FirestoreRecord[]> => auth.currentUser ? list(`users/${auth.currentUser.uid}/mealPlans`, [where("plan_date", ">=", fromISO), where("plan_date", "<=", toISO), orderBy("plan_date")]) : [],
 });
 
 export const myProfileQuery = () => queryOptions({
   queryKey: ["profile"],
-  queryFn: async (): Promise<any> => {
+  queryFn: async (): Promise<{ user: typeof auth.currentUser; profile: FirestoreRecord | null; roles: string[] } | null> => {
     const user = auth.currentUser;
     if (!user) return null;
     const profile = await getDoc(doc(db, "users", user.uid));
