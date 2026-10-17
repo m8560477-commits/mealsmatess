@@ -1,7 +1,8 @@
-import { initializeApp } from "firebase/app";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  getRedirectResult as firebaseGetRedirectResult,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -13,10 +14,45 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
-import firebaseConfig from "../../firebase-applet-config.json";
+import { getStorage } from "firebase/storage";
 
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const requiredFirebaseEnv = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const missingFirebaseEnv = Object.entries(requiredFirebaseEnv)
+  .filter(([, value]) => !value)
+  .map(([key]) => `VITE_FIREBASE_${key.replace(/[A-Z]/g, (letter) => `_${letter}`).toUpperCase()}`);
+
+if (missingFirebaseEnv.length > 0) {
+  throw new Error(`Missing Firebase web configuration: ${missingFirebaseEnv.join(", ")}`);
+}
+
+if (requiredFirebaseEnv.projectId !== "mealmate-d2e53") {
+  throw new Error(
+    `Firebase project mismatch: expected mealmate-d2e53, received ${requiredFirebaseEnv.projectId}`,
+  );
+}
+
+const firebaseConfig = requiredFirebaseEnv as {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+};
+
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const db = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID
+  ? getFirestore(app, import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID)
+  : getFirestore(app);
+export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -113,6 +149,10 @@ export async function sendPasswordReset(email: string) {
 
 export async function signOutUser() {
   return firebaseSignOut(auth);
+}
+
+export async function getRedirectResult() {
+  return firebaseGetRedirectResult(auth);
 }
 
 export { onAuthStateChanged, type User };
