@@ -70,7 +70,7 @@ function getServices() {
   if (!bucketName)
     throw new Error("VITE_FIREBASE_STORAGE_BUCKET is required for Firebase Storage.");
   initialized = {
-    db: getFirestore(app),
+    db: getFirestore(app, process.env["FIREBASE_FIRESTORE_DATABASE_ID"] || "default"),
     auth: getAuth(app),
     bucket: getStorage(app).bucket(bucketName),
   };
