@@ -4,11 +4,12 @@ import {
   DEFAULT_AI_IMAGE_MODEL,
   DEFAULT_AI_SPEECH_MODEL,
   DEFAULT_AI_TEXT_MODEL,
+  DEFAULT_LOVABLE_TEXT_MODEL,
   aiRequestFingerprint,
   deduplicateAiRequest,
   generateAiObject,
   generateAiText,
-  getAiGatewayConfiguration,
+  getAiProviderConfiguration,
   imageInputFromDataUrl,
 } from "@/lib/ai-engine.server";
 import { z } from "zod";
@@ -32,12 +33,16 @@ function textModel(text: string) {
 describe("shared MealMate AI engine", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("uses current configured Vercel AI Gateway models without exposing credentials", () => {
-    const config = getAiGatewayConfiguration();
+  it("reports the Groq and Lovable models without exposing credentials", () => {
+    const config = getAiProviderConfiguration();
     expect(config).toMatchObject({
-      provider: "Vercel AI Gateway",
+      textProvider: "Groq",
       textModel: DEFAULT_AI_TEXT_MODEL,
+      lovableTextProvider: "Lovable AI Gateway",
+      lovableTextModel: DEFAULT_LOVABLE_TEXT_MODEL,
+      imageProvider: "Lovable AI Gateway",
       imageModel: DEFAULT_AI_IMAGE_MODEL,
+      speechProvider: "Lovable AI Gateway",
       speechModel: DEFAULT_AI_SPEECH_MODEL,
     });
     expect(JSON.stringify(config)).not.toMatch(/key|token|secret/i);
@@ -50,6 +55,16 @@ describe("shared MealMate AI engine", () => {
       prompt: "How can I replace buttermilk?",
     });
     expect(text).toContain("lemon juice");
+  });
+
+  it("routes a provider-specific text request without requiring live credentials when mocked", async () => {
+    const text = await generateAiText({
+      feature: "test.lovable",
+      provider: "lovable",
+      modelOverride: textModel("Lovable provider test passed."),
+      prompt: "Return a short connectivity confirmation.",
+    });
+    expect(text).toBe("Lovable provider test passed.");
   });
 
   it("parses and validates structured recipe output", async () => {

@@ -351,6 +351,7 @@ export async function aiScore(
     ];
     const result = await generateAiObject({
       feature: "image.relevance",
+      provider: "lovable",
       messages: [{ role: "user", content }],
       schema: z.object({
         scores: z.array(z.number().int().min(0).max(100)).length(cands.length),

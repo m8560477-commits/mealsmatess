@@ -26,11 +26,7 @@ let initialized:
 
 function getServices() {
   if (initialized) return initialized;
-  // Keep the existing VITE_-named value as a server-runtime-only fallback for this project.
-  // Never read this credential through import.meta.env or expose it to browser code.
-  const encoded =
-    process.env["FIREBASE_SERVICE_ACCOUNT_JSON"] ??
-    process.env["VITE_FIREBASE_SERVICE_ACCOUNT_JSON"];
+  const encoded = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"];
   if (!encoded) {
     throw new Error(
       "Firebase Admin is not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON as a server-only encrypted Vercel environment variable.",

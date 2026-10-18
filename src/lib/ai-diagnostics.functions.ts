@@ -8,11 +8,11 @@ import {
   generateAiImage,
   generateAiObject,
   generateAiText,
-  getAiGatewayConfiguration,
+  getAiProviderConfiguration,
 } from "@/lib/ai-engine.server";
 
 const DiagnosticSchema = z.object({
-  test: z.enum(["backend", "recipe", "mia", "image", "database", "storage", "security"]),
+  test: z.enum(["backend", "recipe", "mia", "lovable", "image", "database", "storage", "security"]),
 });
 
 function safeFailure(error: unknown) {
@@ -21,10 +21,12 @@ function safeFailure(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (/FIREBASE_SERVICE_ACCOUNT_JSON|Firebase Admin is not configured/i.test(message))
     return "Firebase Admin is not configured for this server runtime.";
+  if (/GROQ_API_KEY|LOVABLE_API_KEY|not configured/i.test(message))
+    return "A required provider API key is not configured for this server environment.";
   if (/credit|billing|payment/i.test(message))
-    return "Vercel AI Gateway needs active billing and credits before it can process this test.";
-  if (/authentication|unauthorized/i.test(message))
-    return "The provider or endpoint rejected authentication.";
+    return "The AI provider needs active billing or credits before it can process this test.";
+  if (/authentication|unauthorized|rejected.*key/i.test(message))
+    return "The provider rejected its configured API key. Check the encrypted value in Vercel.";
   if (/timeout|timed out/i.test(message)) return "The test timed out before the service responded.";
   return "The server-side diagnostic failed. Check server logs for the test name and failure category.";
 }
@@ -41,6 +43,8 @@ async function checkDatabase(userId: string) {
     checked: true,
   });
   if (insertError) throw insertError;
+  let readFailed = false;
+  let readFailure: unknown;
   try {
     const { data, error } = await firebaseAdmin
       .from("grocery_items")
@@ -51,14 +55,18 @@ async function checkDatabase(userId: string) {
     if (error) throw error;
     if (!data || data.user_id !== userId)
       throw new Error("Scoped database read-after-write failed.");
-  } finally {
-    const { error } = await firebaseAdmin
-      .from("grocery_items")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
-    if (error) throw error;
+  } catch (error) {
+    readFailed = true;
+    readFailure = error;
   }
+
+  const { error: cleanupError } = await firebaseAdmin
+    .from("grocery_items")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (cleanupError) throw cleanupError;
+  if (readFailed) throw readFailure;
   return "User-scoped database insert, read, and cleanup succeeded.";
 }
 
@@ -71,6 +79,8 @@ async function checkStorage(userId: string) {
     "base64",
   );
   let uploaded = false;
+  let verificationFailed = false;
+  let verificationFailure: unknown;
   try {
     const { error } = await storage.upload(path, bytes, { contentType: "image/png" });
     if (error) throw error;
@@ -81,12 +91,24 @@ async function checkStorage(userId: string) {
     if (!response.ok || (await response.arrayBuffer()).byteLength !== bytes.byteLength) {
       throw new Error("Stored image could not be retrieved correctly.");
     }
-  } finally {
-    if (uploaded) {
-      const { error } = await storage.remove([path]);
-      if (error) throw error;
-    }
+  } catch (error) {
+    verificationFailed = true;
+    verificationFailure = error;
   }
+
+  let cleanupError: Error | null = null;
+  if (uploaded) {
+    const { error } = await storage.remove([path]);
+    cleanupError = error;
+  }
+  if (verificationFailed && cleanupError) {
+    throw new AggregateError(
+      [verificationFailure, cleanupError],
+      "Storage verification and cleanup failed.",
+    );
+  }
+  if (cleanupError) throw cleanupError;
+  if (verificationFailed) throw verificationFailure;
   return "Temporary storage upload, signed retrieval, and cleanup succeeded.";
 }
 
@@ -96,7 +118,7 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { isAdmin } = await import("@/lib/marketplace.server");
     if (!(await isAdmin(context.userId))) throw new Error("Admin access required.");
-    const config = getAiGatewayConfiguration();
+    const config = getAiProviderConfiguration();
     try {
       switch (data.test) {
         case "backend":
@@ -138,6 +160,20 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
             ok: answer.length > 0,
             model: config.textModel,
             detail: answer.slice(0, 240),
+          };
+        }
+        case "lovable": {
+          const answer = await generateAiText({
+            feature: "diagnostics.lovable",
+            provider: "lovable",
+            prompt: "Reply with exactly: Lovable AI is connected.",
+          });
+          return {
+            test: data.test,
+            ok: answer.length > 0,
+            provider: "Lovable AI Gateway",
+            model: config.lovableTextModel,
+            detail: answer.slice(0, 160),
           };
         }
         case "image": {

@@ -300,6 +300,7 @@ export const scanKitchen = createServerFn({ method: "POST" })
       const { bytes, mediaType } = imageInputFromDataUrl(data.imageDataUrl);
       const result = await generateAiObject({
         feature: "scan.kitchen",
+        provider: "lovable",
         instructions:
           "Identify only visible food ingredients. Use lowercase ingredient names and never infer items that are not visible.",
         messages: [
@@ -381,6 +382,7 @@ export const scanDish = createServerFn({ method: "POST" })
       const { bytes, mediaType } = imageInputFromDataUrl(data.imageDataUrl);
       const dish = await generateAiObject({
         feature: "scan.dish",
+        provider: "lovable",
         instructions:
           "You are a food identification assistant. Nutritional values must be clearly treated as approximate estimates, not precise medical advice.",
         messages: [

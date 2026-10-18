@@ -227,6 +227,6 @@ export const imageProvidersStatus = createServerFn({ method: "GET" }).handler(as
   ]);
   return {
     providers: images.configuredProviders(),
-    ai: ai.getAiGatewayConfiguration(),
+    ai: ai.getAiProviderConfiguration(),
   };
 });

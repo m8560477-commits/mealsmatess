@@ -13,6 +13,8 @@ MealMate is configured for the Firebase project `mealmate-d2e53`. The browser ap
 
 Add the same values to Vercel Development, Preview, and Production environments. These are Firebase Web App values and are safe to expose in a client bundle; never add a service-account JSON, private key, or admin credential to any `VITE_` variable.
 
+The server also requires `FIREBASE_SERVICE_ACCOUNT_JSON` in Vercel Development, Preview, and Production. Set it to the Firebase Admin service-account JSON for project `mealmate-d2e53` as an encrypted server-only variable. It must be valid JSON with `project_id`, `client_email`, and `private_key`; do not prefix it with `VITE_`.
+
 ## Firebase Console checklist
 
 1. In project `mealmate-d2e53`, register or select the MealMate Web App and copy its Web SDK configuration.

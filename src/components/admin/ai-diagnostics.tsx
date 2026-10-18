@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { runAiDiagnostics } from "@/lib/ai-diagnostics.functions";
 
-type TestName = "backend" | "recipe" | "mia" | "image" | "database" | "storage" | "security";
+type TestName =
+  "backend" | "recipe" | "mia" | "lovable" | "image" | "database" | "storage" | "security";
 type Result = {
   test: TestName;
   ok: boolean;
@@ -45,6 +46,12 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
     label: "Mia food response",
     description: "Live food question through the assistant model",
     icon: MessageCircle,
+  },
+  {
+    name: "lovable",
+    label: "Lovable AI provider",
+    description: "Live text request through the Lovable AI Gateway",
+    icon: Sparkles,
   },
   {
     name: "image",

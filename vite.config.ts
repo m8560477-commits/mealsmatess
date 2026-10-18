@@ -5,7 +5,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 
 export default defineConfig(({ command }) => ({
-  // Expose only Firebase web configuration; the VITE_-prefixed Admin service account is server-only.
+  // Expose only explicitly allowlisted public Firebase Web App settings.
   envPrefix: [
     "VITE_FIREBASE_API_KEY",
     "VITE_FIREBASE_APP_ID",
