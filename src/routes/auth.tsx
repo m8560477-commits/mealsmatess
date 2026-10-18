@@ -71,6 +71,27 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+function getGoogleSignInErrorMessage(error: unknown): string {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+
+  if (code === "auth/unauthorized-domain") {
+    const hostname = typeof window === "undefined" ? "this site" : window.location.hostname;
+    return `Google sign-in is not enabled for ${hostname}. Add this domain under Firebase Authentication settings.`;
+  }
+
+  if (code === "auth/internal-error") {
+    return "Google could not finish signing in. Check that Google sign-in is enabled and this site is listed in Firebase Authentication's authorized domains.";
+  }
+
+  return extractErrorMessage(
+    error,
+    "Google sign-in is unavailable. Please use email and password.",
+  );
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const { user, loading } = useSession();
@@ -128,7 +149,7 @@ function AuthPage() {
         return;
       }
       console.error("[Auth] Google sign-in error:", error);
-      toast.error(extractErrorMessage(error, "Google sign-in is unavailable. Please use email and password."));
+      toast.error(getGoogleSignInErrorMessage(error));
     } finally {
       setBusy(false);
     }
