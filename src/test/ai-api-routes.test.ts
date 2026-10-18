@@ -64,6 +64,25 @@ describe("Mia API", () => {
     );
   });
 
+  it("includes the user's saved onboarding preferences in Mia's instructions", async () => {
+    mocks.readRecipe.mockResolvedValue({
+      data: {
+        preferences: {
+          allergies: ["peanuts"],
+          dietary_restrictions: ["Vegan"],
+          goal: "Save money",
+        },
+      },
+      error: null,
+    });
+    const response = await miaPost(request({ message: "Suggest dinner" }));
+    expect(response.status).toBe(200);
+    const instructions = mocks.text.mock.calls[0]?.[0].instructions;
+    expect(instructions).toContain("peanuts");
+    expect(instructions).toContain("Vegan");
+    expect(instructions).toContain("Save money");
+  });
+
   it("rejects malformed conversations before spending credits", async () => {
     const response = await miaPost(
       request({ messages: [{ role: "assistant", content: "Hello" }] }),

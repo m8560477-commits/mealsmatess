@@ -1,3 +1,5 @@
+import { aiProfile } from "@/lib/ai-profile";
+import { preferenceSummary } from "@/lib/preferences";
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { generateAiText } from "@/lib/ai-engine.server";
@@ -82,15 +84,21 @@ export const nutritionCoach = createServerFn({ method: "POST" })
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_chat", context.userId, 20);
     const { firebase, userId } = context;
-    const { data: profile } = await firebase
+    const { data: savedProfile } = await firebase
       .from("profiles")
       .select(
-        "display_name,dietary_preferences,goal,activity_level,allergies,budget_per_day,age,weight_kg,height_cm,family_size,currency",
+        "display_name,dietary_preferences,goal,activity_level,allergies,budget_per_day,age,weight_kg,height_cm,family_size,currency,preferences",
       )
       .eq("id", userId)
       .maybeSingle();
+    const profile = aiProfile(savedProfile);
 
-    const summary = profileSummary(profile as Profile | null);
+    const summary = [
+      profileSummary(profile as Profile | null),
+      profile ? preferenceSummary(profile.preferences) : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
     const t0 = Date.now();
     try {
       const answer = await callChat([
@@ -122,13 +130,14 @@ export const nutritionCoach = createServerFn({ method: "POST" })
 export const getCoachContext = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { data: profile } = await context.firebase
+    const { data: savedProfile } = await context.firebase
       .from("profiles")
       .select(
-        "display_name,goal,activity_level,allergies,dietary_preferences,budget_per_day,age,weight_kg,height_cm,family_size,currency",
+        "display_name,goal,activity_level,allergies,dietary_preferences,budget_per_day,age,weight_kg,height_cm,family_size,currency,preferences",
       )
       .eq("id", context.userId)
       .maybeSingle();
+    const profile = aiProfile(savedProfile);
     const p = (profile as Profile | null) ?? null;
     const missing: string[] = [];
     if (!p?.goal) missing.push("goal");

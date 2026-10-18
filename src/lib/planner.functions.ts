@@ -1,3 +1,5 @@
+import { aiProfile } from "@/lib/ai-profile";
+import { preferenceSummary } from "@/lib/preferences";
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { generateAiObject } from "@/lib/ai-engine.server";
@@ -51,13 +53,14 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_planner", context.userId, 5);
     const { firebaseAdmin } = await loadFirebaseAdmin();
 
-    const { data: profile } = await firebaseAdmin
+    const { data: savedProfile } = await firebaseAdmin
       .from("profiles")
       .select(
-        "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age",
+        "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age,preferences",
       )
       .eq("id", context.userId)
       .maybeSingle();
+    const profile = aiProfile(savedProfile);
 
     const start = data.startDate ? new Date(`${data.startDate}T00:00:00.000Z`) : new Date();
     start.setUTCHours(0, 0, 0, 0);
@@ -70,6 +73,7 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
 
     const prompt = `Build a ${data.days}-day meal plan for meals: ${data.meals.join(", ")}.
 User profile:
+- Saved preferences: ${profile ? preferenceSummary(profile.preferences) : "none specified"}
 - Goal: ${profile?.goal ?? "general wellness"}
 - Activity: ${profile?.activity_level ?? "moderate"}
 - Allergies: ${(profile?.allergies ?? []).join(", ") || "none"}
@@ -229,13 +233,14 @@ export const aiPlanAndShop = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_planner", context.userId, 5);
     const { firebase, userId } = context;
 
-    const { data: profile } = await firebase
+    const { data: savedProfile } = await firebase
       .from("profiles")
       .select(
-        "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age",
+        "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age,preferences",
       )
       .eq("id", userId)
       .maybeSingle();
+    const profile = aiProfile(savedProfile);
 
     const start = data.startDate ? new Date(data.startDate) : new Date();
     const dates: string[] = [];
@@ -249,6 +254,7 @@ export const aiPlanAndShop = createServerFn({ method: "POST" })
 
     const prompt = `Build a ${data.days}-day meal plan with meals: ${data.meals.join(", ")}.
 Profile:
+- Saved preferences: ${profile ? preferenceSummary(profile.preferences) : "none specified"}
 - Goal: ${profile?.goal ?? "general wellness"}
 - Activity: ${profile?.activity_level ?? "moderate"}
 - Allergies (must avoid): ${(profile?.allergies ?? []).join(", ") || "none"}
@@ -424,18 +430,19 @@ export const suggestSubstitutions = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_substitute", context.userId, 20);
     const t0 = Date.now();
     try {
-      const { data: profile } = await context.firebase
+      const { data: savedProfile } = await context.firebase
         .from("profiles")
-        .select("allergies,dietary_preferences")
+        .select("allergies,dietary_preferences,preferences")
         .eq("id", context.userId)
         .maybeSingle();
+      const profile = aiProfile(savedProfile);
       const allergies = (profile?.allergies ?? []) as string[];
       const dietaryPreferences = (profile?.dietary_preferences ?? []) as string[];
       const parsed = await generateAiObject({
         feature: "ingredients.substitutions",
         instructions:
           "You are a culinary substitutions expert. Suggest safe, practical alternatives. Do not suggest any ingredient on the user's allergy list or anything that conflicts with their dietary preferences.",
-        prompt: `Give 3 practical substitutes for "${data.ingredient}"${data.context ? ` in the context of ${data.context}` : ""}. Allergies to avoid: ${allergies.join(", ") || "none"}. Dietary preferences: ${dietaryPreferences.join(", ") || "none"}.`,
+        prompt: `Give 3 practical substitutes for "${data.ingredient}"${data.context ? ` in the context of ${data.context}` : ""}. Saved preferences: ${profile ? preferenceSummary(profile.preferences) : "none specified"}. Allergies to avoid: ${allergies.join(", ") || "none"}. Dietary preferences: ${dietaryPreferences.join(", ") || "none"}.`,
         schema: z.object({
           substitutes: z
             .array(
