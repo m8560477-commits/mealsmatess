@@ -124,7 +124,7 @@ export async function signInWithGoogle() {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
     const code = (error as { code?: string }).code;
-    if (code === "auth/internal-error" || code === "auth/popup-blocked") {
+    if (code === "auth/popup-blocked") {
       await signInWithRedirect(auth, googleProvider);
       return null;
     }
