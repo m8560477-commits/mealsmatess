@@ -69,7 +69,7 @@ export const Route = createFileRoute("/restaurants")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: DiningComingSoon,
+  component: RestaurantsPage,
 });
 
 function DiningComingSoon() {
@@ -92,8 +92,6 @@ function DiningComingSoon() {
     </main>
   );
 }
-
-export { RestaurantsPage };
 
 type FilterKey = "all" | "rated" | "fast" | "halal" | "vegetarian" | "deals" | "under100";
 type RestaurantRow = { restaurant: FeedRestaurant; distance: number | null; hasDeal: boolean };
@@ -148,9 +146,9 @@ function RestaurantsPage() {
   const [manualLocation, setManualLocation] = useState("");
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  const restaurants = data?.restaurants ?? [];
-  const dishes = data?.dishes ?? [];
-  const promotions = data?.promotions ?? [];
+  const restaurants = useMemo(() => data?.restaurants ?? [], [data?.restaurants]);
+  const dishes = useMemo(() => data?.dishes ?? [], [data?.dishes]);
+  const promotions = useMemo(() => data?.promotions ?? [], [data?.promotions]);
   const restaurantById = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])),
     [restaurants],

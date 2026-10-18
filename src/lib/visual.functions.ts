@@ -78,7 +78,7 @@ async function b64Speech(text: string): Promise<string | null> {
  */
 export const generateVisualExplanation = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => VisualInput.parse(v))
+  .validator((v: unknown) => VisualInput.parse(v))
   .handler(async ({ data, context }): Promise<VisualExplanation> => {
     await requireAiCredit(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();

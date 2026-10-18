@@ -45,7 +45,7 @@ type MealSuggestion = {
 // AI Meal Planner v2 — uses profile (goal, allergies, budget, dietary_preferences)
 export const generatePersonalizedPlan = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => PlanInput.parse(v))
+  .validator((v: unknown) => PlanInput.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
@@ -156,7 +156,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 // Auto-generate grocery list from planned meals in a date range
 export const buildGroceryFromPlan = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ from: z.string(), to: z.string() }).parse(v))
+  .validator((v: unknown) => z.object({ from: z.string(), to: z.string() }).parse(v))
   .handler(async ({ data, context }) => {
     const firebase = context.firebase;
     const { data: plans, error } = await firebase
@@ -223,7 +223,7 @@ type ShopMeal = {
 
 export const aiPlanAndShop = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => PlanAndShopInput.parse(v))
+  .validator((v: unknown) => PlanAndShopInput.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_planner", context.userId, 5);
@@ -414,7 +414,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 // Ingredient substitution suggestions
 export const suggestSubstitutions = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({ ingredient: z.string().min(1).max(120), context: z.string().max(300).optional() })
       .parse(v),

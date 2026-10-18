@@ -89,7 +89,13 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
           return new Response("Bad JSON", { status: 400 });
         }
         const evt = body.event;
-        if (!evt || !evt.id || !evt.type || !evt.app_user_id || !/^[A-Za-z0-9_-]{1,128}$/.test(evt.id)) {
+        if (
+          !evt ||
+          !evt.id ||
+          !evt.type ||
+          !evt.app_user_id ||
+          !/^[A-Za-z0-9_-]{1,128}$/.test(evt.id)
+        ) {
           return new Response("Bad payload", { status: 400 });
         }
 

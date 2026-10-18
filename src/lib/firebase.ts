@@ -59,7 +59,7 @@ export const analytics =
   import.meta.env.SSR || !firebaseConfig.measurementId
     ? Promise.resolve(null)
     : import("firebase/analytics").then(async ({ getAnalytics, isSupported }) =>
-        (await isSupported() ? getAnalytics(app) : null),
+        (await isSupported()) ? getAnalytics(app) : null,
       );
 export const db = getFirestore(
   app,

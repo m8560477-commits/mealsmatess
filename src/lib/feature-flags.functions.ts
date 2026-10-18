@@ -27,7 +27,7 @@ export const listFeatureFlags = createServerFn({ method: "GET" }).handler(async 
 
 export const adminUpsertFeatureFlag = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         key: z.string().min(1).max(80),
@@ -56,7 +56,7 @@ export const adminUpsertFeatureFlag = createServerFn({ method: "POST" })
 
 export const adminDeleteFeatureFlag = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ key: z.string().min(1) }).parse(v))
+  .validator((v: unknown) => z.object({ key: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();

@@ -167,7 +167,7 @@ export const surpriseMe = createServerFn({ method: "POST" })
 // Search / generate a specific recipe — signed-in users only, rate limited.
 export const generateRecipe = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ query: z.string().trim().min(1).max(200) }).parse(v))
+  .validator((v: unknown) => z.object({ query: z.string().trim().min(1).max(200) }).parse(v))
   .handler(async ({ data, context }) => {
     const requestKey = aiRequestFingerprint(
       context.userId,
@@ -289,7 +289,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
 // Kitchen Scan — identify ingredients from a photo
 export const scanKitchen = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z.object({ imageDataUrl: z.string().startsWith("data:image/").max(11_200_000) }).parse(v),
   )
   .handler(async ({ data, context }) => {
@@ -370,7 +370,7 @@ export type ScannedDish = z.infer<typeof DishSchema>;
 // Dish Scan — identify a plated meal and estimate its nutrition
 export const scanDish = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z.object({ imageDataUrl: z.string().startsWith("data:image/").max(11_200_000) }).parse(v),
   )
   .handler(async ({ data, context }) => {
@@ -422,9 +422,7 @@ export const scanDish = createServerFn({ method: "POST" })
 // Ask anything about food — a single-turn Q&A used by the AI Chat quick action
 export const askFoodQuestion = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
-    z.object({ question: z.string().trim().min(1).max(500) }).parse(v),
-  )
+  .validator((v: unknown) => z.object({ question: z.string().trim().min(1).max(500) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_chat", context.userId, 20);
@@ -461,7 +459,7 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
 // Premium-only. Uses the same generated-image storage and metadata path as recipe browsing.
 export const regenerateRecipeImage = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ slug: z.string().min(1) }).parse(v))
+  .validator((v: unknown) => z.object({ slug: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();

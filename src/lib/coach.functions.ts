@@ -77,7 +77,7 @@ async function callChat(
 
 export const nutritionCoach = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => InputSchema.parse(v))
+  .validator((v: unknown) => InputSchema.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_chat", context.userId, 20);

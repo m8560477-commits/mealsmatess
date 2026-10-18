@@ -116,7 +116,9 @@ function VerifyEmailPrompt({ email }: { email: string }) {
       await sendEmailVerification(currentUser);
       toast.success("Verification email sent. Check your inbox.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not send the verification email.");
+      toast.error(
+        error instanceof Error ? error.message : "Could not send the verification email.",
+      );
     }
   }
   async function signOut() {
@@ -135,7 +137,9 @@ function VerifyEmailPrompt({ email }: { email: string }) {
         </p>
         <div className="mt-6 flex flex-col gap-2">
           <Button onClick={confirmVerification}>I&apos;ve verified my email</Button>
-          <Button variant="outline" onClick={resend}>Resend verification email</Button>
+          <Button variant="outline" onClick={resend}>
+            Resend verification email
+          </Button>
           <Button variant="outline" onClick={signOut}>
             Use a different account
           </Button>

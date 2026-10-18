@@ -20,7 +20,12 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendEmailVerification } from "firebase/auth";
 
-async function ensureUserProfile(user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null }) {
+async function ensureUserProfile(user: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+}) {
   const userRef = doc(db, "users", user.uid);
   const snap = await getDoc(userRef);
   const profile = {
@@ -31,15 +36,21 @@ async function ensureUserProfile(user: { uid: string; email: string | null; disp
     goal: "healthy_cooking",
   };
 
-  await setDoc(userRef, snap.exists() ? profile : {
-    ...profile,
-    id: user.uid,
-    email: user.email ?? "",
-    displayName: user.displayName || user.email?.split("@")[0] || "Chef",
-    photoURL: user.photoURL ?? "",
-    goal: "healthy_cooking",
-    createdAt: new Date().toISOString(),
-  }, { merge: true });
+  await setDoc(
+    userRef,
+    snap.exists()
+      ? profile
+      : {
+          ...profile,
+          id: user.uid,
+          email: user.email ?? "",
+          displayName: user.displayName || user.email?.split("@")[0] || "Chef",
+          photoURL: user.photoURL ?? "",
+          goal: "healthy_cooking",
+          createdAt: new Date().toISOString(),
+        },
+    { merge: true },
+  );
 }
 
 export const Route = createFileRoute("/auth")({
@@ -122,7 +133,9 @@ function AuthPage() {
         console.error("[Auth] Google redirect error:", error);
         toast.error(extractErrorMessage(error, "Google sign-in is unavailable."));
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -201,7 +214,11 @@ function AuthPage() {
             return;
           }
         } catch (fbErr: any) {
-          if (fbErr?.code === "auth/user-not-found" || fbErr?.code === "auth/invalid-credential" || fbErr?.code === "auth/wrong-password") {
+          if (
+            fbErr?.code === "auth/user-not-found" ||
+            fbErr?.code === "auth/invalid-credential" ||
+            fbErr?.code === "auth/wrong-password"
+          ) {
             throw new Error("Invalid email or password.");
           }
           throw fbErr;
@@ -332,13 +349,8 @@ function AuthPage() {
                 }
                 setBusy(true);
                 try {
-                  try {
-                    await sendFirebasePasswordReset(email.trim().toLowerCase());
-                    toast.success("Check your inbox for a reset link.");
-                    return;
-                  } catch (error) {
-                    throw error;
-                  }
+                  await sendFirebasePasswordReset(email.trim().toLowerCase());
+                  toast.success("Check your inbox for a reset link.");
                 } catch (err) {
                   toast.error(
                     "Could not send the reset email. Please check the address and try again.",

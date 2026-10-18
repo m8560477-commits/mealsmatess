@@ -34,7 +34,7 @@ async function assertCanEdit(userId: string, createdBy: string | null) {
  */
 export const ensureRecipeImage = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => IdSchema.parse(v))
+  .validator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { data: accessible, error } = await context.firebase
       .from("recipes")
@@ -155,7 +155,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
 
 export const getImageAlternatives = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => IdSchema.parse(v))
+  .validator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const srv = await import("@/lib/recipe-images.server");
     const r = await loadRecipe(data.recipeId);
@@ -187,7 +187,7 @@ const ChooseSchema = z.object({
 
 export const chooseRecipeImage = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => ChooseSchema.parse(v))
+  .validator((v: unknown) => ChooseSchema.parse(v))
   .handler(async ({ data, context }) => {
     const srv = await import("@/lib/recipe-images.server");
     const r = await loadRecipe(data.recipeId);
@@ -211,7 +211,7 @@ export const chooseRecipeImage = createServerFn({ method: "POST" })
 /** Kept for compatibility; bulk generation is disabled by user preference. */
 export const backfillRecipeImages = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z.object({ batchSize: z.number().int().min(1).max(10).default(5) }).parse(v ?? {}),
   )
   .handler(async ({ data, context }) => {

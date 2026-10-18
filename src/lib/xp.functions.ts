@@ -28,7 +28,7 @@ const CLIENT_ACTIONS = [
 
 export const awardXp = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         action: z.enum(CLIENT_ACTIONS),
