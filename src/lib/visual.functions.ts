@@ -64,7 +64,6 @@ async function b64Speech(text: string): Promise<string | null> {
   try {
     const audio = await generateAiSpeech(text, {
       feature: "visual.narration",
-      voice: "Kore",
     });
     return `data:${audio.mediaType};base64,${Buffer.from(audio.bytes).toString("base64")}`;
   } catch {

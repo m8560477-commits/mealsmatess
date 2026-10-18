@@ -45,6 +45,7 @@ describe("shared MealMate AI engine", () => {
   });
 
   it("reports Lovable Gateway models without exposing credentials", () => {
+    vi.stubEnv("LOVABLE_API_KEY", "test-key");
     const config = getAiProviderConfiguration();
     expect(config).toMatchObject({
       textProvider: "Lovable AI Gateway",
@@ -59,6 +60,9 @@ describe("shared MealMate AI engine", () => {
 
   it("fails clearly when server credentials are missing", async () => {
     vi.stubEnv("LOVABLE_API_KEY", "");
+    vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    vi.stubEnv("VERCEL", "");
     await expect(
       generateAiText({ feature: "test.unconfigured", prompt: "Reply." }),
     ).rejects.toThrow(/not configured/i);
@@ -111,9 +115,11 @@ describe("shared MealMate AI engine", () => {
 
     const [, init] = request.mock.calls[0] as unknown as [string, RequestInit];
     const body = JSON.parse(String(init.body)) as {
-      messages: { content: { type: string; image_url?: { url: string } }[] }[];
+      messages: { content: string | { type: string; image_url?: { url: string } }[] }[];
     };
-    expect(body.messages[0]?.content[1]?.image_url?.url).toBe("data:image/png;base64,AQID");
+    expect(
+      (body.messages.at(-1)?.content as { image_url?: { url: string } }[])[1]?.image_url?.url,
+    ).toBe("data:image/png;base64,AQID");
   });
 
   it("parses and validates structured recipe output from the Gateway", async () => {

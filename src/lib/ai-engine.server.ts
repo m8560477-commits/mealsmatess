@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { generateText, Output, type ModelMessage } from "ai";
+import {
+  createGateway,
+  generateImage,
+  generateSpeech,
+  generateText,
+  Output,
+  zodSchema,
+  type ModelMessage,
+} from "ai";
 import { z } from "zod";
 
 export const DEFAULT_AI_TEXT_MODEL = "google/gemini-2.5-flash";
@@ -40,17 +48,35 @@ class AiProviderError extends Error {
   }
 }
 
+function usesLovableGateway() {
+  return Boolean(process.env["LOVABLE_API_KEY"]);
+}
+
 export function getAiProviderConfiguration() {
+  const lovable = usesLovableGateway();
+  const provider = lovable ? "Lovable AI Gateway" : "Vercel AI Gateway";
   return {
-    textProvider: "Lovable AI Gateway" as const,
+    textProvider: provider,
     textModel: DEFAULT_AI_TEXT_MODEL,
-    imageProvider: "Lovable AI Gateway" as const,
+    imageProvider: provider,
     imageModel: DEFAULT_AI_IMAGE_MODEL,
-    speechProvider: "Lovable AI Gateway" as const,
+    speechProvider: provider,
     speechModel: DEFAULT_AI_SPEECH_MODEL,
-    authentication: "Server-only credentials" as const,
-    configured: Boolean(process.env["LOVABLE_API_KEY"]),
+    authentication: lovable ? "Server-only credentials" : "Server API key or Vercel OIDC",
+    configured:
+      lovable ||
+      Boolean(
+        process.env["AI_GATEWAY_API_KEY"] ||
+        process.env["VERCEL_OIDC_TOKEN"] ||
+        process.env["VERCEL"] === "1",
+      ),
   };
+}
+
+function vercelGateway() {
+  if (!getAiProviderConfiguration().configured) throw new AiProviderError("configuration_missing");
+  // The SDK handles Vercel's request-scoped OIDC token and local API keys.
+  return createGateway();
 }
 
 function errorStatus(error: unknown): number | undefined {
@@ -66,7 +92,8 @@ function errorCategory(error: unknown): string {
   const name = error instanceof Error ? error.name : "UnknownError";
   const message = error instanceof Error ? error.message : "";
   const status = errorStatus(error);
-  if (/not configured|LOVABLE_API_KEY/i.test(message)) return "configuration_missing";
+  if (/not configured|LOVABLE_API_KEY|AI_GATEWAY_API_KEY/i.test(message))
+    return "configuration_missing";
   if (/timeout|abort/i.test(name)) return "timeout";
   if (/credit|billing|payment/i.test(message) || status === 402) return "credits_unavailable";
   if (status === 401 || status === 403 || /authentication/i.test(name)) return "authentication";
@@ -92,7 +119,7 @@ function publicError(category: string): Error {
 
 function logFailure(feature: string, model: string, error: unknown, durationMs: number) {
   console.error("[MealMate AI] request failed", {
-    provider: "Lovable AI Gateway",
+    provider: getAiProviderConfiguration().textProvider,
     feature,
     model,
     durationMs,
@@ -214,23 +241,15 @@ async function lovableChat(options: AiRequestOptions, jsonMode = false): Promise
   return text.trim();
 }
 
-async function mockTextRequest<T>(
+async function sdkTextRequest<T>(
   options: AiRequestOptions,
   generate: (model: TextModel, settings: { maxRetries: number; timeout: number }) => Promise<T>,
 ): Promise<T> {
-  if (!options.modelOverride) throw new Error("A mock AI model is required for this request.");
   const modelId = options.model ?? DEFAULT_AI_TEXT_MODEL;
-  const startedAt = Date.now();
-  try {
-    const result = await generate(options.modelOverride, {
-      maxRetries: options.maxRetries ?? 1,
-      timeout: options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS,
-    });
-    return result;
-  } catch (error) {
-    logFailure(options.feature, modelId, error, Date.now() - startedAt);
-    throw publicError(errorCategory(error));
-  }
+  return generate(options.modelOverride ?? vercelGateway().languageModel(modelId), {
+    maxRetries: options.maxRetries ?? 1,
+    timeout: options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS,
+  });
 }
 
 function promptFields(options: AiRequestOptions) {
@@ -244,8 +263,8 @@ export async function generateAiText(options: AiRequestOptions): Promise<string>
   const startedAt = Date.now();
   try {
     let text: string;
-    if (options.modelOverride) {
-      const result = await mockTextRequest(options, (model, settings) =>
+    if (options.modelOverride || !usesLovableGateway()) {
+      const result = await sdkTextRequest(options, (model, settings) =>
         generateText({ model, ...promptFields(options), ...settings }),
       );
       text = result.text.trim();
@@ -254,7 +273,7 @@ export async function generateAiText(options: AiRequestOptions): Promise<string>
     }
     if (!text) throw new AiProviderError("empty_response");
     console.info("[MealMate AI] request completed", {
-      provider: "Lovable AI Gateway",
+      provider: getAiProviderConfiguration().textProvider,
       feature: options.feature,
       model: options.model ?? DEFAULT_AI_TEXT_MODEL,
       durationMs: Date.now() - startedAt,
@@ -292,8 +311,8 @@ export async function generateAiObject<TSchema extends z.ZodTypeAny>(
   const startedAt = Date.now();
   try {
     let output: unknown;
-    if (options.modelOverride) {
-      const result = await mockTextRequest(options, (model, settings) =>
+    if (options.modelOverride || !usesLovableGateway()) {
+      const result = await sdkTextRequest(options, (model, settings) =>
         generateText({
           model,
           ...promptFields(options),
@@ -303,7 +322,16 @@ export async function generateAiObject<TSchema extends z.ZodTypeAny>(
       );
       output = result.output;
     } else {
-      output = parseJsonObject(await lovableChat(options, true));
+      const schema = await zodSchema(options.schema).jsonSchema;
+      output = parseJsonObject(
+        await lovableChat(
+          {
+            ...options,
+            instructions: `${options.instructions ?? ""}\nReturn only a JSON object matching this JSON Schema:\n${JSON.stringify(schema)}`,
+          },
+          true,
+        ),
+      );
     }
     try {
       return options.schema.parse(output) as z.output<TSchema>;
@@ -342,31 +370,50 @@ export async function generateAiImage(
   const model = DEFAULT_AI_IMAGE_MODEL;
   const startedAt = Date.now();
   try {
-    const response = await lovableRequest(
-      "/images/generations",
-      { model, prompt, size: options.size ?? "1536x1024", quality: "medium" },
-      options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS,
-    );
-    let result: { data?: { b64_json?: string; mime_type?: string; media_type?: string }[] };
-    try {
-      result = (await response.json()) as typeof result;
-    } catch {
-      throw new AiProviderError("invalid_response");
+    let bytes: Uint8Array;
+    let mediaType: string;
+    if (usesLovableGateway()) {
+      const response = await lovableRequest(
+        "/images/generations",
+        {
+          model,
+          prompt,
+          size: options.size ?? "1536x1024",
+          quality: "medium",
+          response_format: "b64_json",
+        },
+        options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS,
+      );
+      let result: { data?: { b64_json?: string; mime_type?: string; media_type?: string }[] };
+      try {
+        result = (await response.json()) as typeof result;
+      } catch {
+        throw new AiProviderError("invalid_response");
+      }
+      const image = result.data?.[0];
+      const base64 = image?.b64_json;
+      if (!base64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64))
+        throw new AiProviderError("invalid_response");
+      bytes = new Uint8Array(Buffer.from(base64, "base64"));
+      mediaType = image?.mime_type ?? image?.media_type ?? "image/png";
+    } else {
+      const result = await generateImage({
+        model: vercelGateway().imageModel(model),
+        prompt,
+        size: options.size ?? "1536x1024",
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS),
+      });
+      bytes = result.image.uint8Array;
+      mediaType = result.image.mediaType;
     }
-    const image = result.data?.[0];
-    const base64 = image?.b64_json;
-    if (!base64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
-      throw new AiProviderError("invalid_response");
-    }
-    const bytes = new Uint8Array(Buffer.from(base64, "base64"));
-    const mediaType = image?.mime_type ?? image?.media_type ?? "image/png";
     if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) {
       throw new AiProviderError("invalid_response");
     }
     if (!/^image\/(png|jpeg|webp)$/i.test(mediaType)) throw new AiProviderError("invalid_response");
 
     console.info("[MealMate AI] image completed", {
-      provider: "Lovable AI Gateway",
+      provider: getAiProviderConfiguration().textProvider,
       feature: options.feature,
       model,
       durationMs: Date.now() - startedAt,
@@ -386,29 +433,45 @@ export async function generateAiSpeech(
   const model = DEFAULT_AI_SPEECH_MODEL;
   const startedAt = Date.now();
   try {
-    const response = await lovableRequest(
-      "/audio/speech",
-      {
-        model,
-        input: text,
+    let bytes: Uint8Array;
+    let mediaType = "audio/mpeg";
+    if (usesLovableGateway()) {
+      const response = await lovableRequest(
+        "/audio/speech",
+        {
+          model,
+          input: text,
+          voice: options.voice ?? "alloy",
+          response_format: "mp3",
+          instructions: "Warm, clear, documentary narrator pace.",
+        },
+        options.timeoutMs ?? DEFAULT_SPEECH_TIMEOUT_MS,
+      );
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } else {
+      const result = await generateSpeech({
+        model: vercelGateway().speechModel(model),
+        text,
         voice: options.voice ?? "alloy",
-        response_format: "mp3",
+        outputFormat: "mp3",
         instructions: "Warm, clear, documentary narrator pace.",
-      },
-      options.timeoutMs ?? DEFAULT_SPEECH_TIMEOUT_MS,
-    );
-    const bytes = new Uint8Array(await response.arrayBuffer());
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_SPEECH_TIMEOUT_MS),
+      });
+      bytes = result.audio.uint8Array;
+      mediaType = result.audio.mediaType;
+    }
     if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) {
       throw new AiProviderError("invalid_response");
     }
     console.info("[MealMate AI] speech completed", {
-      provider: "Lovable AI Gateway",
+      provider: getAiProviderConfiguration().textProvider,
       feature: options.feature,
       model,
       durationMs: Date.now() - startedAt,
       byteLength: bytes.byteLength,
     });
-    return { bytes, mediaType: "audio/mpeg", model };
+    return { bytes, mediaType, model };
   } catch (error) {
     logFailure(options.feature, model, error, Date.now() - startedAt);
     throw publicError(errorCategory(error));

@@ -108,8 +108,7 @@ function RecipesPage() {
     if (!query.trim() || busy) return;
     setBusy(true);
     try {
-      const { slug, id } = await generateRecipe({ data: { query: query.trim() } });
-      void id; // the recipe page creates its photo in the background
+      const { slug } = await generateRecipe({ data: { query: query.trim() } });
       navigate({ to: "/recipe/$slug", params: { slug } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "";

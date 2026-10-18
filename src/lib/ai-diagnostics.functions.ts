@@ -23,10 +23,10 @@ function safeFailure(error: unknown) {
     return "Firebase Admin is not configured for this server runtime.";
   if (/credit|billing|payment/i.test(message))
     return "The AI provider needs active billing or credits before it can process this test.";
-  if (/LOVABLE_API_KEY|Lovable AI|not configured/i.test(message))
-    return "The Lovable AI Gateway is not available in this server environment.";
+  if (/LOVABLE_API_KEY|AI_GATEWAY_API_KEY|not configured/i.test(message))
+    return "The AI Gateway is not available in this server environment.";
   if (/authentication|unauthorized|rejected.*key/i.test(message))
-    return "Lovable AI Gateway authentication failed. Check the server-side provider credentials.";
+    return "AI Gateway authentication failed. Check the server-side provider credentials.";
   if (/timeout|timed out/i.test(message)) return "The test timed out before the service responded.";
   return "The server-side diagnostic failed. Check server logs for the test name and failure category.";
 }
@@ -126,8 +126,8 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
             test: data.test,
             ok: config.configured,
             detail: config.configured
-              ? "Authenticated admin endpoint and Lovable AI credentials are available."
-              : "Authenticated admin endpoint is available, but Lovable AI credentials are not loaded in this server runtime.",
+              ? "Authenticated admin endpoint and AI Gateway configuration are available."
+              : "Authenticated admin endpoint is available, but AI Gateway credentials are not loaded in this server runtime.",
             ...config,
           };
         case "recipe": {
