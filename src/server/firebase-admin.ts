@@ -418,31 +418,18 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
           else batch.set(entry.ref, this.values as DocumentData, { merge: true });
         }
         await batch.commit();
-        return {
-          data: this.selected ? entries.map(({ row }) => row) : null,
-          error: null,
-          ...(this.countMode ? { count } : {}),
-        };
+        const rows = entries.map(({ row }) =>
+          this.action === "update" ? ({ ...row, ...this.values } as Row) : row,
+        );
+        return this.selected
+          ? this.rowResult(rows, count)
+          : { data: null, error: null, ...(this.countMode ? { count } : {}) };
       }
 
       if (this.rowRange) entries = entries.slice(this.rowRange[0], this.rowRange[1] + 1);
       if (this.maxRows != null) entries = entries.slice(0, this.maxRows);
       const rows = entries.map(({ row }) => row);
-      if (this.singleMode === "single") {
-        if (rows.length !== 1)
-          throw new Error(`Expected one ${this.table} record, found ${rows.length}.`);
-        return { data: rows[0], error: null, ...(this.countMode ? { count } : {}) };
-      }
-      if (this.singleMode === "maybeSingle") {
-        if (rows.length > 1)
-          throw new Error(`Expected at most one ${this.table} record, found ${rows.length}.`);
-        return { data: rows[0] ?? null, error: null, ...(this.countMode ? { count } : {}) };
-      }
-      return {
-        data: this.headMode ? null : rows,
-        error: null,
-        ...(this.countMode ? { count } : {}),
-      };
+      return this.rowResult(rows, count);
     } catch (error) {
       return {
         data: null,
@@ -450,6 +437,22 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
         count: null,
       };
     }
+  }
+
+  /** Apply the same row cardinality to reads and selected write results. */
+  private rowResult(rows: Row[], count = rows.length): DbResult<any> {
+    const counts = this.countMode ? { count } : {};
+    if (this.singleMode === "single") {
+      if (rows.length !== 1)
+        throw new Error(`Expected one ${this.table} record, found ${rows.length}.`);
+      return { data: rows[0], error: null, ...counts };
+    }
+    if (this.singleMode === "maybeSingle") {
+      if (rows.length > 1)
+        throw new Error(`Expected at most one ${this.table} record, found ${rows.length}.`);
+      return { data: rows[0] ?? null, error: null, ...counts };
+    }
+    return { data: this.headMode ? null : rows, error: null, ...counts };
   }
 
   private async insertRows(db: Firestore): Promise<DbResult<any>> {
@@ -463,7 +466,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
       const id = documentKey(this.table, input);
       if (!id) throw new Error(`A document key is required to write ${this.table}.`);
       const value: Record<string, unknown> = { ...input, id };
-      if (USER_SUBCOLLECTIONS[this.table]) {
+      if (this.table === "recipes" || USER_SUBCOLLECTIONS[this.table]) {
         value["created_at"] ??= new Date().toISOString();
         if (this.table === "grocery_items") value["checked"] ??= false;
       }
@@ -472,7 +475,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
       return value as Row;
     });
     await batch.commit();
-    return { data: this.selected ? rows : null, error: null };
+    return this.selected ? this.rowResult(rows) : { data: null, error: null };
   }
 
   private async upsertRows(collectionRef: Query<DocumentData>): Promise<DbResult<any>> {
@@ -501,7 +504,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
       });
       results.push({ ...(existing?.data() ?? {}), ...input, id } as Row);
     }
-    return { data: this.selected ? results : null, error: null };
+    return this.selected ? this.rowResult(results) : { data: null, error: null };
   }
 }
 
