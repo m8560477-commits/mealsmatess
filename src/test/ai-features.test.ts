@@ -176,11 +176,19 @@ describe("shared MealMate AI engine", () => {
   it("uses Lovable image and speech endpoints with bounded output", async () => {
     vi.stubEnv("LOVABLE_API_KEY", "test-key");
     const imageBytes = Buffer.from("test image");
-    const imageRequest = mockFetch(
-      Response.json({
+    const imageRequest = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      // GPT image models always return base64 and reject the legacy format parameter.
+      if ("response_format" in body)
+        return Response.json(
+          { error: { code: "unknown_parameter", param: "response_format" } },
+          { status: 400 },
+        );
+      return Response.json({
         data: [{ b64_json: imageBytes.toString("base64"), mime_type: "image/png" }],
-      }),
-    );
+      });
+    });
+    vi.stubGlobal("fetch", imageRequest);
     const image = await generateAiImage("A tomato omelet", { feature: "test.image" });
     expect(Buffer.from(image.bytes).toString()).toBe("test image");
     expect(image.mediaType).toBe("image/png");

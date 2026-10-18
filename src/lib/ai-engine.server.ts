@@ -380,7 +380,6 @@ export async function generateAiImage(
           prompt,
           size: options.size ?? "1536x1024",
           quality: "medium",
-          response_format: "b64_json",
         },
         options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS,
       );

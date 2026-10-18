@@ -8,8 +8,13 @@ import { ensureRecipeImage } from "@/lib/recipe-images.functions";
 export async function loadRecipeSearchImages(recipes: RecipeRecord[], queryClient: QueryClient) {
   for (const recipe of recipes.slice(0, 6)) {
     if ((recipe.image_source && recipe.image_url) || curatedRecipeImageUrl(recipe)) continue;
-    const result = await ensureRecipeImage({ data: { recipeId: recipe.id } }).catch(() => null);
-    if (!result) continue;
+    const result = await ensureRecipeImage({ data: { recipeId: recipe.id } }).catch(() => {
+      toast.error("Couldn't create a recipe photo", {
+        description: "Please try again from the recipe page.",
+      });
+      return null;
+    });
+    if (!result) break;
     if (result.imageUrl) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["recipes"] }),
