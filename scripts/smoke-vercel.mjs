@@ -16,6 +16,8 @@ try {
   const result = spawnSync(
     process.execPath,
     [
+      // Vercel's loader rejects CommonJS require() of ESM packages.
+      "--no-experimental-require-module",
       "--input-type=module",
       "-e",
       `
