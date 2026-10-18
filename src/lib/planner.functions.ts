@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
-import { lovableFetch } from "@/lib/lovable-ai.server";
+import { generateAiObject } from "@/lib/ai-engine.server";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
@@ -61,38 +61,27 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
     const t0 = Date.now();
     try {
-      const res = await lovableFetch("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: "You are a certified nutritionist and chef. Respond with strict JSON only.",
-            },
-            { role: "user", content: prompt },
-          ],
+      const parsed = await generateAiObject({
+        feature: "planner.generate",
+        instructions:
+          "You are a chef and nutrition coach. Return valid, culturally varied meals and clearly estimated calories. Never include a listed allergen or violate a dietary preference.",
+        prompt,
+        schema: z.object({
+          plan: z
+            .array(
+              z.object({
+                day: z.number().int().min(1).max(data.days),
+                meal_type: z.string().trim().min(1).max(50),
+                name: z.string().trim().min(1).max(160),
+                calories: z.number().int().min(0).max(10000).default(0),
+                short_reason: z.string().max(240).default(""),
+              }),
+            )
+            .min(1)
+            .max(data.days * Math.max(data.meals.length, 1)),
         }),
       });
-      if (!res.ok) throw new Error(`AI ${res.status}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const raw = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = raw
-        .replace(/^```(?:json)?/i, "")
-        .replace(/```$/i, "")
-        .trim();
-      const s = cleaned.indexOf("{");
-      const e = cleaned.lastIndexOf("}");
-      const parsed = JSON.parse(cleaned.slice(s, e + 1)) as {
-        plan: Array<{
-          day: number;
-          meal_type: string;
-          name: string;
-          calories?: number;
-          short_reason?: string;
-        }>;
-      };
-      const suggestions: MealSuggestion[] = (parsed.plan ?? []).map((p) => ({
+      const suggestions: MealSuggestion[] = parsed.plan.map((p) => ({
         day: p.day,
         date: dates[Math.max(0, Math.min(p.day - 1, dates.length - 1))] ?? dates[0] ?? "",
         meal_type: p.meal_type,
@@ -236,31 +225,48 @@ Days: 1..${data.days}. One entry per meal per day.`;
     const t0 = Date.now();
     let suggestions: ShopMeal[] = [];
     try {
-      const res = await lovableFetch("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a certified nutritionist and chef. Respond with strict JSON only. Never include allergens the user must avoid.",
-            },
-            { role: "user", content: prompt },
-          ],
+      const parsed = await generateAiObject({
+        feature: "planner.plan_and_shop",
+        instructions:
+          "You are a chef and nutrition coach. Return a varied, valid meal plan with estimated calories and practical grocery ingredients. Never include a listed allergen or violate a dietary preference.",
+        prompt,
+        schema: z.object({
+          plan: z
+            .array(
+              z.object({
+                day: z.number().int().min(1).max(data.days),
+                meal_type: z.string().trim().min(1).max(50),
+                name: z.string().trim().min(1).max(160),
+                calories: z.number().int().min(0).max(10000).optional(),
+                ingredients: z
+                  .array(
+                    z.object({
+                      name: z.string().trim().min(1).max(120),
+                      quantity: z.string().max(80).optional(),
+                      category: z
+                        .enum([
+                          "Produce",
+                          "Meat",
+                          "Dairy",
+                          "Pantry",
+                          "Grains",
+                          "Frozen",
+                          "Bakery",
+                          "Spices",
+                          "Other",
+                        ])
+                        .optional(),
+                    }),
+                  )
+                  .min(1)
+                  .max(40),
+              }),
+            )
+            .min(1)
+            .max(data.days * Math.max(data.meals.length, 1)),
         }),
       });
-      if (!res.ok) throw new Error(`AI ${res.status}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const raw = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = raw
-        .replace(/^```(?:json)?/i, "")
-        .replace(/```$/i, "")
-        .trim();
-      const s = cleaned.indexOf("{");
-      const e = cleaned.lastIndexOf("}");
-      const parsed = JSON.parse(cleaned.slice(s, e + 1)) as { plan: ShopMeal[] };
-      suggestions = (parsed.plan ?? []).filter((p) => p && p.name && p.meal_type);
+      suggestions = parsed.plan;
     } catch (err) {
       void trackEvent({
         user_id: userId,
@@ -376,34 +382,30 @@ export const suggestSubstitutions = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_substitute", context.userId, 20);
     const t0 = Date.now();
     try {
-      const res = await lovableFetch("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: "You are a culinary substitutions expert. Return JSON only.",
-            },
-            {
-              role: "user",
-              content: `Give 3 practical substitutes for "${data.ingredient}"${data.context ? ` in the context of ${data.context}` : ""}. JSON: {"substitutes":[{"name":"...","ratio":"1:1","notes":"..."}]}`,
-            },
-          ],
+      const { data: profile } = await context.firebase
+        .from("profiles")
+        .select("allergies,dietary_preferences")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const allergies = (profile?.allergies ?? []) as string[];
+      const dietaryPreferences = (profile?.dietary_preferences ?? []) as string[];
+      const parsed = await generateAiObject({
+        feature: "ingredients.substitutions",
+        instructions:
+          "You are a culinary substitutions expert. Suggest safe, practical alternatives. Do not suggest any ingredient on the user's allergy list or anything that conflicts with their dietary preferences.",
+        prompt: `Give 3 practical substitutes for "${data.ingredient}"${data.context ? ` in the context of ${data.context}` : ""}. Allergies to avoid: ${allergies.join(", ") || "none"}. Dietary preferences: ${dietaryPreferences.join(", ") || "none"}.`,
+        schema: z.object({
+          substitutes: z
+            .array(
+              z.object({
+                name: z.string().trim().min(1).max(100),
+                ratio: z.string().max(40).optional(),
+                notes: z.string().max(220).optional(),
+              }),
+            )
+            .length(3),
         }),
       });
-      if (!res.ok) throw new Error(`AI ${res.status}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const raw = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = raw
-        .replace(/^```(?:json)?/i, "")
-        .replace(/```$/i, "")
-        .trim();
-      const s = cleaned.indexOf("{");
-      const e = cleaned.lastIndexOf("}");
-      const parsed = JSON.parse(cleaned.slice(s, e + 1)) as {
-        substitutes: Array<{ name: string; ratio?: string; notes?: string }>;
-      };
       void trackEvent({
         user_id: context.userId,
         kind: "ai",

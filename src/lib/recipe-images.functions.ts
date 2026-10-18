@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
+import { aiRequestFingerprint, deduplicateAiRequest } from "@/lib/ai-engine.server";
 
 const RECIPE_COLS =
   "id,name,cuisine,category,meal_type,description,diet_tags,ingredients,steps,created_by,image_url,image_source,image_confidence,image_locked,image_signature,image_checked_at";
@@ -89,19 +90,19 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
           premium: !!c.premium,
         };
       }
-      // Claim the recipe so simultaneous searches don't generate twice.
       await srv.markChecked(r.id, signature);
       let url: string | null = null;
-      for (let attempt = 0; attempt < 2 && !url; attempt++) {
-        try {
-          url = await srv.generateAndSaveAiImage(r, signature);
-        } catch (e) {
-          console.error("recipe image attempt failed", e);
-        }
-        if (!url && attempt === 0) await new Promise((res) => setTimeout(res, 1500));
+      try {
+        url = await deduplicateAiRequest(
+          aiRequestFingerprint(context.userId, "recipe.image", `${r.id}:${signature}`),
+          () => srv.generateAndSaveAiImage(r, signature),
+        );
+      } catch (error) {
+        console.warn("[MealMate images] AI photo unavailable.", {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        });
       }
       if (url) return { imageUrl: url, source: "AI", confidence: 100, searched: true };
-      // Release the claim so a later search can retry.
       await firebaseAdmin.from("recipes").update({ image_checked_at: null }).eq("id", r.id);
       if (srv.configuredProviders().length === 0) {
         return { imageUrl: null, source: null, confidence: null, searched: true, reason: "failed" };
@@ -220,6 +221,12 @@ export const backfillRecipeImages = createServerFn({ method: "POST" })
   });
 
 export const imageProvidersStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const srv = await import("@/lib/recipe-images.server");
-  return { providers: srv.configuredProviders(), ai: !!process.env["LOVABLE_API_KEY"] };
+  const [images, ai] = await Promise.all([
+    import("@/lib/recipe-images.server"),
+    import("@/lib/ai-engine.server"),
+  ]);
+  return {
+    providers: images.configuredProviders(),
+    ai: ai.getAiProviderConfiguration(),
+  };
 });

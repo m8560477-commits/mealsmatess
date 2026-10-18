@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
-import { lovableFetch } from "@/lib/lovable-ai.server";
+import {
+  aiRequestFingerprint,
+  deduplicateAiRequest,
+  generateAiObject,
+  generateAiText,
+  imageInputFromDataUrl,
+} from "@/lib/ai-engine.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { curatedRecipeImageUrl } from "@/lib/recipe-image";
@@ -9,22 +15,33 @@ import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, auditLog, trackEvent } from "@/lib/security.server";
 
 const RecipeSchema = z.object({
-  name: z.string(),
-  description: z.string(),
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().min(1).max(600),
   cuisine: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
+  category: z
+    .enum(["Breakfast", "Lunch", "Dinner", "Dessert", "Snacks", "Drinks"])
+    .nullable()
+    .optional(),
   country: z.string().nullable().optional(),
   diet_tags: z.array(z.string()).default([]),
   meal_type: z.string().nullable().optional(),
-  cooking_time_minutes: z.number().int().nullable().optional(),
-  difficulty: z.string().nullable().optional(),
-  servings: z.number().int().nullable().optional(),
-  calories: z.number().int().nullable().optional(),
-  protein_g: z.number().nullable().optional(),
-  carbs_g: z.number().nullable().optional(),
-  fat_g: z.number().nullable().optional(),
-  ingredients: z.array(z.object({ name: z.string(), quantity: z.string().optional() })).default([]),
-  steps: z.array(z.string()).default([]),
+  cooking_time_minutes: z.number().int().min(1).max(720).nullable().optional(),
+  difficulty: z.enum(["Easy", "Medium", "Hard"]).nullable().optional(),
+  servings: z.number().int().min(1).max(24).nullable().optional(),
+  calories: z.number().int().min(0).max(10000).nullable().optional(),
+  protein_g: z.number().min(0).max(1000).nullable().optional(),
+  carbs_g: z.number().min(0).max(1000).nullable().optional(),
+  fat_g: z.number().min(0).max(1000).nullable().optional(),
+  ingredients: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(180),
+        quantity: z.string().trim().min(1).max(80),
+      }),
+    )
+    .min(2)
+    .max(40),
+  steps: z.array(z.string().trim().min(1).max(700)).min(4).max(12),
   fun_fact: z.string().nullable().optional(),
   image_prompt: z.string().nullable().optional(),
 });
@@ -33,7 +50,7 @@ type GeneratedRecipe = z.infer<typeof RecipeSchema>;
 
 const SYSTEM = `You are MealMate, an expert global chef and food writer with deep knowledge of South African cuisine (Pap, Chakalaka, Bunny Chow, Kota, Boerewors, Vetkoek, Mogodu, Samp and Beans, Malva Pudding, Bobotie, Umngqusho) as well as world cuisines.
 
-Return ONLY valid JSON matching this shape (no code fences, no commentary):
+Return ONLY valid JSON matching this shape (no code fences, no commentary). Avoid claiming precision for nutrition: provide conservative rounded estimates per serving; the app labels these values as estimates. Always honor stated allergies and dietary restrictions, and never include an allergen even as a garnish or optional ingredient:
 {
   "name": string,
   "description": string (1-2 sentences),
@@ -45,55 +62,24 @@ Return ONLY valid JSON matching this shape (no code fences, no commentary):
   "cooking_time_minutes": number,
   "difficulty": "Easy" | "Medium" | "Hard",
   "servings": number,
-  "calories": number (per serving),
-  "protein_g": number, "carbs_g": number, "fat_g": number,
+  "calories": number (rough estimate per serving),
+  "protein_g": number, "carbs_g": number, "fat_g": number (rough estimates per serving),
   "ingredients": [{ "name": string, "quantity": string }],
   "steps": string[] (5-10 clear steps),
   "fun_fact": string,
   "image_prompt": string (concise, food-photography style)
 }`;
 
-function extractJson(text: string): unknown {
-  const cleaned = text
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("No JSON in response");
-  return JSON.parse(cleaned.slice(start, end + 1));
-}
-
 async function callModel(prompt: string): Promise<GeneratedRecipe> {
-  const res = await lovableFetch("/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: prompt },
-      ],
-    }),
+  return generateAiObject({
+    feature: "recipe.generate",
+    instructions: SYSTEM,
+    prompt,
+    schema: RecipeSchema,
   });
-
-  if (!res.ok) {
-    console.error(`[MealMate AI] Lovable AI request failed with status ${res.status}`);
-    throw new Error("AI_REQUEST_FAILED");
-  }
-
-  const j = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = j.choices?.[0]?.message?.content ?? "{}";
-  return RecipeSchema.parse(extractJson(text));
 }
 
 function imageUrlFor(r: GeneratedRecipe): string | null {
-  const curated = curatedRecipeImageUrl({ slug: slugify(r.name), name: r.name }, "hero");
-  if (curated) return curated;
   return curatedRecipeImageUrl({ slug: slugify(r.name), name: r.name }, "hero") ?? null;
 }
 
@@ -129,6 +115,12 @@ export const surpriseMe = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data: profile } = await firebaseAdmin
+      .from("profiles")
+      .select("allergies,dietary_preferences")
+      .eq("id", context.userId)
+      .maybeSingle();
     const themes = [
       "a comforting South African classic",
       "a bold weeknight dinner from anywhere in the world",
@@ -141,9 +133,8 @@ export const surpriseMe = createServerFn({ method: "POST" })
     const t0 = Date.now();
     try {
       const recipe = await callModel(
-        `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact.`,
+        `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact. Dietary preferences: ${(profile?.dietary_preferences ?? []).join(", ") || "none specified"}. Allergies that must be excluded: ${(profile?.allergies ?? []).join(", ") || "none specified"}.`,
       );
-      const { firebaseAdmin } = await loadFirebaseAdmin();
       const row = toDbRecipe(recipe, context.userId);
       const { data, error } = await firebaseAdmin
         .from("recipes")
@@ -178,127 +169,165 @@ export const generateRecipe = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ query: z.string().trim().min(1).max(200) }).parse(v))
   .handler(async ({ data, context }) => {
-    await requireAiCredit(context.userId);
-    await enforceRateLimit("ai_generate", context.userId, 10);
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const t0 = Date.now();
-    try {
-      const { data: exact } = await firebaseAdmin
-        .from("recipes")
-        .select("id,slug,name")
-        .ilike("name", data.query)
-        .limit(1);
-      if (exact && exact.length > 0) {
+    const requestKey = aiRequestFingerprint(
+      context.userId,
+      "recipe.generate",
+      data.query.toLowerCase(),
+    );
+    return deduplicateAiRequest(requestKey, async () => {
+      await requireAiCredit(context.userId);
+      await enforceRateLimit("ai_generate", context.userId, 10);
+      const { firebaseAdmin } = await loadFirebaseAdmin();
+      const t0 = Date.now();
+      try {
+        const { data: exact } = await firebaseAdmin
+          .from("recipes")
+          .select("id,slug,name")
+          .ilike("name", data.query)
+          .limit(1);
+        if (exact && exact.length > 0) {
+          void trackEvent({
+            user_id: context.userId,
+            kind: "ai",
+            name: "ai.generate_recipe",
+            latency_ms: Date.now() - t0,
+            success: true,
+            metadata: { query: data.query, cached: true },
+          });
+          return { slug: exact[0]?.slug ?? "", id: exact[0]?.id ?? null, cached: true };
+        }
+
+        const { data: fuzzy } = await firebaseAdmin
+          .from("recipes")
+          .select("id,slug,name")
+          .ilike("name", `%${data.query}%`)
+          .limit(1);
+        if (fuzzy && fuzzy.length > 0) {
+          void trackEvent({
+            user_id: context.userId,
+            kind: "ai",
+            name: "ai.generate_recipe",
+            latency_ms: Date.now() - t0,
+            success: true,
+            metadata: { query: data.query, cached: true },
+          });
+          return { slug: fuzzy[0]?.slug ?? "", id: fuzzy[0]?.id ?? null, cached: true };
+        }
+
+        const { data: profile } = await firebaseAdmin
+          .from("profiles")
+          .select("allergies,dietary_preferences")
+          .eq("id", context.userId)
+          .maybeSingle();
+        const allergies = (profile?.allergies ?? []) as string[];
+        const dietaryPreferences = (profile?.dietary_preferences ?? []) as string[];
+        const recipe = await callModel(
+          [
+            `Create a real, authentic recipe for: "${data.query}". If the dish exists in any culture, use the traditional version. Be specific and accurate.`,
+            `Dietary preferences: ${dietaryPreferences.join(", ") || "none specified"}.`,
+            `Allergies that must be completely excluded: ${allergies.join(", ") || "none specified"}.`,
+            "Use requested ingredients where possible, include practical quantities and at least four actionable steps.",
+          ].join("\n"),
+        );
+        const ingredientTokens = new Set(
+          recipe.ingredients
+            .flatMap((ingredient) => ingredient.name.toLowerCase().split(/[^a-z0-9]+/))
+            .filter(Boolean)
+            .map((word) => word.replace(/s$/, "")),
+        );
+        const allergyConflict = allergies.some((allergy) =>
+          allergy
+            .trim()
+            .toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .filter((word) => word.length > 2)
+            .some((word) => ingredientTokens.has(word.replace(/s$/, ""))),
+        );
+        if (allergyConflict) {
+          throw new Error(
+            "The generated recipe conflicted with a saved allergy. Please try again.",
+          );
+        }
+        const row = toDbRecipe(recipe, context.userId);
+        const { data: inserted, error } = await firebaseAdmin
+          .from("recipes")
+          .insert(row)
+          .select("id,slug")
+          .single();
+        if (error) throw new Error(error.message);
+        await auditLog({
+          actor_id: context.userId,
+          action: "recipe.generated",
+          target_table: "recipes",
+          target_id: inserted.slug,
+          metadata: { query: data.query, name: recipe.name },
+        });
         void trackEvent({
           user_id: context.userId,
           kind: "ai",
           name: "ai.generate_recipe",
           latency_ms: Date.now() - t0,
           success: true,
-          metadata: { query: data.query, cached: true },
+          metadata: { query: data.query, cached: false, name: recipe.name },
         });
-        return { slug: exact[0]?.slug ?? "", id: exact[0]?.id ?? null, cached: true };
-      }
-
-      const { data: fuzzy } = await firebaseAdmin
-        .from("recipes")
-        .select("id,slug,name")
-        .ilike("name", `%${data.query}%`)
-        .limit(1);
-      if (fuzzy && fuzzy.length > 0) {
+        return { slug: inserted.slug, id: inserted.id as string | null, cached: false };
+      } catch (e) {
         void trackEvent({
           user_id: context.userId,
           kind: "ai",
           name: "ai.generate_recipe",
           latency_ms: Date.now() - t0,
-          success: true,
-          metadata: { query: data.query, cached: true },
+          success: false,
+          error: e instanceof Error ? e.message.slice(0, 500) : String(e),
+          metadata: { query: data.query },
         });
-        return { slug: fuzzy[0]?.slug ?? "", id: fuzzy[0]?.id ?? null, cached: true };
+        throw e;
       }
-
-      const recipe = await callModel(
-        `Create a real, authentic recipe for: "${data.query}". If the dish exists in any culture, use the traditional version. Be specific and accurate.`,
-      );
-      const row = toDbRecipe(recipe, context.userId);
-      const { data: inserted, error } = await firebaseAdmin
-        .from("recipes")
-        .insert(row)
-        .select("id,slug")
-        .single();
-      if (error) throw new Error(error.message);
-      await auditLog({
-        actor_id: context.userId,
-        action: "recipe.generated",
-        target_table: "recipes",
-        target_id: inserted.slug,
-        metadata: { query: data.query, name: recipe.name },
-      });
-      void trackEvent({
-        user_id: context.userId,
-        kind: "ai",
-        name: "ai.generate_recipe",
-        latency_ms: Date.now() - t0,
-        success: true,
-        metadata: { query: data.query, cached: false, name: recipe.name },
-      });
-      return { slug: inserted.slug, id: inserted.id as string | null, cached: false };
-    } catch (e) {
-      void trackEvent({
-        user_id: context.userId,
-        kind: "ai",
-        name: "ai.generate_recipe",
-        latency_ms: Date.now() - t0,
-        success: false,
-        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
-        metadata: { query: data.query },
-      });
-      throw e;
-    }
+    });
   });
 
 // Kitchen Scan — identify ingredients from a photo
 export const scanKitchen = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
-    z.object({ imageDataUrl: z.string().startsWith("data:image/") }).parse(v),
+    z.object({ imageDataUrl: z.string().startsWith("data:image/").max(11_200_000) }).parse(v),
   )
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_vision", context.userId, 10);
     const t0 = Date.now();
     try {
-      const res = await lovableFetch("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: 'Identify every distinct food ingredient visible. Reply as JSON only: {"items": [{"name":"tomato","quantity":"2","category":"vegetable"}]}. Use lowercase names.',
-                },
-                { type: "image_url", image_url: { url: data.imageDataUrl } },
-              ],
-            },
-          ],
+      const { bytes, mediaType } = imageInputFromDataUrl(data.imageDataUrl);
+      const result = await generateAiObject({
+        feature: "scan.kitchen",
+        provider: "lovable",
+        instructions:
+          "Identify only visible food ingredients. Use lowercase ingredient names and never infer items that are not visible.",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Identify every distinct food ingredient visible. Return items with name, quantity, and category. Use lowercase names.",
+              },
+              { type: "image", image: bytes, mediaType },
+            ],
+          },
+        ],
+        schema: z.object({
+          items: z
+            .array(
+              z.object({
+                name: z.string().trim().min(1).max(80),
+                quantity: z.string().max(80).optional(),
+                category: z.string().max(60).optional(),
+              }),
+            )
+            .max(40),
         }),
       });
-      if (!res.ok) throw new Error(`Vision API ${res.status}: ${await res.text()}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const text = j.choices?.[0]?.message?.content ?? "{}";
-      const cleaned = text
-        .replace(/^```(?:json)?/i, "")
-        .replace(/```$/i, "")
-        .trim();
-      const start = cleaned.indexOf("{");
-      const end = cleaned.lastIndexOf("}");
-      const parsed = JSON.parse(cleaned.slice(start, end + 1)) as {
-        items: { name: string; quantity?: string; category?: string }[];
-      };
-      const items = parsed.items ?? [];
+      const items = result.items;
       void trackEvent({
         user_id: context.userId,
         kind: "scan",
@@ -343,37 +372,33 @@ export type ScannedDish = z.infer<typeof DishSchema>;
 export const scanDish = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
-    z.object({ imageDataUrl: z.string().startsWith("data:image/") }).parse(v),
+    z.object({ imageDataUrl: z.string().startsWith("data:image/").max(11_200_000) }).parse(v),
   )
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_vision", context.userId, 10);
     const t0 = Date.now();
     try {
-      const res = await lovableFetch("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `You are a nutritionist who knows South African and global dishes. Look at the photo and identify the dish shown. Estimate nutrition for the visible portion.
-Reply with JSON only (no code fences):
-{"is_food": boolean, "name": string (dish name, e.g. "Bunny Chow", "Chicken Biryani"), "description": string (one sentence), "cuisine": string, "meal_type": "Breakfast"|"Lunch"|"Dinner"|"Snack", "confidence": number 0-1, "portion": string (e.g. "1 plate, ~350 g"), "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number, "fiber_g": number, "ingredients": string[] (main visible components), "health_note": string (one short tip)}
-If the photo does not show food, set is_food to false and name to "Not food".`,
-                },
-                { type: "image_url", image_url: { url: data.imageDataUrl } },
-              ],
-            },
-          ],
-        }),
+      const { bytes, mediaType } = imageInputFromDataUrl(data.imageDataUrl);
+      const dish = await generateAiObject({
+        feature: "scan.dish",
+        provider: "lovable",
+        instructions:
+          "You are a food identification assistant. Nutritional values must be clearly treated as approximate estimates, not precise medical advice.",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Identify the dish shown and give rough rounded nutrition estimates for the visible portion. Return is_food, name, description, cuisine, meal_type, confidence from 0 to 1, portion, calories, protein_g, carbs_g, fat_g, fiber_g, ingredients, and a short health_note. If it is not food, set is_food false and name "Not food".`,
+              },
+              { type: "image", image: bytes, mediaType },
+            ],
+          },
+        ],
+        schema: DishSchema,
       });
-      if (!res.ok) throw new Error(`Vision API ${res.status}: ${await res.text()}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const dish = DishSchema.parse(extractJson(j.choices?.[0]?.message?.content ?? "{}"));
       void trackEvent({
         user_id: context.userId,
         kind: "scan",
@@ -407,23 +432,12 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_chat", context.userId, 20);
     const t0 = Date.now();
     try {
-      const res = await lovableFetch("/chat/completions", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are MealMate's kitchen assistant. Answer food, cooking, nutrition, and ingredient-substitution questions clearly and concisely, in 2-4 short paragraphs or a short list. Plain text only, no markdown headers.",
-            },
-            { role: "user", content: data.question },
-          ],
-        }),
+      const answer = await generateAiText({
+        feature: "chat.food_question",
+        instructions:
+          "You are MealMate's kitchen assistant. Answer food, cooking, nutrition, and ingredient-substitution questions clearly and concisely, in 2-4 short paragraphs or a short list. Treat nutrition as estimates, not precise values. Plain text only, no markdown headers.",
+        prompt: data.question,
       });
-      if (!res.ok) throw new Error(`AI gateway ${res.status}: ${await res.text()}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const answer = j.choices?.[0]?.message?.content ?? "";
       void trackEvent({
         user_id: context.userId,
         kind: "ai",
@@ -446,8 +460,7 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
     }
   });
 
-// Regenerate a recipe's hero image with Lovable AI (gemini-3-pro-image).
-// Premium-only. Uploads to the community-media bucket and updates recipes.image_url.
+// Premium-only. Uses the same generated-image storage and metadata path as recipe browsing.
 export const regenerateRecipeImage = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ slug: z.string().min(1) }).parse(v))
@@ -474,66 +487,20 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
 
     const { data: recipe, error: rErr } = await firebaseAdmin
       .from("recipes")
-      .select("id, slug, name, cuisine, country")
+      .select("id, slug, name, cuisine, country, ingredients, steps")
       .eq("slug", data.slug)
       .single();
     if (rErr || !recipe) throw new Error("Recipe not found");
 
-    const prompt =
-      `Authentic ${recipe.name}${recipe.cuisine ? ` from ${recipe.cuisine} cuisine` : ""}` +
-      `${recipe.country ? `, traditional ${recipe.country} dish` : ""}. ` +
-      `Hyperrealistic food photography, DSLR 50mm, natural window light, ` +
-      `shallow depth of field, plated on real crockery, top-down or 3/4 angle. ` +
-      `Photorealistic — not an illustration, not a 3d render.`;
-
     const t0 = Date.now();
     try {
-      const res = await lovableFetch("/images/generations", {
-        method: "POST",
-        body: JSON.stringify({
-          model: "openai/gpt-image-2",
-          prompt,
-          size: "1024x1024",
-          quality: "medium",
-        }),
-      });
-      const result = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
-      const image = result.data?.[0];
-      let bytes: Uint8Array;
-      let contentType = "image/png";
-      if (image?.b64_json) {
-        bytes = Buffer.from(image.b64_json, "base64");
-      } else if (image?.url) {
-        const imageResponse = await fetch(image.url, { redirect: "error" });
-        if (!imageResponse.ok) {
-          throw new Error(`Generated image download failed (${imageResponse.status}).`);
-        }
-        contentType = imageResponse.headers.get("content-type") ?? "";
-        if (!contentType.startsWith("image/")) {
-          throw new Error("Image gateway returned a non-image URL.");
-        }
-        bytes = new Uint8Array(await imageResponse.arrayBuffer());
-      } else {
-        throw new Error("Image gateway returned no image data.");
-      }
-      if (bytes.length === 0) throw new Error("Image gateway returned an empty image.");
-
-      const path = `recipes/${recipe.slug}-${Date.now()}.png`;
-      const { error: upErr } = await firebaseAdmin.storage
-        .from("community-media")
-        .upload(path, bytes, { contentType, upsert: true });
-      if (upErr) throw new Error(upErr.message);
-      const { data: signed, error: signErr } = await firebaseAdmin.storage
-        .from("community-media")
-        .createSignedUrl(path, 60 * 60 * 24 * 365);
-      if (signErr || !signed) throw new Error(signErr?.message ?? "Failed to sign url");
-      const publicUrl = signed.signedUrl;
-
-      const { error: updErr } = await firebaseAdmin
-        .from("recipes")
-        .update({ image_url: publicUrl })
-        .eq("id", recipe.id);
-      if (updErr) throw new Error(updErr.message);
+      const imageService = await import("@/lib/recipe-images.server");
+      const signature = imageService.recipeSignature(recipe);
+      const imageUrl = await deduplicateAiRequest(
+        aiRequestFingerprint(context.userId, "image.regenerate", recipe.id),
+        () => imageService.generateAndSaveAiImage(recipe, signature),
+      );
+      if (!imageUrl) throw new Error("No image was generated for this recipe.");
 
       void trackEvent({
         user_id: context.userId,
@@ -543,7 +510,7 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
         success: true,
         metadata: { slug: recipe.slug },
       });
-      return { image_url: publicUrl };
+      return { image_url: imageUrl };
     } catch (e) {
       void trackEvent({
         user_id: context.userId,

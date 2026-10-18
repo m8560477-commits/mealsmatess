@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
-import { lovableFetch } from "@/lib/lovable-ai.server";
+import { generateAiImage, generateAiObject, generateAiSpeech } from "@/lib/ai-engine.server";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
@@ -29,74 +29,44 @@ export type VisualExplanation = {
   scenes: VisualScene[];
 };
 
-function extractJson(text: string): unknown {
-  const cleaned = text
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  const s = cleaned.indexOf("{");
-  const e = cleaned.lastIndexOf("}");
-  if (s === -1 || e === -1) throw new Error("No JSON in response");
-  return JSON.parse(cleaned.slice(s, e + 1));
-}
-
 const ScriptSchema = z.object({
-  title: z.string(),
+  title: z.string().trim().min(1).max(160),
   kind: z.enum(["educational", "business", "creative"]).default("educational"),
-  summary: z.string(),
-  style_note: z.string().default(""),
+  summary: z.string().trim().min(1).max(500),
+  style_note: z.string().max(300).default(""),
   scenes: z
     .array(
       z.object({
-        heading: z.string(),
-        narration: z.string(),
-        subtitle: z.string().default(""),
-        image_prompt: z.string(),
+        heading: z.string().trim().min(1).max(80),
+        narration: z.string().trim().min(1).max(600),
+        subtitle: z.string().max(180).default(""),
+        image_prompt: z.string().trim().min(1).max(500),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(6),
 });
 
-async function b64Image(key: string, prompt: string): Promise<string | null> {
+async function b64Image(prompt: string): Promise<string | null> {
   try {
-    const res = await lovableFetch(`/images/generations`, {
-      method: "POST",
-      body: JSON.stringify({
-        model: "openai/gpt-image-2",
-        prompt,
-        quality: "low",
-        size: "1024x1024",
-      }),
+    const image = await generateAiImage(prompt, {
+      feature: "visual.image",
+      size: "1024x1024",
+      timeoutMs: 90_000,
     });
-    if (!res.ok) return null;
-    const j = (await res.json()) as { data?: Array<{ b64_json?: string; url?: string }> };
-    const item = j.data?.[0];
-    if (item?.b64_json) return `data:image/png;base64,${item.b64_json}`;
-    return item?.url ?? null;
+    return `data:${image.mediaType};base64,${Buffer.from(image.bytes).toString("base64")}`;
   } catch {
     return null;
   }
 }
 
-async function b64Speech(key: string, text: string): Promise<string | null> {
+async function b64Speech(text: string): Promise<string | null> {
   try {
-    const res = await lovableFetch(`/audio/speech`, {
-      method: "POST",
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini-tts",
-        input: text,
-        voice: "alloy",
-        response_format: "mp3",
-        instructions: "Warm, clear, documentary narrator pace.",
-      }),
+    const audio = await generateAiSpeech(text, {
+      feature: "visual.narration",
+      voice: "Kore",
     });
-    if (!res.ok) return null;
-    const buf = new Uint8Array(await res.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < buf.length; i += 0x8000) {
-      binary += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-    }
-    return `data:audio/mpeg;base64,${btoa(binary)}`;
+    return `data:${audio.mediaType};base64,${Buffer.from(audio.bytes).toString("base64")}`;
   } catch {
     return null;
   }
@@ -131,27 +101,12 @@ export const generateVisualExplanation = createServerFn({ method: "POST" })
 
     const t0 = Date.now();
     try {
-      const res = await lovableFetch(`/chat/completions`, {
-        method: "POST",
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: `You are a motion-design director and explainer scriptwriter.
-Classify the prompt as "educational" (step-by-step lesson), "business" (clean presentation-style) or "creative" (cinematic motion graphics), then write a short animated video script.
-Return ONLY JSON:
-{"title":string,"kind":"educational"|"business"|"creative","summary":string (2-3 sentences),"style_note":string,
-"scenes":[{"heading":string (max 6 words),"narration":string (1-2 spoken sentences, ~18 words),"subtitle":string (short on-screen caption),"image_prompt":string (detailed art direction, consistent visual style across scenes, no text in image)}]}
-Exactly ${data.scenes} scenes, each ~5 seconds of narration, together forming a 15-30s video.`,
-            },
-            { role: "user", content: data.prompt },
-          ],
-        }),
+      const script = await generateAiObject({
+        feature: "visual.script",
+        instructions: `You are a motion-design director and explainer scriptwriter. Classify the prompt as educational, business, or creative, then write a concise, accurate animated explanation. Return exactly ${data.scenes} distinct scenes. Each scene has a short heading, one or two spoken sentences, a concise subtitle, and detailed art direction for an image with no text.`,
+        prompt: data.prompt,
+        schema: ScriptSchema.extend({ scenes: ScriptSchema.shape.scenes.length(data.scenes) }),
       });
-      if (!res.ok) throw new Error(`AI ${res.status}`);
-      const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      const script = ScriptSchema.parse(extractJson(j.choices?.[0]?.message?.content ?? "{}"));
 
       const styleSuffix =
         script.kind === "business"
@@ -163,8 +118,8 @@ Exactly ${data.scenes} scenes, each ~5 seconds of narration, together forming a 
       const scenes = await Promise.all(
         script.scenes.slice(0, data.scenes).map(async (s) => {
           const [imageUrl, audioUrl] = await Promise.all([
-            b64Image("", `${s.image_prompt}. ${styleSuffix}. No words or lettering in the image.`),
-            data.narration ? b64Speech("", s.narration) : Promise.resolve(null),
+            b64Image(`${s.image_prompt}. ${styleSuffix}. No words or lettering in the image.`),
+            data.narration ? b64Speech(s.narration) : Promise.resolve(null),
           ]);
           return {
             heading: s.heading,

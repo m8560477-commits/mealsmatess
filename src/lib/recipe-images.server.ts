@@ -3,7 +3,8 @@
 //   Unsplash (UNSPLASH_ACCESS_KEY) -> Pexels (PEXELS_API_KEY) -> Bing (BING_IMAGE_SEARCH_KEY)
 // Candidates are ranked by metadata, then verified visually by Lovable AI.
 import { firebaseAdmin } from "@/server/firebase-admin";
-import { lovableFetch } from "@/lib/lovable-ai.server";
+import { generateAiImage, generateAiObject } from "@/lib/ai-engine.server";
+import { z } from "zod";
 
 export type ProviderName = "Unsplash" | "Pexels" | "Bing";
 
@@ -324,96 +325,44 @@ function recipeSummary(r: RecipeForImage): string {
 
 /**
  * Scores each candidate 0-100 for "this photo shows this exact dish".
- * Streams the Responses call and returns null if AI is unavailable, so the
- * caller falls back to metadata-only ranking with a stricter threshold.
+ * Returns null if AI is unavailable, so the caller falls back to metadata-only ranking.
  */
 export async function aiScore(
   r: RecipeForImage,
   cands: ImageCandidate[],
 ): Promise<number[] | null> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key || cands.length === 0) return null;
-  const content: any[] = [
-    {
-      type: "input_text",
-      text:
-        `You verify food photos for a recipe app. Score how well EACH image shows exactly this dish (0-100).\n` +
-        `RECIPE:\n${recipeSummary(r)}\n\n` +
-        `Scoring: 90+ clearly this exact dish; 70-89 very likely this dish; 40-69 similar but different/unclear; <40 different dish, non-food, collage, logo, heavy text or screenshot. ` +
-        `Penalise a different main protein, sauce or dish type heavily (e.g. Chicken Alfredo vs spaghetti bolognese, mac and cheese, plain pasta).\n` +
-        `Return one score per image in the given order.`,
-    },
-  ];
-  cands.forEach((c, i) => {
-    content.push({
-      type: "input_text",
-      text: `Image ${i + 1} metadata: ${c.title.slice(0, 160) || "none"}`,
-    });
-    content.push({ type: "input_image", image_url: c.thumb, detail: "low" });
-  });
-
+  if (cands.length === 0) return null;
   try {
-    const res = await lovableFetch("/responses", {
-      method: "POST",
-      body: JSON.stringify({
-        model: "openai/gpt-6-astra",
-        stream: true,
-        store: false,
-        reasoning: { effort: "low" },
-        input: [{ role: "user", content }],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "image_scores",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: { scores: { type: "array", items: { type: "integer" } } },
-              required: ["scores"],
-            },
-          },
+    const content = [
+      {
+        type: "text" as const,
+        text:
+          `You verify food photos for a recipe app. Score how well EACH image shows exactly this dish from 0 to 100.\n` +
+          `RECIPE:\n${recipeSummary(r)}\n\n` +
+          `90+ means exact dish; 70-89 means very likely; 40-69 means similar or unclear; under 40 means a different dish or non-food. Penalize a different main protein, sauce, or dish type heavily. Return one integer score per image in order.`,
+      },
+      ...cands.flatMap((candidate, index) => [
+        {
+          type: "text" as const,
+          text: `Image ${index + 1} metadata: ${candidate.title.slice(0, 160) || "none"}`,
         },
+        { type: "image" as const, image: new URL(candidate.thumb) },
+      ]),
+    ];
+    const result = await generateAiObject({
+      feature: "image.relevance",
+      provider: "lovable",
+      messages: [{ role: "user", content }],
+      schema: z.object({
+        scores: z.array(z.number().int().min(0).max(100)).length(cands.length),
       }),
+      timeoutMs: 30_000,
     });
-    if (!res.ok || !res.body) {
-      console.error(
-        `[images] AI check failed [${res.status}]: ${(await res.text()).slice(0, 300)}`,
-      );
-      return null;
-    }
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let text = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let idx;
-      while ((idx = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, idx).trim();
-        buf = buf.slice(idx + 1);
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
-        try {
-          const ev = JSON.parse(payload);
-          if (ev.type === "response.output_text.delta") text += ev.delta ?? "";
-          if (ev.type === "error" || ev.type === "response.failed") {
-            console.error("[images] AI stream error", payload.slice(0, 300));
-            return null;
-          }
-        } catch {
-          /* partial frame */
-        }
-      }
-    }
-    const parsed = JSON.parse(text) as { scores: number[] };
-    if (!Array.isArray(parsed.scores)) return null;
-    return cands.map((_, i) => Math.max(0, Math.min(100, Number(parsed.scores[i] ?? 0))));
-  } catch (e) {
-    console.error("[images] AI check error", e);
+    return result.scores;
+  } catch (error) {
+    console.warn("[MealMate images] Relevance check unavailable; using metadata ranking.", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
     return null;
   }
 }
@@ -557,8 +506,6 @@ export function needsSearch(
 }
 
 // ---------- AI-generated dish photo (cached per recipe) ----------
-// Keep this model aligned with the image-generation model used elsewhere in the app.
-const IMAGE_MODEL = "openai/gpt-image-2";
 const IMAGE_BUCKET = "recipe-images";
 
 function stepText(steps: unknown, max = 6): string {
@@ -594,43 +541,29 @@ export async function generateAndSaveAiImage(
   r: RecipeForImage & { steps?: unknown },
   signature: string,
 ): Promise<string | null> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) return null;
   const prompt =
     `Photorealistic food photograph of the finished dish "${r.name}"${r.cuisine ? ` (${r.cuisine} cuisine)` : ""}, exactly as made by this recipe.\n` +
     `Ingredients: ${ingredientText(r.ingredients)}\n` +
-    `Method:\n${stepText((r as any).steps)}\n` +
+    `Method:\n${stepText(r.steps)}\n` +
     `Show only the plated final dish so its key ingredients are visible. Natural light, shallow depth of field, real crockery, 3/4 angle. ` +
     `No text, no labels, no people, no hands, not an illustration.`;
-  // Use the shared server-only gateway wrapper for consistent URL and credential handling.
-  const res = await lovableFetch("/images/generations", {
-    method: "POST",
-    body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium" }),
+  const image = await generateAiImage(prompt, {
+    feature: "recipe.image",
+    size: "1536x1024",
+    timeoutMs: 90_000,
   });
-  const result = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
-  const image = result.data?.[0];
-  let bytes: Uint8Array;
-  let contentType = "image/png";
-  if (image?.b64_json) {
-    bytes = Buffer.from(image.b64_json, "base64");
-  } else if (image?.url) {
-    const imageResponse = await fetch(image.url, { redirect: "error" });
-    if (!imageResponse.ok) {
-      throw new Error(`Generated image download failed (${imageResponse.status}).`);
-    }
-    contentType = imageResponse.headers.get("content-type") ?? "";
-    if (!contentType.startsWith("image/")) {
-      throw new Error("Image gateway returned a non-image URL.");
-    }
-    bytes = new Uint8Array(await imageResponse.arrayBuffer());
-  } else {
-    throw new Error("Image gateway returned no image data.");
+  if (image.bytes.byteLength === 0 || image.bytes.byteLength > 20 * 1024 * 1024) {
+    throw new Error("Generated image was empty or exceeded the storage size limit.");
   }
-  if (bytes.length === 0) throw new Error("Image gateway returned an empty image.");
-  const path = `${r.id}/${signature}.png`;
+  if (!image.mediaType.startsWith("image/")) {
+    throw new Error("AI Gateway returned a non-image response.");
+  }
+  const extension =
+    image.mediaType === "image/jpeg" ? "jpg" : image.mediaType === "image/webp" ? "webp" : "png";
+  const path = `${r.id}/${signature}.${extension}`;
   const { error: upErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)
-    .upload(path, bytes, { contentType, upsert: true });
+    .upload(path, image.bytes, { contentType: image.mediaType, upsert: true });
   if (upErr) throw upErr;
   const { data: signed, error: signErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)
@@ -643,7 +576,7 @@ export async function generateAndSaveAiImage(
       image_source: "AI",
       image_query: r.name,
       image_confidence: 100,
-      image_attribution: { generated: true, model: IMAGE_MODEL },
+      image_attribution: { generated: true, model: image.model },
       image_checked_at: new Date().toISOString(),
       image_signature: signature,
     })

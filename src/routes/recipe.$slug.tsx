@@ -159,7 +159,7 @@ function RecipePage() {
   const stats = [
     r.cooking_time_minutes && { icon: Clock, label: `${r.cooking_time_minutes} min` },
     r.servings && { icon: Users, label: `${r.servings} servings` },
-    r.calories && { icon: Flame, label: `${r.calories} kcal` },
+    r.calories && { icon: Flame, label: `${r.calories} kcal (est.)` },
     r.difficulty && { icon: ChefHat, label: r.difficulty },
   ].filter(Boolean) as { icon: typeof Clock; label: string }[];
 
@@ -318,9 +318,9 @@ function RecipePage() {
         {(r.protein_g || r.carbs_g || r.fat_g) && (
           <div className="mt-8 grid grid-cols-3 gap-3 rounded-2xl border border-border bg-card p-4">
             {[
-              { label: "Protein", value: r.protein_g },
-              { label: "Carbs", value: r.carbs_g },
-              { label: "Fat", value: r.fat_g },
+              { label: "Protein (est.)", value: r.protein_g },
+              { label: "Carbs (est.)", value: r.carbs_g },
+              { label: "Fat (est.)", value: r.fat_g },
             ].map((m) => (
               <div key={m.label} className="text-center">
                 <div className="font-display text-2xl">{m.value ?? "–"}g</div>
