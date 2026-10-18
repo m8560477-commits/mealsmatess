@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { runAiDiagnostics } from "@/lib/ai-diagnostics.functions";
 
 type TestName =
-  "backend" | "recipe" | "mia" | "lovable" | "image" | "database" | "storage" | "security";
+  "backend" | "recipe" | "mia" | "gateway" | "image" | "database" | "storage" | "security";
 type Result = {
   test: TestName;
   ok: boolean;
@@ -48,9 +48,9 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
     icon: MessageCircle,
   },
   {
-    name: "lovable",
-    label: "Lovable AI provider",
-    description: "Live text request through the Lovable AI Gateway",
+    name: "gateway",
+    label: "Vercel AI Gateway",
+    description: "Live text request using Vercel-managed Gateway authentication",
     icon: Sparkles,
   },
   {

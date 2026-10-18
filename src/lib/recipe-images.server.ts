@@ -351,7 +351,6 @@ export async function aiScore(
     ];
     const result = await generateAiObject({
       feature: "image.relevance",
-      provider: "lovable",
       messages: [{ role: "user", content }],
       schema: z.object({
         scores: z.array(z.number().int().min(0).max(100)).length(cands.length),
@@ -550,7 +549,6 @@ export async function generateAndSaveAiImage(
   const image = await generateAiImage(prompt, {
     feature: "recipe.image",
     size: "1536x1024",
-    timeoutMs: 90_000,
   });
   if (image.bytes.byteLength === 0 || image.bytes.byteLength > 20 * 1024 * 1024) {
     throw new Error("Generated image was empty or exceeded the storage size limit.");

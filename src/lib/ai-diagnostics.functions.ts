@@ -12,7 +12,7 @@ import {
 } from "@/lib/ai-engine.server";
 
 const DiagnosticSchema = z.object({
-  test: z.enum(["backend", "recipe", "mia", "lovable", "image", "database", "storage", "security"]),
+  test: z.enum(["backend", "recipe", "mia", "gateway", "image", "database", "storage", "security"]),
 });
 
 function safeFailure(error: unknown) {
@@ -21,12 +21,12 @@ function safeFailure(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (/FIREBASE_SERVICE_ACCOUNT_JSON|Firebase Admin is not configured/i.test(message))
     return "Firebase Admin is not configured for this server runtime.";
-  if (/GROQ_API_KEY|LOVABLE_API_KEY|not configured/i.test(message))
-    return "A required provider API key is not configured for this server environment.";
+  if (/Vercel AI Gateway|AI_GATEWAY|not configured/i.test(message))
+    return "The Vercel AI Gateway connection is not available in this server environment.";
   if (/credit|billing|payment/i.test(message))
     return "The AI provider needs active billing or credits before it can process this test.";
   if (/authentication|unauthorized|rejected.*key/i.test(message))
-    return "The provider rejected its configured API key. Check the encrypted value in Vercel.";
+    return "Vercel AI Gateway authentication failed. Check the project Gateway connection.";
   if (/timeout|timed out/i.test(message)) return "The test timed out before the service responded.";
   return "The server-side diagnostic failed. Check server logs for the test name and failure category.";
 }
@@ -162,17 +162,16 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
             detail: answer.slice(0, 240),
           };
         }
-        case "lovable": {
+        case "gateway": {
           const answer = await generateAiText({
-            feature: "diagnostics.lovable",
-            provider: "lovable",
-            prompt: "Reply with exactly: Lovable AI is connected.",
+            feature: "diagnostics.gateway",
+            prompt: "Reply with exactly: Vercel AI Gateway is connected.",
           });
           return {
             test: data.test,
             ok: answer.length > 0,
-            provider: "Lovable AI Gateway",
-            model: config.lovableTextModel,
+            provider: config.textProvider,
+            model: config.textModel,
             detail: answer.slice(0, 160),
           };
         }

@@ -6,11 +6,32 @@ import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
-const PlanInput = z.object({
-  days: z.number().int().min(1).max(14).default(7),
-  meals: z.array(z.string()).default(["Breakfast", "Lunch", "Dinner"]),
-  startDate: z.string().optional(),
-});
+const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+
+const PlanInput = z
+  .object({
+    days: z.number().int().min(1).max(14).default(7),
+    meals: z
+      .array(z.enum(MEAL_TYPES))
+      .min(1)
+      .max(MEAL_TYPES.length)
+      .default(["Breakfast", "Lunch", "Dinner"]),
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
+  .superRefine(({ startDate }, context) => {
+    if (!startDate) return;
+    const parsed = new Date(`${startDate}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== startDate) {
+      context.addIssue({
+        code: "custom",
+        path: ["startDate"],
+        message: "Use a real calendar date.",
+      });
+    }
+  });
 
 type MealSuggestion = {
   day: number;
@@ -38,12 +59,13 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
       .eq("id", context.userId)
       .maybeSingle();
 
-    const start = data.startDate ? new Date(data.startDate) : new Date();
+    const start = data.startDate ? new Date(`${data.startDate}T00:00:00.000Z`) : new Date();
+    start.setUTCHours(0, 0, 0, 0);
     const dates: string[] = [];
     for (let i = 0; i < data.days; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      dates.push(d.toISOString().slice(0, 10));
+      const date = new Date(start);
+      date.setUTCDate(start.getUTCDate() + i);
+      dates.push(date.toISOString().slice(0, 10));
     }
 
     const prompt = `Build a ${data.days}-day meal plan for meals: ${data.meals.join(", ")}.
@@ -71,14 +93,34 @@ Days: 1..${data.days}. One entry per meal per day.`;
             .array(
               z.object({
                 day: z.number().int().min(1).max(data.days),
-                meal_type: z.string().trim().min(1).max(50),
+                meal_type: z.enum(MEAL_TYPES),
                 name: z.string().trim().min(1).max(160),
                 calories: z.number().int().min(0).max(10000).default(0),
                 short_reason: z.string().max(240).default(""),
               }),
             )
-            .min(1)
-            .max(data.days * Math.max(data.meals.length, 1)),
+            .length(data.days * data.meals.length)
+            .superRefine((plan, context) => {
+              const seen = new Set<string>();
+              for (const [index, meal] of plan.entries()) {
+                const key = `${meal.day}:${meal.meal_type}`;
+                if (!data.meals.includes(meal.meal_type)) {
+                  context.addIssue({
+                    code: "custom",
+                    path: [index, "meal_type"],
+                    message: "The plan contains a meal type that was not requested.",
+                  });
+                }
+                if (seen.has(key)) {
+                  context.addIssue({
+                    code: "custom",
+                    path: [index],
+                    message: "The plan contains a duplicate day and meal type.",
+                  });
+                }
+                seen.add(key);
+              }
+            }),
         }),
       });
       const suggestions: MealSuggestion[] = parsed.plan.map((p) => ({

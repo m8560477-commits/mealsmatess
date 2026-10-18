@@ -39,16 +39,28 @@ if (requiredFirebaseEnv.projectId !== "mealmate-d2e53") {
   );
 }
 
-const firebaseConfig = requiredFirebaseEnv as {
+const firebaseConfig = {
+  ...requiredFirebaseEnv,
+  ...(import.meta.env.FIREBASE_MEASUREMENT_ID
+    ? { measurementId: import.meta.env.FIREBASE_MEASUREMENT_ID }
+    : {}),
+} as {
   apiKey: string;
   authDomain: string;
   projectId: string;
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
+  measurementId?: string;
 };
 
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const analytics =
+  import.meta.env.SSR || !firebaseConfig.measurementId
+    ? Promise.resolve(null)
+    : import("firebase/analytics").then(async ({ getAnalytics, isSupported }) =>
+        (await isSupported() ? getAnalytics(app) : null),
+      );
 export const db = getFirestore(
   app,
   import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "default",
