@@ -10,13 +10,19 @@ export function SplashScreen() {
   useEffect(() => {
     try {
       if (sessionStorage.getItem(KEY)) return;
-      sessionStorage.setItem(KEY, "1");
     } catch {
       return;
     }
     setPhase("show");
-    const t1 = window.setTimeout(() => setPhase("leave"), 900);
-    const t2 = window.setTimeout(() => setPhase("hidden"), 1200);
+    const t1 = window.setTimeout(() => setPhase("leave"), 220);
+    const t2 = window.setTimeout(() => {
+      setPhase("hidden");
+      try {
+        sessionStorage.setItem(KEY, "1");
+      } catch {
+        return;
+      }
+    }, 420);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
