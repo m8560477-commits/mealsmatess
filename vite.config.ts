@@ -53,7 +53,9 @@ export default defineConfig(({ command }) => ({
       ? [
           nitro({
             preset: process.env["NITRO_PRESET"] || "vercel",
-            rollupConfig: { external: ["firebase-admin", "@google-cloud/firestore"] },
+            // Let Nitro externalize AND trace these packages into the function.
+            // Raw Rollup externals skip tracing and leave Firestore missing at runtime.
+            traceDeps: ["firebase-admin*", "@google-cloud/firestore*"],
           }),
         ]
       : []),
