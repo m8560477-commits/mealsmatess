@@ -1,6 +1,7 @@
 import { firebaseAdmin } from "@/server/firebase-admin";
 import { aiRequestFingerprint, deduplicateAiRequest } from "@/lib/ai-engine.server";
 import { enforceAiRateLimit } from "@/server/ai-rate-limit";
+import { curatedRecipeImageUrl } from "@/lib/recipe-image";
 import * as images from "@/lib/recipe-images.server";
 
 const RECIPE_COLS =
@@ -31,6 +32,10 @@ export function requestRecipeImage(userId: string, recipeId: string): Promise<Im
         .maybeSingle();
       if (error) throw error;
       if (!recipe) throw new Error("Recipe not found");
+      const curated = curatedRecipeImageUrl(recipe, "hero");
+      if (curated) {
+        return { imageUrl: curated, source: "Curated", confidence: 100, searched: false };
+      }
       const signature = images.recipeSignature(recipe);
       if (recipe.image_url && !images.needsSearch(recipe, signature)) {
         return {

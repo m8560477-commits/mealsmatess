@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useSession } from "@/hooks/use-session";
+import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
 import { recipesByCategoryQuery } from "@/lib/queries";
 import { generateRecipe, surpriseMe } from "@/lib/ai.functions";
-import { ensureRecipeImage } from "@/lib/recipe-images.functions";
-import { useServerFn } from "@tanstack/react-start";
 import { RecipeCard } from "@/components/recipe-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,16 +56,22 @@ function RecipesPage() {
   const { c, q } = Route.useSearch();
   const active = c ?? "All";
   const navigate = useNavigate();
+  const { user } = useSession();
   const {
     data: recipes,
     isLoading,
     isError,
     refetch,
-  } = useQuery(recipesByCategoryQuery(active !== "All" ? active : undefined, q));
+  } = useQuery({
+    ...recipesByCategoryQuery(active !== "All" ? active : undefined, q),
+    enabled: !!user,
+  });
   const [query, setQuery] = useState(q ?? "");
+  useEffect(() => {
+    setQuery(q ?? "");
+  }, [q]);
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
-  const findImage = useServerFn(ensureRecipeImage);
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -80,23 +86,7 @@ function RecipesPage() {
       const matches = await queryClient.fetchQuery(
         recipesByCategoryQuery(active !== "All" ? active : undefined, term),
       );
-      // Photos are created in the background so results show straight away.
-      void (async () => {
-        for (const recipe of matches.slice(0, 6)) {
-          if (recipe.image_source && recipe.image_url) continue;
-          const result = await findImage({ data: { recipeId: recipe.id } }).catch(() => null);
-          if (!result) continue;
-          if (result.imageUrl) await queryClient.invalidateQueries({ queryKey: ["recipes"] });
-          if (result.reason === "limit") {
-            toast.message("Daily photo allowance reached", {
-              description:
-                "New recipe photos will be created again tomorrow. Upgrade to Premium for more.",
-            });
-            break;
-          }
-          if (result.reason === "rate_limited") break;
-        }
-      })();
+      void loadRecipeSearchImages(matches, queryClient);
     } catch {
       toast.error("Couldn't complete the search. Please try again.");
     } finally {
@@ -161,7 +151,9 @@ function RecipesPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Describe a dish or craving…"
+            aria-label="Search recipes"
+            maxLength={200}
+            placeholder="Search recipes, ingredients, cuisines…"
             className="h-12 pl-9"
           />
         </div>
@@ -195,7 +187,7 @@ function RecipesPage() {
           <Link
             key={cat}
             to="/recipes"
-            search={cat === "All" ? {} : { c: cat }}
+            search={{ ...(cat === "All" ? {} : { c: cat }), ...(q ? { q } : {}) }}
             className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
               active === cat
                 ? "border-primary bg-primary text-primary-foreground"
@@ -224,7 +216,7 @@ function RecipesPage() {
         ) : recipes && recipes.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {recipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r as any} />
+              <RecipeCard key={r.id} recipe={r} />
             ))}
           </div>
         ) : (

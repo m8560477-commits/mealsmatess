@@ -1,3 +1,4 @@
+import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
 import { RecipeImage } from "@/components/recipe-image";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -19,11 +20,12 @@ import {
 import { toast } from "sonner";
 import {
   trendingRecipesQuery,
+  recipesByCategoryQuery,
   southAfricanFavoritesQuery,
   myFavoritesQuery,
   type RecipeRecord,
 } from "@/lib/queries";
-import { surpriseMe, generateRecipe } from "@/lib/ai.functions";
+import { surpriseMe } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
 import { firebaseData } from "@/lib/firebase-data";
 import { getContinueCooking } from "@/lib/continue-cooking";
@@ -115,26 +117,13 @@ function Index() {
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim() || busy) return;
-    setBusy("search");
-    try {
-      const { slug } = await generateRecipe({ data: { query: query.trim() } });
-      navigate({ to: "/recipe/$slug", params: { slug } });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
-        message,
-      );
-      const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|MealMate AI|Lovable AI/i.test(message);
-      toast.error(authError ? "Your session expired" : "Couldn't cook that up", {
-        description: authError
-          ? "Please sign in again to cook a recipe."
-          : aiError
-            ? "The kitchen assistant is unavailable right now. Please try again."
-            : "Try again in a moment.",
-      });
-    } finally {
-      setBusy(null);
-    }
+    const term = query.trim();
+    await navigate({ to: "/recipes", search: { q: term } });
+    // Use the same explicit photo lookup as a search submitted from the library.
+    void queryClient
+      .fetchQuery(recipesByCategoryQuery(undefined, term))
+      .then((matches) => loadRecipeSearchImages(matches, queryClient))
+      .catch(() => {});
   }
 
   async function handleSurprise() {
@@ -208,6 +197,7 @@ function Index() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search recipes, ingredients, cuisines…"
+            maxLength={200}
             className="h-14 rounded-full border-none bg-card pl-11 pr-14 text-base shadow-sm"
           />
           <button
