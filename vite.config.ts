@@ -53,9 +53,9 @@ export default defineConfig(({ command }) => ({
       ? [
           nitro({
             preset: process.env["NITRO_PRESET"] || "vercel",
-            // Let Nitro externalize AND trace these packages into the function.
-            // Raw Rollup externals skip tracing and leave Firestore missing at runtime.
-            traceDeps: ["firebase-admin*", "@google-cloud/firestore*"],
+            // Keep Firestore's CommonJS runtime and module-relative assets intact.
+            // Bundle Firebase Auth so jwks-rsa's ESM dependency works on Vercel.
+            traceDeps: ["@google-cloud/firestore*"],
           }),
         ]
       : []),
