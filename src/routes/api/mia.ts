@@ -1,3 +1,5 @@
+import { aiProfile } from "@/lib/ai-profile";
+import { preferenceSummary } from "@/lib/preferences";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { AiLimitError, requireAiCredit } from "@/lib/ai-credits.server";
@@ -82,9 +84,23 @@ export const Route = createFileRoute("/api/mia")({
           const messages =
             input.messages ??
             (input.message ? [{ role: "user" as const, content: input.message }] : []);
+          const { data: savedProfile, error: profileError } = await auth.user.firebase
+            .from("profiles")
+            .select("goal,allergies,dietary_preferences,preferences")
+            .eq("id", auth.user.userId)
+            .maybeSingle();
+          if (profileError) throw profileError;
+          const profile = aiProfile(savedProfile);
           const reply = await generateAiText({
             feature: "chat.mia",
-            instructions: MIA_INSTRUCTIONS,
+            instructions: [
+              MIA_INSTRUCTIONS,
+              profile
+                ? `Saved food preferences: ${preferenceSummary(profile.preferences)}. Honor these preferences in your suggestions.`
+                : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
             messages,
             timeoutMs: 35_000,
             maxRetries: 0,

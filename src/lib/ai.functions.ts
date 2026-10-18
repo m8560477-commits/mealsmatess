@@ -1,3 +1,5 @@
+import { aiProfile } from "@/lib/ai-profile";
+import { preferenceSummary } from "@/lib/preferences";
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import {
@@ -116,11 +118,12 @@ export const surpriseMe = createServerFn({ method: "POST" })
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
     const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: profile } = await firebaseAdmin
+    const { data: savedProfile } = await firebaseAdmin
       .from("profiles")
-      .select("allergies,dietary_preferences")
+      .select("allergies,dietary_preferences,preferences")
       .eq("id", context.userId)
       .maybeSingle();
+    const profile = aiProfile(savedProfile);
     const themes = [
       "a comforting South African classic",
       "a bold weeknight dinner from anywhere in the world",
@@ -133,7 +136,7 @@ export const surpriseMe = createServerFn({ method: "POST" })
     const t0 = Date.now();
     try {
       const recipe = await callModel(
-        `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact. Dietary preferences: ${(profile?.dietary_preferences ?? []).join(", ") || "none specified"}. Allergies that must be excluded: ${(profile?.allergies ?? []).join(", ") || "none specified"}.`,
+        `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact. Saved preferences: ${profile ? preferenceSummary(profile.preferences) : "none specified"}. Dietary preferences: ${(profile?.dietary_preferences ?? []).join(", ") || "none specified"}. Allergies that must be excluded: ${(profile?.allergies ?? []).join(", ") || "none specified"}.`,
       );
       const row = toDbRecipe(recipe, context.userId);
       const { data, error } = await firebaseAdmin
@@ -214,16 +217,18 @@ export const generateRecipe = createServerFn({ method: "POST" })
         }
 
         await requireAiCredit(context.userId);
-        const { data: profile } = await firebaseAdmin
+        const { data: savedProfile } = await firebaseAdmin
           .from("profiles")
-          .select("allergies,dietary_preferences")
+          .select("allergies,dietary_preferences,preferences")
           .eq("id", context.userId)
           .maybeSingle();
+        const profile = aiProfile(savedProfile);
         const allergies = (profile?.allergies ?? []) as string[];
         const dietaryPreferences = (profile?.dietary_preferences ?? []) as string[];
         const recipe = await callModel(
           [
             `Create a real, authentic recipe for: "${data.query}". If the dish exists in any culture, use the traditional version. Be specific and accurate.`,
+            `Saved preferences: ${profile ? preferenceSummary(profile.preferences) : "none specified"}.`,
             `Dietary preferences: ${dietaryPreferences.join(", ") || "none specified"}.`,
             `Allergies that must be completely excluded: ${allergies.join(", ") || "none specified"}.`,
             "Use requested ingredients where possible, include practical quantities and at least four actionable steps.",
