@@ -41,3 +41,17 @@ After building with the public Firebase web settings, run
 It verifies home-page rendering and unauthenticated JSON responses from the AI
 routes without Firebase Admin or AI credentials. The isolated copy prevents
 workspace dependencies from hiding missing deployment packages.
+
+### Recipe photo storage
+
+Generated recipe photos are uploaded server-side to a **public Vercel Blob**
+store. In the mealsmates project's Storage tab, create or connect a public Blob
+store for Production and Preview, then redeploy so its credentials are available.
+The SDK uses the connected `BLOB_STORE_ID` with Vercel OIDC, or the server-only
+`BLOB_READ_WRITE_TOKEN`. Never prefix the token with `VITE_`.
+
+Firebase continues to store recipe records, including each photo's Blob URL.
+Existing stored photos and bundled curated photos remain readable. New photos
+are generated only by explicit actions and reused from the saved recipe URL.
+The admin Image storage + retrieval diagnostic checks a temporary Blob upload,
+public retrieval, and cleanup without calling the image model.

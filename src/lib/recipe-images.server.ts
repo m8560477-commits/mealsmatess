@@ -5,6 +5,11 @@
 import { firebaseAdmin } from "@/server/firebase-admin";
 import { generateAiImage, generateAiObject } from "@/lib/ai-engine.server";
 import { z } from "zod";
+import {
+  assertRecipePhotoStorageConfigured,
+  deleteRecipePhoto,
+  uploadRecipePhoto,
+} from "@/lib/recipe-photo-storage.server";
 
 export type ProviderName = "Unsplash" | "Pexels" | "Bing";
 
@@ -505,7 +510,6 @@ export function needsSearch(
 }
 
 // ---------- AI-generated dish photo (cached per recipe) ----------
-const IMAGE_BUCKET = "recipe-images";
 
 function stepText(steps: unknown, max = 6): string {
   if (!Array.isArray(steps)) return "";
@@ -540,6 +544,7 @@ export async function generateAndSaveAiImage(
   r: RecipeForImage & { steps?: unknown },
   signature: string,
 ): Promise<string | null> {
+  assertRecipePhotoStorageConfigured();
   const prompt =
     `Photorealistic food photograph of the finished dish "${r.name}"${r.cuisine ? ` (${r.cuisine} cuisine)` : ""}, exactly as made by this recipe.\n` +
     `Ingredients: ${ingredientText(r.ingredients)}\n` +
@@ -559,26 +564,30 @@ export async function generateAndSaveAiImage(
   const extension =
     image.mediaType === "image/jpeg" ? "jpg" : image.mediaType === "image/webp" ? "webp" : "png";
   const path = `${r.id}/${signature}.${extension}`;
-  const { error: upErr } = await firebaseAdmin.storage
-    .from(IMAGE_BUCKET)
-    .upload(path, image.bytes, { contentType: image.mediaType, upsert: true });
-  if (upErr) throw upErr;
-  const { data: signed, error: signErr } = await firebaseAdmin.storage
-    .from(IMAGE_BUCKET)
-    .createDownloadUrl(path);
-  if (signErr || !signed) throw signErr ?? new Error("Could not create image download URL");
-  const { error } = await firebaseAdmin
-    .from("recipes")
-    .update({
-      image_url: signed.downloadUrl,
-      image_source: "AI",
-      image_query: r.name,
-      image_confidence: 100,
-      image_attribution: { generated: true, model: image.model },
-      image_checked_at: new Date().toISOString(),
-      image_signature: signature,
-    })
-    .eq("id", r.id);
-  if (error) throw error;
-  return signed.downloadUrl;
+  const imageUrl = await uploadRecipePhoto(path, image.bytes, image.mediaType);
+  try {
+    const { error } = await firebaseAdmin
+      .from("recipes")
+      .update({
+        image_url: imageUrl,
+        image_source: "AI",
+        image_query: r.name,
+        image_confidence: 100,
+        image_attribution: { generated: true, model: image.model },
+        image_checked_at: new Date().toISOString(),
+        image_signature: signature,
+      })
+      .eq("id", r.id);
+    if (error) throw error;
+  } catch (error) {
+    try {
+      await deleteRecipePhoto(imageUrl);
+    } catch (cleanupError) {
+      console.error("[MealMate images] Unreferenced photo cleanup failed", {
+        errorName: cleanupError instanceof Error ? cleanupError.name : "UnknownError",
+      });
+    }
+    throw error;
+  }
+  return imageUrl;
 }

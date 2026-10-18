@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { deleteRecipePhoto, uploadRecipePhoto } from "@/lib/recipe-photo-storage.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
@@ -19,6 +20,8 @@ function safeFailure(error: unknown) {
   if (error instanceof Response && error.status === 429)
     return "Rate limiting rejected the repeated request as expected.";
   const message = error instanceof Error ? error.message : "";
+  if (/Blob|photo storage/i.test(message))
+    return "Vercel Blob storage is unavailable. Check the connected public store and deployment configuration.";
   if (/FIREBASE_SERVICE_ACCOUNT_JSON|Firebase Admin is not configured/i.test(message))
     return "Firebase Admin is not configured for this server runtime.";
   if (/credit|billing|payment/i.test(message))
@@ -70,25 +73,19 @@ async function checkDatabase(userId: string) {
   return "User-scoped database insert, read, and cleanup succeeded.";
 }
 
-async function checkStorage(userId: string) {
-  const { firebaseAdmin } = await loadFirebaseAdmin();
-  const storage = firebaseAdmin.storage.from("recipe-images");
-  const path = `diagnostics/${userId}/${randomUUID()}.png`;
+async function checkStorage() {
+  const path = `diagnostics/${randomUUID()}.png`;
   const bytes = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a7sAAAAASUVORK5CYII=",
     "base64",
   );
-  let uploaded = false;
+  let imageUrl: string | undefined;
   let verificationFailed = false;
   let verificationFailure: unknown;
   try {
-    const { error } = await storage.upload(path, bytes, { contentType: "image/png" });
-    if (error) throw error;
-    uploaded = true;
-    const { data, error: signError } = await storage.createSignedUrl(path, 60);
-    if (signError || !data) throw signError ?? new Error("No signed URL returned.");
-    const response = await fetch(data.signedUrl, { signal: AbortSignal.timeout(8_000) });
-    if (!response.ok || (await response.arrayBuffer()).byteLength !== bytes.byteLength) {
+    imageUrl = await uploadRecipePhoto(path, bytes, "image/png");
+    const response = await fetch(imageUrl, { signal: AbortSignal.timeout(8_000) });
+    if (!response.ok || !Buffer.from(await response.arrayBuffer()).equals(bytes)) {
       throw new Error("Stored image could not be retrieved correctly.");
     }
   } catch (error) {
@@ -97,9 +94,12 @@ async function checkStorage(userId: string) {
   }
 
   let cleanupError: Error | null = null;
-  if (uploaded) {
-    const { error } = await storage.remove([path]);
-    cleanupError = error;
+  if (imageUrl) {
+    try {
+      await deleteRecipePhoto(imageUrl);
+    } catch (error) {
+      cleanupError = error instanceof Error ? error : new Error(String(error));
+    }
   }
   if (verificationFailed && cleanupError) {
     throw new AggregateError(
@@ -109,7 +109,7 @@ async function checkStorage(userId: string) {
   }
   if (cleanupError) throw cleanupError;
   if (verificationFailed) throw verificationFailure;
-  return "Temporary storage upload, signed retrieval, and cleanup succeeded.";
+  return "Vercel Blob upload, public image retrieval, and cleanup succeeded.";
 }
 
 export const runAiDiagnostics = createServerFn({ method: "POST" })
@@ -192,7 +192,7 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
         case "database":
           return { test: data.test, ok: true, detail: await checkDatabase(context.userId) };
         case "storage":
-          return { test: data.test, ok: true, detail: await checkStorage(context.userId) };
+          return { test: data.test, ok: true, detail: await checkStorage() };
         case "security": {
           const id = `diagnostics:${context.userId}:${randomUUID()}`;
           await enforceRateLimit("ai_diagnostics", id, 1);
