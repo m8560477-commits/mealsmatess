@@ -59,6 +59,19 @@ describe("recipe photo requests", () => {
     expect(mocks.rpc).toHaveBeenCalledOnce();
   });
 
+  it("returns the matching bundled photo without generating or charging", async () => {
+    mocks.load.mockResolvedValue({
+      data: { ...recipe, name: "Fluffy Buttermilk Pancakes", slug: "fluffy-buttermilk-pancakes" },
+      error: null,
+    });
+    const result = await requestRecipeImage("user-a", "curatedRecipe123");
+    expect(result).toMatchObject({ source: "Curated", searched: false });
+    expect(result.imageUrl).toContain("fluffy-buttermilk-pancakes");
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
+  });
+
   it("reuses stored images without spending credits", async () => {
     mocks.load.mockResolvedValue({
       data: { ...recipe, image_source: "AI", image_url: "https://example.com/cached.png" },

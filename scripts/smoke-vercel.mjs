@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -13,6 +13,15 @@ try {
     recursive: true,
     dereference: true,
   });
+  const serverFiles = await readdir(join(artifact, "_ssr"));
+  const catalogFile = serverFiles.find((name) => name.startsWith("recipe-catalog.functions-"));
+  if (!catalogFile) throw new Error("Recipe catalog is missing from the server artifact.");
+  const catalogSource = await readFile(join(artifact, "_ssr", catalogFile), "utf8");
+  const catalogFunctionIds = [
+    catalogSource.match(/id: "([a-f0-9]+)",\s*name: "listRecipeCatalog"/)?.[1],
+    catalogSource.match(/id: "([a-f0-9]+)",\s*name: "getRecipeCatalogEntry"/)?.[1],
+  ];
+  if (catalogFunctionIds.some((id) => !id)) throw new Error("Catalog function IDs are missing.");
   const result = spawnSync(
     process.execPath,
     [
@@ -33,6 +42,11 @@ try {
           assert.equal((await response.json()).error, 'Sign in to continue.');
           console.log(path + ': JSON 401');
         }
+        for (const id of JSON.parse(process.argv[2])) {
+          const response = await app.fetch(new Request('https://mealmate.test/_serverFn/' + id));
+          assert.equal(response.status, 401, 'Recipe catalog must require authentication');
+          console.log('Recipe catalog function: 401');
+        }
         const page = await app.fetch(new Request('https://mealmate.test/', {
           headers: { accept: 'text/html' },
         }));
@@ -43,6 +57,7 @@ try {
         process.exit(0);
       `,
       join(artifact, "index.mjs"),
+      JSON.stringify(catalogFunctionIds),
     ],
     {
       cwd: temporary,

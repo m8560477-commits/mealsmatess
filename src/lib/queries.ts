@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { collection, getDocs, getDoc, doc, limit, orderBy, query, where } from "firebase/firestore";
 import { auth, db, handleFirestoreError, OperationType } from "@/lib/firebase";
 
-const recipes = collection(db, "recipes");
+import { listRecipeCatalog, getRecipeCatalogEntry } from "@/lib/recipe-catalog.functions";
 export type FirestoreRecord = Record<string, any> & {
   id: string;
   name?: string;
@@ -70,8 +70,6 @@ export type PantryRecord = FirestoreRecord & {
   expires_at?: string | null;
 };
 
-const recipeFields = (item: FirestoreRecord): RecipeRecord => item as RecipeRecord;
-
 const list = async (
   collectionName: string,
   constraints: Parameters<typeof query>[1][] = [],
@@ -88,82 +86,31 @@ const list = async (
 export const featuredRecipesQuery = () =>
   queryOptions({
     queryKey: ["recipes", "featured"],
-    queryFn: async (): Promise<RecipeRecord[]> =>
-      (await list("recipes", [orderBy("created_at", "desc"), limit(12)])).map(recipeFields),
+    queryFn: () => listRecipeCatalog({ data: { limit: 12 } }),
   });
 
 export const trendingRecipesQuery = () =>
   queryOptions({
     queryKey: ["recipes", "trending"],
-    queryFn: async (): Promise<RecipeRecord[]> =>
-      (await list("recipes", [orderBy("created_at", "desc"), limit(8)])).map(recipeFields),
+    queryFn: () => listRecipeCatalog({ data: { limit: 8 } }),
   });
 
 export const southAfricanFavoritesQuery = () =>
   queryOptions({
     queryKey: ["recipes", "south-african"],
-    queryFn: async (): Promise<RecipeRecord[]> => {
-      const items = await list("recipes", [limit(100)]);
-      return items
-        .filter((item) =>
-          [item["category"], item["country"], item["cuisine"]].some(
-            (value) =>
-              String(value ?? "")
-                .toLowerCase()
-                .includes("south african") ||
-              String(value ?? "")
-                .toLowerCase()
-                .includes("south africa"),
-          ),
-        )
-        .slice(0, 8)
-        .map(recipeFields);
-    },
+    queryFn: () => listRecipeCatalog({ data: { category: "South African", limit: 8 } }),
   });
 
 export const recipesByCategoryQuery = (category: string | undefined, search = "") =>
   queryOptions({
     queryKey: ["recipes", "category", category ?? "all", search.trim().toLowerCase()],
-    queryFn: async (): Promise<RecipeRecord[]> => {
-      const term = search.trim().toLowerCase();
-      const selectedCategory = category?.trim().toLowerCase();
-      const items = await list("recipes", [orderBy("created_at", "desc"), limit(100)]);
-      return items
-        .filter((item) => {
-          const values = [
-            item["name"],
-            item["cuisine"],
-            item["category"],
-            item["country"],
-            ...(Array.isArray(item["diet_tags"]) ? item["diet_tags"] : []),
-          ].map((value) => String(value ?? "").toLowerCase());
-          const isSouthAfrican = [item["cuisine"], item["country"], item["category"]].some(
-            (value) => {
-              const normalized = String(value ?? "").toLowerCase();
-              return normalized.includes("south african") || normalized.includes("south africa");
-            },
-          );
-          const matchesCategory =
-            !selectedCategory ||
-            (selectedCategory === "south african favorites"
-              ? isSouthAfrican
-              : values.includes(selectedCategory));
-          return matchesCategory && (!term || values.some((value) => value.includes(term)));
-        })
-        .slice(0, 60)
-        .map(recipeFields);
-    },
+    queryFn: () => listRecipeCatalog({ data: { category, search } }),
   });
 
 export const recipeBySlugQuery = (slug: string) =>
   queryOptions({
     queryKey: ["recipe", slug],
-    queryFn: async (): Promise<RecipeRecord | null> => {
-      const snapshot = await getDocs(query(recipes, where("slug", "==", slug), limit(1)));
-      return snapshot.docs[0]
-        ? ({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as unknown as RecipeRecord)
-        : null;
-    },
+    queryFn: () => getRecipeCatalogEntry({ data: { slug } }),
   });
 
 export const myFavoritesQuery = () =>
