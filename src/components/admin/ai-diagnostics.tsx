@@ -50,7 +50,7 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
   },
   {
     name: "gateway",
-    label: "Lovable AI Gateway",
+    label: "AI Gateway",
     description: "Live text request using server-side provider credentials",
     icon: Sparkles,
   },

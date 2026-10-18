@@ -175,7 +175,6 @@ export const generateRecipe = createServerFn({ method: "POST" })
       data.query.toLowerCase(),
     );
     return deduplicateAiRequest(requestKey, async () => {
-      await requireAiCredit(context.userId);
       await enforceRateLimit("ai_generate", context.userId, 10);
       const { firebaseAdmin } = await loadFirebaseAdmin();
       const t0 = Date.now();
@@ -214,6 +213,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
           return { slug: fuzzy[0]?.slug ?? "", id: fuzzy[0]?.id ?? null, cached: true };
         }
 
+        await requireAiCredit(context.userId);
         const { data: profile } = await firebaseAdmin
           .from("profiles")
           .select("allergies,dietary_preferences")

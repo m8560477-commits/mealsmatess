@@ -7,7 +7,7 @@ import {
   type Firestore,
   type Query,
 } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
+import { getDownloadURL, getStorage } from "firebase-admin/storage";
 import { getMessaging } from "firebase-admin/messaging";
 import { randomBytes, randomUUID } from "node:crypto";
 
@@ -735,6 +735,17 @@ export const firebaseAdmin = {
               preconditionOpts: options?.upsert ? undefined : { ifGenerationMatch: 0 },
             });
             return { data: { path }, error: null };
+          } catch (error) {
+            return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+          }
+        },
+        // Token URLs persist with the object and avoid expiring cached recipe photos.
+        async createDownloadUrl(path: string) {
+          try {
+            const { bucket } = getServices();
+            const file = bucket.file(`${bucketName}/${path}`);
+            await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: randomUUID() } });
+            return { data: { downloadUrl: await getDownloadURL(file) }, error: null };
           } catch (error) {
             return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
           }

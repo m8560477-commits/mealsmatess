@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Clock,
   Users,
@@ -95,7 +95,6 @@ function RecipePage() {
   const cookingModeEnabled = useFeatureFlag("cooking_mode", true);
   const [makingImage, setMakingImage] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const imageAsked = useRef<string | null>(null);
 
   const requestRecipeImage = useCallback(async () => {
     if (!r?.id || !user) return;
@@ -113,7 +112,7 @@ function RecipePage() {
       } else if (result.reason === "limit") {
         toast.message("Daily photo allowance reached", {
           description:
-            "This recipe's photo will be created when your allowance resets. Premium includes more.",
+            "Try creating this photo again when your allowance resets. Premium includes more.",
         });
       }
     } catch (error) {
@@ -125,12 +124,6 @@ function RecipePage() {
       setMakingImage(false);
     }
   }, [queryClient, r?.id, r?.slug, user]);
-
-  useEffect(() => {
-    if (!r?.id || !user || r.image_source || imageAsked.current === r.id) return;
-    imageAsked.current = r.id;
-    void requestRecipeImage();
-  }, [requestRecipeImage, r?.id, r?.image_source, user]);
 
   async function regenerateImage() {
     if (!user || !r) {
@@ -251,7 +244,7 @@ function RecipePage() {
             </div>
             <div>
               <ImageCredit source={r.image_source} attribution={r.image_attribution} />
-              {imageError && !r.image_source && (
+              {user && (!r.image_source || !r.image_url) && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -259,7 +252,11 @@ function RecipePage() {
                   disabled={makingImage}
                   onClick={() => void requestRecipeImage()}
                 >
-                  Try photo again
+                  {makingImage
+                    ? "Creating photo…"
+                    : imageError
+                      ? "Try photo again"
+                      : "Create photo"}
                 </Button>
               )}
               {r.id && (

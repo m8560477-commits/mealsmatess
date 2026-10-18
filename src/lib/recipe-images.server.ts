@@ -554,7 +554,7 @@ export async function generateAndSaveAiImage(
     throw new Error("Generated image was empty or exceeded the storage size limit.");
   }
   if (!image.mediaType.startsWith("image/")) {
-    throw new Error("Lovable AI Gateway returned a non-image response.");
+    throw new Error("AI Gateway returned a non-image response.");
   }
   const extension =
     image.mediaType === "image/jpeg" ? "jpg" : image.mediaType === "image/webp" ? "webp" : "png";
@@ -565,12 +565,12 @@ export async function generateAndSaveAiImage(
   if (upErr) throw upErr;
   const { data: signed, error: signErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)
-    .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-  if (signErr || !signed) throw signErr ?? new Error("Could not sign image URL");
+    .createDownloadUrl(path);
+  if (signErr || !signed) throw signErr ?? new Error("Could not create image download URL");
   const { error } = await firebaseAdmin
     .from("recipes")
     .update({
-      image_url: signed.signedUrl,
+      image_url: signed.downloadUrl,
       image_source: "AI",
       image_query: r.name,
       image_confidence: 100,
@@ -580,5 +580,5 @@ export async function generateAndSaveAiImage(
     })
     .eq("id", r.id);
   if (error) throw error;
-  return signed.signedUrl;
+  return signed.downloadUrl;
 }
