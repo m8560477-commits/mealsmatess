@@ -23,8 +23,8 @@ export default defineConfig(({ command }) => ({
     ],
   },
   ssr: {
-    // Firebase Admin and its gRPC deps must stay as Node externals on the server.
-    external: ["firebase-admin"],
+    // Firestore relies on module-relative __dirname, so keep it out of the ESM server bundle.
+    external: ["firebase-admin", "@google-cloud/firestore"],
   },
   plugins: [
     tailwindcss(),
@@ -37,7 +37,14 @@ export default defineConfig(({ command }) => ({
         client: { files: ["**/server/**"], specifiers: ["server-only"] },
       },
     }),
-    ...(command === "build" ? [nitro({ preset: process.env["NITRO_PRESET"] || "vercel" })] : []),
+    ...(command === "build"
+      ? [
+          nitro({
+            preset: process.env["NITRO_PRESET"] || "vercel",
+            rollupConfig: { external: ["firebase-admin", "@google-cloud/firestore"] },
+          }),
+        ]
+      : []),
     viteReact(),
   ],
 }));
