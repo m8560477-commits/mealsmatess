@@ -86,12 +86,12 @@ function Index() {
     data: trendingRaw = [],
     isLoading: trendingLoading,
     error: trendingError,
-  } = useQuery(trendingRecipesQuery());
+  } = useQuery({ ...trendingRecipesQuery(), enabled: !!user });
   const {
     data: southAfricanRaw = [],
     isLoading: southAfricanLoading,
     error: southAfricanError,
-  } = useQuery(southAfricanFavoritesQuery());
+  } = useQuery({ ...southAfricanFavoritesQuery(), enabled: !!user });
   const recipeText = (r: RecipeRecord) => [
     String(r.name),
     r.description == null ? null : String(r.description),

@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { recipesByCategoryQuery } from "@/lib/queries";
-import { waitForFirebaseAuth } from "@/lib/firebase";
 import { generateRecipe, surpriseMe } from "@/lib/ai.functions";
 import { ensureRecipeImage } from "@/lib/recipe-images.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -49,15 +48,7 @@ export const Route = createFileRoute("/recipes")({
     ...(typeof search["c"] === "string" ? { c: search["c"] } : {}),
     ...(typeof search["q"] === "string" ? { q: search["q"] } : {}),
   }),
-  loaderDeps: ({ search }) => ({ c: search.c, q: search.q }),
   ssr: false,
-  loader: async ({ context, deps }) => {
-    const user = await waitForFirebaseAuth();
-    if (!user) return [];
-    return context.queryClient.ensureQueryData(
-      recipesByCategoryQuery(deps.c && deps.c !== "All" ? deps.c : undefined, deps.q),
-    );
-  },
   component: RecipesPage,
 });
 
@@ -65,9 +56,12 @@ function RecipesPage() {
   const { c, q } = Route.useSearch();
   const active = c ?? "All";
   const navigate = useNavigate();
-  const { data: recipes } = useQuery(
-    recipesByCategoryQuery(active !== "All" ? active : undefined, q),
-  );
+  const {
+    data: recipes,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery(recipesByCategoryQuery(active !== "All" ? active : undefined, q));
   const [query, setQuery] = useState(q ?? "");
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
@@ -215,23 +209,30 @@ function RecipesPage() {
       </div>
 
       <div className="mt-8">
-        {recipes && recipes.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[4/3] w-full rounded-2xl" />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+            <p className="text-muted-foreground">Recipes couldn&apos;t load right now.</p>
+            <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : recipes && recipes.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {recipes.map((r) => (
               <RecipeCard key={r.id} recipe={r as any} />
             ))}
           </div>
-        ) : recipes ? (
+        ) : (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="text-muted-foreground">
               Nothing here yet. Try generating a recipe above!
             </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[4/3] w-full rounded-2xl" />
-            ))}
           </div>
         )}
       </div>
