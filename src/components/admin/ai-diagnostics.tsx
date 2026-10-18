@@ -26,6 +26,7 @@ type Result = {
   imageModel?: string;
   speechModel?: string;
   authentication?: string;
+  configured?: boolean;
 };
 
 const tests: { name: TestName; label: string; description: string; icon: typeof Sparkles }[] = [
@@ -49,8 +50,8 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
   },
   {
     name: "gateway",
-    label: "Vercel AI Gateway",
-    description: "Live text request using Vercel-managed Gateway authentication",
+    label: "Lovable AI Gateway",
+    description: "Live text request using server-side provider credentials",
     icon: Sparkles,
   },
   {
@@ -109,7 +110,7 @@ export function AiDiagnosticsTab() {
           <CardTitle id="ai-diagnostics-heading">MealMate AI diagnostics</CardTitle>
           <CardDescription>
             Admin-only live checks. Credentials are never displayed. Image generation can incur AI
-            Gateway charges.
+            provider charges.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">

@@ -6,7 +6,9 @@ import {
   DEFAULT_AI_TEXT_MODEL,
   aiRequestFingerprint,
   deduplicateAiRequest,
+  generateAiImage,
   generateAiObject,
+  generateAiSpeech,
   generateAiText,
   getAiProviderConfiguration,
   imageInputFromDataUrl,
@@ -29,20 +31,37 @@ function textModel(text: string) {
   });
 }
 
-describe("shared MealMate AI engine", () => {
-  afterEach(() => vi.restoreAllMocks());
+function mockFetch(response: Response) {
+  const request = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => response);
+  vi.stubGlobal("fetch", request);
+  return request;
+}
 
-  it("reports Vercel AI Gateway models without exposing credentials", () => {
+describe("shared MealMate AI engine", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("reports Lovable Gateway models without exposing credentials", () => {
     const config = getAiProviderConfiguration();
     expect(config).toMatchObject({
-      textProvider: "Vercel AI Gateway",
+      textProvider: "Lovable AI Gateway",
       textModel: DEFAULT_AI_TEXT_MODEL,
-      imageProvider: "Vercel AI Gateway",
+      imageProvider: "Lovable AI Gateway",
       imageModel: DEFAULT_AI_IMAGE_MODEL,
-      speechProvider: "Vercel AI Gateway",
+      speechProvider: "Lovable AI Gateway",
       speechModel: DEFAULT_AI_SPEECH_MODEL,
     });
-    expect(JSON.stringify(config)).not.toMatch(/key|token|secret/i);
+    expect(JSON.stringify(config)).not.toMatch(/secret|token|test-key/i);
+  });
+
+  it("fails clearly when server credentials are missing", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "");
+    await expect(
+      generateAiText({ feature: "test.unconfigured", prompt: "Reply." }),
+    ).rejects.toThrow(/not configured/i);
   });
 
   it("returns generated text through the shared model wrapper", async () => {
@@ -54,52 +73,122 @@ describe("shared MealMate AI engine", () => {
     expect(text).toContain("lemon juice");
   });
 
-  it("uses a mocked Gateway model without requiring live credentials", async () => {
-    const text = await generateAiText({
-      feature: "test.gateway",
-      modelOverride: textModel("Gateway provider test passed."),
-      prompt: "Return a short connectivity confirmation.",
-    });
-    expect(text).toBe("Gateway provider test passed.");
+  it("sends text requests to the server-authenticated Lovable Gateway", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "test-key");
+    const request = mockFetch(
+      Response.json({ choices: [{ message: { content: "Try lemon juice and milk." } }] }),
+    );
+
+    const text = await generateAiText({ feature: "test.gateway", prompt: "Suggest a substitute." });
+
+    expect(text).toBe("Try lemon juice and milk.");
+    expect(request).toHaveBeenCalledOnce();
+    const [url, init] = request.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://ai.gateway.lovable.dev/v1/chat/completions");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer test-key");
+    expect(new Headers(init.headers).get("Lovable-API-Key")).toBe("test-key");
   });
 
-  it("parses and validates structured recipe output", async () => {
+  it("serializes image messages for ingredient scanning", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "test-key");
+    const request = mockFetch(
+      Response.json({ choices: [{ message: { content: '{"items":[]}' } }] }),
+    );
+
+    await generateAiObject({
+      feature: "test.vision",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Identify the ingredients." },
+            { type: "image", image: new Uint8Array([1, 2, 3]), mediaType: "image/png" },
+          ],
+        },
+      ],
+      schema: z.object({ items: z.array(z.string()) }),
+    });
+
+    const [, init] = request.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as {
+      messages: { content: { type: string; image_url?: { url: string } }[] }[];
+    };
+    expect(body.messages[0]?.content[1]?.image_url?.url).toBe("data:image/png;base64,AQID");
+  });
+
+  it("parses and validates structured recipe output from the Gateway", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "test-key");
+    mockFetch(
+      Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                name: "Tomato egg toast",
+                ingredients: ["eggs", "tomatoes", "bread"],
+                steps: ["Toast bread", "Cook eggs with tomatoes"],
+              }),
+            },
+          },
+        ],
+      }),
+    );
     const schema = z.object({
       name: z.string(),
       ingredients: z.array(z.string()).min(3),
       steps: z.array(z.string()).min(2),
     });
+
     const result = await generateAiObject({
       feature: "test.recipe",
-      modelOverride: textModel(
-        JSON.stringify({
-          name: "Tomato egg toast",
-          ingredients: ["eggs", "tomatoes", "bread"],
-          steps: ["Toast bread", "Cook eggs with tomatoes"],
-        }),
-      ),
       prompt: "Create a simple recipe.",
       schema,
     });
+
     expect(result.name).toBe("Tomato egg toast");
     expect(result.ingredients).toHaveLength(3);
   });
 
   it("rejects malformed structured model output instead of saving it", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "test-key");
+    mockFetch(Response.json({ choices: [{ message: { content: '{"name":"No ingredients"}' } }] }));
     await expect(
       generateAiObject({
         feature: "test.recipe.invalid",
-        modelOverride: textModel(JSON.stringify({ name: "No ingredients" })),
         prompt: "Create a recipe.",
         schema: z.object({ name: z.string(), ingredients: z.array(z.string()).min(2) }),
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/expected format/i);
   });
 
   it("rejects empty assistant responses", async () => {
     await expect(
       generateAiText({ feature: "test.empty", modelOverride: textModel("  "), prompt: "Reply." }),
     ).rejects.toThrow(/empty response/i);
+  });
+
+  it("uses Lovable image and speech endpoints with bounded output", async () => {
+    vi.stubEnv("LOVABLE_API_KEY", "test-key");
+    const imageBytes = Buffer.from("test image");
+    const imageRequest = mockFetch(
+      Response.json({
+        data: [{ b64_json: imageBytes.toString("base64"), mime_type: "image/png" }],
+      }),
+    );
+    const image = await generateAiImage("A tomato omelet", { feature: "test.image" });
+    expect(Buffer.from(image.bytes).toString()).toBe("test image");
+    expect(image.mediaType).toBe("image/png");
+    expect(String(imageRequest.mock.calls[0]?.[0])).toBe(
+      "https://ai.gateway.lovable.dev/v1/images/generations",
+    );
+
+    const audioRequest = mockFetch(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    const audio = await generateAiSpeech("Welcome to MealMate", { feature: "test.speech" });
+    expect([...audio.bytes]).toEqual([1, 2, 3]);
+    expect(audio.mediaType).toBe("audio/mpeg");
+    expect(String(audioRequest.mock.calls[0]?.[0])).toBe(
+      "https://ai.gateway.lovable.dev/v1/audio/speech",
+    );
   });
 
   it("maps image data URLs to bounded bytes and validates MIME types", () => {
