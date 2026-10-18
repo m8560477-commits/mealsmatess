@@ -124,7 +124,7 @@ function Index() {
       const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
         message,
       );
-      const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|Vercel AI Gateway/i.test(message);
+      const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|MealMate AI|Lovable AI/i.test(message);
       toast.error(authError ? "Your session expired" : "Couldn't cook that up", {
         description: authError
           ? "Please sign in again to cook a recipe."

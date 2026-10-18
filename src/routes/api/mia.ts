@@ -48,10 +48,10 @@ function errorResponse(error: unknown) {
     status,
   });
   const safeMessage =
-    error instanceof Error && error.message.startsWith("Vercel AI Gateway ")
+    error instanceof Error && error.message.startsWith("MealMate AI ")
       ? error.message
       : "Mia couldn't respond right now. Please try again.";
-  const responseStatus = status === 429 || safeMessage.startsWith("Vercel AI Gateway ") ? 503 : 502;
+  const responseStatus = status === 429 || safeMessage.startsWith("MealMate AI ") ? 503 : 502;
   return Response.json({ error: safeMessage }, { status: responseStatus });
 }
 

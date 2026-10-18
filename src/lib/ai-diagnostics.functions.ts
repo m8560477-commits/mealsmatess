@@ -21,12 +21,12 @@ function safeFailure(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (/FIREBASE_SERVICE_ACCOUNT_JSON|Firebase Admin is not configured/i.test(message))
     return "Firebase Admin is not configured for this server runtime.";
-  if (/Vercel AI Gateway|AI_GATEWAY|not configured/i.test(message))
-    return "The Vercel AI Gateway connection is not available in this server environment.";
   if (/credit|billing|payment/i.test(message))
     return "The AI provider needs active billing or credits before it can process this test.";
+  if (/LOVABLE_API_KEY|Lovable AI|not configured/i.test(message))
+    return "The Lovable AI Gateway is not available in this server environment.";
   if (/authentication|unauthorized|rejected.*key/i.test(message))
-    return "Vercel AI Gateway authentication failed. Check the project Gateway connection.";
+    return "Lovable AI Gateway authentication failed. Check the server-side provider credentials.";
   if (/timeout|timed out/i.test(message)) return "The test timed out before the service responded.";
   return "The server-side diagnostic failed. Check server logs for the test name and failure category.";
 }
@@ -124,8 +124,10 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
         case "backend":
           return {
             test: data.test,
-            ok: true,
-            detail: "Authenticated admin endpoint is available.",
+            ok: config.configured,
+            detail: config.configured
+              ? "Authenticated admin endpoint and Lovable AI credentials are available."
+              : "Authenticated admin endpoint is available, but Lovable AI credentials are not loaded in this server runtime.",
             ...config,
           };
         case "recipe": {
@@ -165,7 +167,7 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
         case "gateway": {
           const answer = await generateAiText({
             feature: "diagnostics.gateway",
-            prompt: "Reply with exactly: Vercel AI Gateway is connected.",
+            prompt: "Reply with exactly: MealMate AI is connected.",
           });
           return {
             test: data.test,
