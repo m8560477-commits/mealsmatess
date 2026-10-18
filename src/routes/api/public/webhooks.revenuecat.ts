@@ -1,317 +1,172 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { timingSafeEqual } from "node:crypto";
+import { z } from "zod";
+import { getFirebaseServerServices } from "@/server/firebase-admin";
+import {
+  fetchRevenueCatSubscriber,
+  validRevenueCatSignature,
+  type BillingSnapshot,
+} from "@/lib/revenuecat.server";
 
-// RevenueCat webhook receiver.
-// Configure in RevenueCat → Integrations → Webhook:
-//   URL: https://<your-production-domain>/api/public/webhooks/revenuecat
-//   Auth header: `Bearer <REVENUECAT_WEBHOOK_SECRET>`
-// RC sends `Authorization: Bearer <secret>` on every request.
-// Docs: https://www.revenuecat.com/docs/integrations/webhooks
-
-type RCEvent = {
-  event: {
-    id: string;
-    type: string;
-    app_user_id: string;
-    original_app_user_id?: string;
-    product_id?: string;
-    period_type?: string;
-    purchased_at_ms?: number;
-    expiration_at_ms?: number | null;
-    environment?: string;
-    store?: string;
-    price_in_purchased_currency?: number;
-    currency?: string;
-    is_trial_conversion?: boolean;
-  };
-};
-
-const TRIAL_TYPES = new Set(["INITIAL_PURCHASE", "TRIAL_STARTED"]);
-const ACTIVATE_TYPES = new Set([
-  "INITIAL_PURCHASE",
-  "RENEWAL",
-  "PRODUCT_CHANGE",
-  "UNCANCELLATION",
-  "TRIAL_CONVERTED",
-  "TRIAL_STARTED",
-  "NON_RENEWING_PURCHASE",
-  "TEMPORARY_ENTITLEMENT_GRANT",
-]);
-const EXPIRE_TYPES = new Set(["EXPIRATION", "CANCELLATION", "REFUND", "SUBSCRIPTION_PAUSED"]);
-
-function tierFromProduct(
-  productId: string | undefined,
-): "monthly" | "annual" | "lifetime" | "promo" {
-  const p = (productId ?? "").toLowerCase();
-  if (p.includes("annual") || p.includes("year")) return "annual";
-  if (p.includes("lifetime") || p.includes("forever")) return "lifetime";
-  if (p.includes("monthly") || p.includes("month")) return "monthly";
-  return "monthly";
-}
-
-function storeFrom(
-  s: string | undefined,
-): "app_store" | "play_store" | "stripe" | "promo" | "admin" {
-  switch ((s ?? "").toUpperCase()) {
-    case "APP_STORE":
-    case "MAC_APP_STORE":
-      return "app_store";
-    case "PLAY_STORE":
-      return "play_store";
-    case "STRIPE":
-      return "stripe";
-    case "PROMOTIONAL":
-      return "promo";
-    default:
-      return "app_store";
-  }
-}
-
-export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        const secret = process.env["REVENUECAT_WEBHOOK_SECRET"];
-        if (!secret) return new Response("Not configured", { status: 500 });
-
-        const auth = request.headers.get("authorization") ?? "";
-        const provided = auth.replace(/^Bearer\s+/i, "");
-        const a = Buffer.from(provided);
-        const b = Buffer.from(secret);
-        if (a.length !== b.length || !timingSafeEqual(a, b)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
-
-        let body: RCEvent;
-        try {
-          body = (await request.json()) as RCEvent;
-        } catch {
-          return new Response("Bad JSON", { status: 400 });
-        }
-        const evt = body.event;
-        if (
-          !evt ||
-          !evt.id ||
-          !evt.type ||
-          !evt.app_user_id ||
-          !/^[A-Za-z0-9_-]{1,128}$/.test(evt.id)
-        ) {
-          return new Response("Bad payload", { status: 400 });
-        }
-
-        const { firebaseAdmin, firebaseAuthUserExists } = await import("@/server/firebase-admin");
-        const userId = evt.app_user_id;
-        if (!(await firebaseAuthUserExists(userId))) {
-          return new Response("Unknown Firebase user", { status: 400 });
-        }
-
-        const { data: previousEvent } = await firebaseAdmin
-          .from("subscription_events")
-          .select("id,processed,claimed_at")
-          .eq("rc_event_id", evt.id)
-          .maybeSingle();
-        if (previousEvent && previousEvent.processed !== false) {
-          return new Response("Duplicate", { status: 200 });
-        }
-        if (previousEvent) {
-          const claimTime = Date.parse(String(previousEvent.claimed_at ?? ""));
-          if (Number.isFinite(claimTime) && Date.now() - claimTime < 120_000) {
-            return new Response("Processing", { status: 503 });
-          }
-          await firebaseAdmin.from("subscription_events").delete().eq("rc_event_id", evt.id);
-        }
-
-        const claimedAt = new Date().toISOString();
-        const { error: claimError } = await firebaseAdmin.from("subscription_events").insert({
-          user_id: userId,
-          event_type: evt.type,
-          source: "revenuecat",
-          rc_event_id: evt.id,
-          payload: JSON.parse(JSON.stringify(evt)),
-          processed: false,
-          claimed_at: claimedAt,
-        });
-        if (claimError) return new Response("Processing", { status: 503 });
-        const tier = tierFromProduct(evt.product_id);
-        const store = storeFrom(evt.store);
-        const periodEnd = evt.expiration_at_ms
-          ? new Date(evt.expiration_at_ms).toISOString()
-          : null;
-        const purchasedAt = evt.purchased_at_ms
-          ? new Date(evt.purchased_at_ms).toISOString()
-          : new Date().toISOString();
-
-        // Find or create subscription for this user
-        const { data: existing } = await firebaseAdmin
-          .from("subscriptions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (ACTIVATE_TYPES.has(evt.type)) {
-          const status: "trialing" | "active" =
-            TRIAL_TYPES.has(evt.type) && evt.period_type === "TRIAL" ? "trialing" : "active";
-          const patch = {
-            user_id: userId,
-            rc_app_user_id: userId,
-            product_id: evt.product_id ?? null,
-            tier,
-            status,
-            store,
-            environment: evt.environment ?? null,
-            period_start: purchasedAt,
-            period_end: periodEnd,
-            trial_end: status === "trialing" ? periodEnd : (existing?.trial_end ?? null),
-            auto_renew: evt.type !== "CANCELLATION",
-            is_manual: false,
-          } as const;
-          if (existing) {
-            await firebaseAdmin.from("subscriptions").update(patch).eq("id", existing.id);
-          } else {
-            await firebaseAdmin.from("subscriptions").insert(patch);
-          }
-
-          // Payment record for real money events
-          if (
-            evt.type === "INITIAL_PURCHASE" ||
-            evt.type === "RENEWAL" ||
-            evt.type === "TRIAL_CONVERTED" ||
-            evt.type === "PRODUCT_CHANGE"
-          ) {
-            const kind =
-              evt.type === "TRIAL_CONVERTED"
-                ? "trial_conversion"
-                : evt.type === "RENEWAL"
-                  ? "renewal"
-                  : "initial";
-            await firebaseAdmin
-              .from("payments")
-              .insert({
-                user_id: userId,
-                subscription_id: existing?.id ?? null,
-                rc_event_id: evt.id,
-                amount_usd: evt.price_in_purchased_currency ?? null,
-                currency: evt.currency ?? "USD",
-                kind,
-                occurred_at: purchasedAt,
-                raw: JSON.parse(JSON.stringify(evt)),
-              })
-              .then(
-                () => undefined,
-                () => undefined,
-              );
-          }
-
-          // Reward pending referrals on first paid conversion
-          if (evt.type === "INITIAL_PURCHASE" || evt.type === "TRIAL_CONVERTED") {
-            const { data: ref } = await firebaseAdmin
-              .from("referrals")
-              .select("*")
-              .eq("referred_id", userId)
-              .eq("status", "pending")
-              .maybeSingle();
-            if (ref) {
-              await grantDays(ref.referrer_id, ref.reward_days);
-              await grantDays(userId, ref.reward_days);
-              await firebaseAdmin
-                .from("referrals")
-                .update({ status: "rewarded", rewarded_at: new Date().toISOString() })
-                .eq("id", ref.id);
-            }
-          }
-        } else if (EXPIRE_TYPES.has(evt.type)) {
-          if (existing) {
-            const newStatus =
-              evt.type === "CANCELLATION"
-                ? existing.status
-                : evt.type === "REFUND"
-                  ? "cancelled"
-                  : "expired";
-            await firebaseAdmin
-              .from("subscriptions")
-              .update({
-                status: newStatus,
-                auto_renew: evt.type === "CANCELLATION" ? false : existing.auto_renew,
-                cancelled_at:
-                  evt.type === "CANCELLATION" ? new Date().toISOString() : existing.cancelled_at,
-              })
-              .eq("id", existing.id);
-          }
-          if (evt.type === "REFUND" && evt.id) {
-            await firebaseAdmin
-              .from("payments")
-              .insert({
-                user_id: userId,
-                subscription_id: existing?.id ?? null,
-                rc_event_id: evt.id,
-                amount_usd: evt.price_in_purchased_currency
-                  ? -Math.abs(evt.price_in_purchased_currency)
-                  : null,
-                currency: evt.currency ?? "USD",
-                kind: "refund",
-                occurred_at: purchasedAt,
-                raw: JSON.parse(JSON.stringify(evt)),
-              })
-              .then(
-                () => undefined,
-                () => undefined,
-              );
-          }
-        } else if (evt.type === "BILLING_ISSUE") {
-          if (existing) {
-            await firebaseAdmin
-              .from("subscriptions")
-              .update({ status: "in_grace" })
-              .eq("id", existing.id);
-          }
-        }
-
-        const { error: completionError } = await firebaseAdmin
-          .from("subscription_events")
-          .update({ processed: true, completed_at: new Date().toISOString() })
-          .eq("rc_event_id", evt.id);
-        if (completionError) throw completionError;
-
-        return new Response("ok", { status: 200 });
-      },
-    },
-  },
+const EventSchema = z.object({
+  event: z.object({
+    id: z.string().min(1).max(200),
+    type: z.string().min(1).max(80),
+    price: z.number().finite().optional(),
+    price_in_purchased_currency: z.number().finite().optional(),
+    currency: z.string().length(3).optional(),
+    environment: z.string().optional(),
+    is_trial_conversion: z.boolean().optional(),
+    app_user_id: z.string().min(1).max(128).optional(),
+    transferred_from: z.array(z.string().min(1).max(128)).max(20).optional(),
+    transferred_to: z.array(z.string().min(1).max(128)).max(20).optional(),
+  }),
 });
 
-async function grantDays(userId: string, days: number) {
-  const { firebaseAdmin } = await import("@/server/firebase-admin");
-  const { data: current } = await firebaseAdmin
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("period_end", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  const baseline =
-    current?.period_end && new Date(current.period_end).getTime() > Date.now()
-      ? new Date(current.period_end).getTime()
-      : Date.now();
-  const newEnd = new Date(baseline + days * 86400000).toISOString();
-  if (current) {
-    await firebaseAdmin
-      .from("subscriptions")
-      .update({
-        status: "active",
-        period_end: newEnd,
-        tier: current.tier === "free" ? "promo" : current.tier,
-      })
-      .eq("id", current.id);
-  } else {
-    await firebaseAdmin.from("subscriptions").insert({
-      user_id: userId,
-      tier: "promo",
-      status: "active",
-      store: "promo",
-      period_start: new Date().toISOString(),
-      period_end: newEnd,
-      is_manual: true,
+export async function handleRevenueCatWebhook(request: Request) {
+  const raw = await request.text();
+  if (raw.length > 128000) return new Response("Payload too large", { status: 413 });
+  if (
+    !validRevenueCatSignature(
+      raw,
+      request.headers.get("authorization") ?? "",
+      request.headers.get("x-revenuecat-webhook-signature") ?? "",
+    )
+  )
+    return new Response("Unauthorized", { status: 401 });
+  let event: z.infer<typeof EventSchema>["event"];
+  try {
+    event = EventSchema.parse(JSON.parse(raw)).event;
+  } catch {
+    return new Response("Invalid payload", { status: 400 });
+  }
+  if (event.type === "TEST") return new Response("ok");
+  const { db, auth } = getFirebaseServerServices();
+  const { createHash } = await import("node:crypto");
+  const eventRef = db
+    .collection("subscription_events")
+    .doc(`rc_${createHash("sha256").update(event.id).digest("hex")}`);
+  if ((await eventRef.get()).exists) return new Response("Duplicate");
+  const userIds = [
+    ...new Set(
+      [
+        event.app_user_id,
+        ...(event.transferred_from ?? []),
+        ...(event.transferred_to ?? []),
+      ].filter((id): id is string => !!id),
+    ),
+  ];
+  if (!userIds.length) return new Response("Missing customer", { status: 400 });
+  try {
+    const verified: BillingSnapshot[] = [];
+    for (const userId of userIds) {
+      try {
+        await auth.getUser(userId);
+      } catch (error) {
+        if ((error as { code?: string }).code === "auth/user-not-found") continue;
+        throw error;
+      }
+      verified.push(await fetchRevenueCatSubscriber(userId));
+    }
+    await db.runTransaction(async (tx) => {
+      if ((await tx.get(eventRef)).exists) return;
+      const previous = await Promise.all(
+        verified.map((state) => tx.get(db.collection("billing_customers").doc(state.user_id))),
+      );
+      const purchaser = verified.find((state) => state.user_id === event.app_user_id);
+      const realPayment =
+        purchaser?.is_active &&
+        !purchaser.is_trial &&
+        event.environment === "PRODUCTION" &&
+        (event.price ?? event.price_in_purchased_currency ?? 0) > 0;
+      const referrals =
+        realPayment && ["INITIAL_PURCHASE", "RENEWAL", "TRIAL_CONVERTED"].includes(event.type)
+          ? await tx.get(
+              db
+                .collection("referrals")
+                .where("referred_id", "==", event.app_user_id!)
+                .where("status", "==", "pending"),
+            )
+          : null;
+      verified.forEach((state, index) => {
+        if (Date.parse(previous[index]?.data()?.verified_at ?? "") > Date.parse(state.verified_at))
+          return;
+        tx.set(db.collection("billing_customers").doc(state.user_id), state);
+        tx.set(
+          db.collection("subscriptions").doc(`revenuecat_${state.user_id}`),
+          {
+            user_id: state.user_id,
+            product_id: state.product_id,
+            status: state.is_trial ? "trialing" : state.status,
+            tier: state.is_family ? "family" : "premium",
+            period_end: state.expires_at,
+            auto_renew: state.auto_renew,
+            is_manual: false,
+            store: state.store,
+            verified_at: state.verified_at,
+            updated_at: state.verified_at,
+          },
+          { merge: true },
+        );
+      });
+      const now = new Date().toISOString();
+      if (
+        purchaser &&
+        event.environment === "PRODUCTION" &&
+        ["INITIAL_PURCHASE", "RENEWAL", "TRIAL_CONVERTED", "REFUND"].includes(event.type)
+      ) {
+        const sign = event.type === "REFUND" ? -1 : 1;
+        tx.set(db.collection("payments").doc(eventRef.id), {
+          user_id: purchaser.user_id,
+          subscription_id: `revenuecat_${purchaser.user_id}`,
+          rc_event_id: event.id,
+          amount_usd: event.price == null ? null : sign * Math.abs(event.price),
+          amount_original:
+            event.price_in_purchased_currency == null
+              ? null
+              : sign * Math.abs(event.price_in_purchased_currency),
+          currency: event.currency ?? null,
+          kind:
+            event.type === "REFUND"
+              ? "refund"
+              : event.is_trial_conversion
+                ? "trial_conversion"
+                : event.type === "RENEWAL"
+                  ? "renewal"
+                  : "initial",
+          occurred_at: now,
+        });
+      }
+      // One independent reward per referral: never mutate the paid subscription.
+      const referral = referrals?.docs[0];
+      if (referral) {
+        const row = referral.data();
+        const days = Math.min(365, Math.max(0, Number(row.reward_days) || 0));
+        for (const uid of [row.referrer_id, row.referred_id])
+          if (typeof uid === "string" && days > 0)
+            tx.set(db.collection("legacy_premium_access").doc(`referral_${referral.id}_${uid}`), {
+              user_id: uid,
+              tier: "promo",
+              status: "active",
+              store: "promo",
+              period_end: new Date(Date.now() + days * 86400000).toISOString(),
+              created_at: now,
+            });
+        tx.update(referral.ref, { status: "rewarded", rewarded_at: now });
+      }
+      tx.set(eventRef, {
+        rc_event_id: event.id,
+        event_type: event.type,
+        source: "revenuecat",
+        user_ids: verified.map((state) => state.user_id),
+        processed: true,
+        created_at: new Date().toISOString(),
+      });
     });
+    return new Response("ok");
+  } catch {
+    return new Response("Subscription verification unavailable; retry delivery.", { status: 503 });
   }
 }
+export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
+  server: { handlers: { POST: ({ request }) => handleRevenueCatWebhook(request) } },
+});

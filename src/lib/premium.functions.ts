@@ -2,55 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
+import { resolveEntitlement, requirePremiumAccess } from "@/lib/entitlements.server";
+import { requireAdmin, isTrustedAdmin } from "@/lib/admin-access.server";
+import { changeGrant } from "@/lib/premium-grants.server";
 
-// Free-tier limits — enforced server-side before any AI work
-export const FREE_LIMITS = {
-  ai_chat: { max: 10, period: "day" as const, label: "AI Chef chats" },
-  recipe_gen: { max: 5, period: "day" as const, label: "recipe generations" },
-  meal_plan: { max: 3, period: "month" as const, label: "meal plans" },
-};
-export type FeatureKey = keyof typeof FREE_LIMITS;
-
-function periodKey(period: "day" | "month"): string {
-  const d = new Date();
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  if (period === "month") return `${yyyy}-${mm}`;
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+export type FeatureKey = "ai_chat" | "recipe_gen" | "meal_plan";
 
 // ---------- Entitlement ----------
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
-  .handler(async ({ context }) => {
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: sub } = await firebaseAdmin
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", context.userId)
-      .in("status", ["trialing", "active", "in_grace"])
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
+  .handler(({ context }) => resolveEntitlement(context.userId));
 
-    const now = Date.now();
-    const active =
-      !!sub &&
-      (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-
-    return {
-      isPremium: active,
-      tier: (sub?.tier ?? "free") as string,
-      status: (sub?.status ?? "expired") as string,
-      trialActive: active && sub?.status === "trialing",
-      periodEnd: sub?.period_end ?? null,
-      trialEnd: sub?.trial_end ?? null,
-      store: sub?.store ?? null,
-      autoRenew: sub?.auto_renew ?? false,
-      isManual: sub?.is_manual ?? false,
-    };
-  });
+export const refreshMyEntitlement = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .handler(({ context }) => resolveEntitlement(context.userId, true));
 
 // ---------- Usage ----------
 // Plan allowance summary (server-calculated from the database; limits are configurable in app_settings).
@@ -114,50 +79,10 @@ export const getMyUsage = createServerFn({ method: "GET" })
 // If user is premium, always allow without incrementing.
 export async function enforceAndIncrement(
   userId: string,
-  feature: FeatureKey,
+  _feature: FeatureKey,
 ): Promise<{ allowed: boolean; remaining: number; premium: boolean }> {
-  const { firebaseAdmin } = await loadFirebaseAdmin();
-  // Premium check
-  const { data: sub } = await firebaseAdmin
-    .from("subscriptions")
-    .select("status,tier,period_end")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  const now = Date.now();
-  const isPremium =
-    !!sub &&
-    (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-  if (isPremium) return { allowed: true, remaining: Infinity, premium: true };
-
-  const cfg = FREE_LIMITS[feature];
-  const pk = periodKey(cfg.period);
-  const { data: existing } = await firebaseAdmin
-    .from("usage_limits")
-    .select("count")
-    .eq("user_id", userId)
-    .eq("feature_key", feature)
-    .eq("period_key", pk)
-    .maybeSingle();
-
-  const current = existing?.count ?? 0;
-  if (current >= cfg.max) return { allowed: false, remaining: 0, premium: false };
-
-  await firebaseAdmin.from("usage_limits").upsert(
-    {
-      user_id: userId,
-      feature,
-      feature_key: feature,
-      period_start: new Date().toISOString(),
-      period_key: pk,
-      count: current + 1,
-    },
-    { onConflict: "user_id,feature_key,period_key" },
-  );
-  return { allowed: true, remaining: cfg.max - current - 1, premium: false };
+  await requirePremiumAccess(userId);
+  return { allowed: true, remaining: Infinity, premium: true };
 }
 
 // ---------- Referral ----------
@@ -232,135 +157,80 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .validator((v: unknown) => z.object({ code: z.string().min(2).max(40) }).parse(v))
   .handler(async ({ data, context }) => {
-    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { getFirebaseServerServices } = await import("@/server/firebase-admin");
+    const { db, auth } = getFirebaseServerServices();
+    const identity = await auth.getUser(context.userId);
+    if (!identity.emailVerified || identity.disabled)
+      throw new Error("Verify your email to redeem a promotion.");
     const code = data.code.trim().toUpperCase();
-    const { data: promo } = await firebaseAdmin
-      .from("promo_codes")
-      .select("*")
-      .eq("code", code)
-      .maybeSingle();
-    if (!promo || !promo.enabled) throw new Error("Invalid or disabled promo code");
-    if (promo.expires_at && new Date(promo.expires_at).getTime() < Date.now())
-      throw new Error("This promo code has expired");
-    if (promo.max_redemptions && promo.redemption_count >= promo.max_redemptions)
-      throw new Error("This promo code has been fully redeemed");
-
-    // Prevent duplicate redemption
-    const { data: dup } = await firebaseAdmin
-      .from("promo_redemptions")
-      .select("id")
-      .eq("code_id", promo.id)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (dup) throw new Error("You've already redeemed this code");
-
-    let grantedDays = 0;
-    let grantedLifetime = false;
-    let tier: "monthly" | "annual" | "lifetime" | "promo" = "promo";
-
-    switch (promo.reward_kind) {
-      case "free_days":
-        grantedDays = Number(promo.reward_value) || 0;
-        break;
-      case "free_month":
-        grantedDays = 30;
-        tier = "monthly";
-        break;
-      case "free_year":
-        grantedDays = 365;
-        tier = "annual";
-        break;
-      case "lifetime":
-        grantedLifetime = true;
-        tier = "lifetime";
-        break;
-      case "percent_discount":
-        // Discount codes are informational only in-app; actual discount applied at native checkout
-        break;
-    }
-
-    // Grant subscription time
-    if (grantedDays > 0 || grantedLifetime) {
-      const { data: current } = await firebaseAdmin
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", context.userId)
-        .order("period_end", { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
-
-      const baseline =
-        current?.period_end && new Date(current.period_end).getTime() > Date.now()
-          ? new Date(current.period_end).getTime()
-          : Date.now();
-      const newEnd = grantedLifetime
-        ? null
-        : new Date(baseline + grantedDays * 86400000).toISOString();
-
-      if (current) {
-        await firebaseAdmin
-          .from("subscriptions")
-          .update({
-            tier: grantedLifetime ? "lifetime" : tier,
-            status: "active",
-            period_end: newEnd,
-            store: "promo",
-            is_manual: true,
-          })
-          .eq("id", current.id);
-      } else {
-        await firebaseAdmin.from("subscriptions").insert({
-          user_id: context.userId,
-          tier: grantedLifetime ? "lifetime" : tier,
-          status: "active",
-          store: "promo",
-          period_start: new Date().toISOString(),
-          period_end: newEnd,
-          is_manual: true,
-        });
-      }
-    }
-
-    await firebaseAdmin.from("promo_redemptions").insert({
-      code_id: promo.id,
-      user_id: context.userId,
-      granted_days: grantedDays,
-      granted_lifetime: grantedLifetime,
+    return db.runTransaction(async (tx) => {
+      const found = await tx.get(db.collection("promo_codes").where("code", "==", code).limit(1));
+      const doc = found.docs[0];
+      const promo = doc?.data();
+      if (!doc || !promo?.enabled) throw new Error("Invalid or disabled promo code");
+      if (promo.expires_at && Date.parse(promo.expires_at) <= Date.now())
+        throw new Error("This promo code has expired");
+      const redemption = db.collection("promo_redemptions").doc(`${doc.id}_${context.userId}`);
+      const existing = await tx.get(redemption);
+      const legacy = await tx.get(
+        db
+          .collection("promo_redemptions")
+          .where("code_id", "==", doc.id)
+          .where("user_id", "==", context.userId),
+      );
+      if (existing.exists || !legacy.empty) throw new Error("You've already redeemed this code");
+      if (
+        promo.max_redemptions != null &&
+        Number(promo.redemption_count ?? 0) >= Number(promo.max_redemptions)
+      )
+        throw new Error("This promo code has been fully redeemed");
+      const lifetime = promo.reward_kind === "lifetime";
+      const days =
+        promo.reward_kind === "free_month"
+          ? 30
+          : promo.reward_kind === "free_year"
+            ? 365
+            : promo.reward_kind === "free_days"
+              ? Number(promo.reward_value)
+              : 0;
+      if (!lifetime && (!Number.isInteger(days) || days < 1 || days > 3650))
+        throw new Error(
+          "This code doesn't grant Premium days. Use provider-supported discounts at checkout.",
+        );
+      const now = new Date().toISOString();
+      tx.set(db.collection("legacy_premium_access").doc(`promo_${doc.id}_${context.userId}`), {
+        user_id: context.userId,
+        tier: lifetime ? "lifetime" : "promo",
+        status: "active",
+        store: "promo",
+        period_end: lifetime ? null : new Date(Date.now() + days * 86400000).toISOString(),
+        created_at: now,
+      });
+      tx.set(redemption, {
+        code_id: doc.id,
+        user_id: context.userId,
+        granted_days: days,
+        granted_lifetime: lifetime,
+        created_at: now,
+      });
+      tx.update(doc.ref, { redemption_count: Number(promo.redemption_count ?? 0) + 1 });
+      tx.set(db.collection("audit_logs").doc(), {
+        actor_id: context.userId,
+        action: "promo.redeemed",
+        target_id: doc.id,
+        created_at: now,
+      });
+      return {
+        ok: true,
+        message: lifetime
+          ? "Lifetime Premium access confirmed."
+          : `${days} days of complimentary Premium added.`,
+      };
     });
-    await firebaseAdmin
-      .from("promo_codes")
-      .update({ redemption_count: promo.redemption_count + 1 })
-      .eq("id", promo.id);
-    await firebaseAdmin.from("subscription_events").insert({
-      user_id: context.userId,
-      event_type: `promo:${promo.reward_kind}`,
-      source: "promo",
-      actor_id: context.userId,
-      payload: { code, granted_days: grantedDays, granted_lifetime: grantedLifetime },
-    });
-
-    return {
-      ok: true,
-      message:
-        promo.reward_kind === "percent_discount"
-          ? `${promo.reward_value}% discount saved — it'll apply at checkout on mobile.`
-          : grantedLifetime
-            ? "Lifetime Premium unlocked! 🎉"
-            : `${grantedDays} days of Premium added to your account.`,
-    };
   });
 
 // ---------- Admin ----------
-async function assertAdmin(userId: string) {
-  const { firebaseAdmin } = await loadFirebaseAdmin();
-  const { data } = await firebaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!data) throw new Error("Forbidden");
-}
+const assertAdmin = requireAdmin;
 
 export const adminListSubscribers = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
@@ -513,88 +383,31 @@ export const adminDeletePromo = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Compatibility entry points also use the isolated grant ledger.
 export const adminGrantPremium = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .validator((v: unknown) =>
-    z.object({ userId: z.string().uuid(), days: z.number().int().min(1).max(3650) }).parse(v),
+  .validator((raw: unknown) =>
+    z
+      .object({ userId: z.string().min(1).max(128), days: z.number().int().min(1).max(3650) })
+      .parse(raw),
   )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: current } = await firebaseAdmin
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", data.userId)
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    const baseline =
-      current?.period_end && new Date(current.period_end).getTime() > Date.now()
-        ? new Date(current.period_end).getTime()
-        : Date.now();
-    const newEnd = new Date(baseline + data.days * 86400000).toISOString();
-    if (current) {
-      await firebaseAdmin
-        .from("subscriptions")
-        .update({
-          status: "active",
-          tier: current.tier === "free" ? "promo" : current.tier,
-          period_end: newEnd,
-          store: "admin",
-          is_manual: true,
-        })
-        .eq("id", current.id);
-    } else {
-      await firebaseAdmin.from("subscriptions").insert({
-        user_id: data.userId,
-        tier: "promo",
-        status: "active",
-        store: "admin",
-        period_start: new Date().toISOString(),
-        period_end: newEnd,
-        is_manual: true,
-      });
-    }
-    await firebaseAdmin.from("subscription_events").insert({
-      user_id: data.userId,
-      event_type: "admin:grant",
-      source: "admin",
-      actor_id: context.userId,
-      payload: { days: data.days },
-    });
-    return { ok: true };
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context.userId);
+    const { getFirebaseServerServices } = await import("@/server/firebase-admin");
+    const user = await getFirebaseServerServices().auth.getUser(data.userId);
+    if (!user.email) throw new Error("This user has no email.");
+    return changeGrant(context.userId, "grant", { email: user.email, days: data.days });
   });
-
 export const adminRevokePremium = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .validator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    await firebaseAdmin
-      .from("subscriptions")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("user_id", data.userId)
-      .in("status", ["trialing", "active", "in_grace"]);
-    await firebaseAdmin.from("subscription_events").insert({
-      user_id: data.userId,
-      event_type: "admin:revoke",
-      source: "admin",
-      actor_id: context.userId,
-      payload: {},
-    });
-    return { ok: true };
+  .validator((raw: unknown) => z.object({ userId: z.string().min(1).max(128) }).parse(raw))
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context.userId);
+    const { getFirebaseServerServices } = await import("@/server/firebase-admin");
+    const user = await getFirebaseServerServices().auth.getUser(data.userId);
+    if (!user.email) throw new Error("This user has no email.");
+    return changeGrant(context.userId, "revoke", { email: user.email, days: 1 });
   });
-
 export const adminIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
-  .handler(async ({ context }) => {
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data } = await firebaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    return { isAdmin: !!data };
-  });
+  .handler(async ({ context }) => ({ isAdmin: await isTrustedAdmin(context.userId) }));

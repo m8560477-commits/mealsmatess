@@ -1,3 +1,4 @@
+import { writePersonalItems } from "@/lib/personal-items.functions";
 import {
   collection,
   deleteDoc,
@@ -233,6 +234,21 @@ class BrowserFirestoreQuery implements PromiseLike<Result<any>> {
       if (this.action !== "select" && !isPersonal) {
         throw new Error(`Forbidden: direct writes to ${this.table} are disabled.`);
       }
+      const paidTable = ["favorites", "grocery_items", "meal_plans", "nutrition_logs"].includes(
+        this.table,
+      );
+      if (this.action === "insert" && paidTable) {
+        const rows = await writePersonalItems({
+          data: {
+            table: this.table as "favorites",
+            action: "insert",
+            rows: Array.isArray(this.values)
+              ? this.values
+              : [this.values as Record<string, unknown>],
+          },
+        });
+        return this.singleResult(rows);
+      }
       if (this.action === "insert") return await this.insertRows(collectionRef, uid);
 
       const queryFilters = [...this.filters];
@@ -275,6 +291,17 @@ class BrowserFirestoreQuery implements PromiseLike<Result<any>> {
           updateValues["user_id"] !== uid
         ) {
           throw new Error("Forbidden: record ownership cannot be changed.");
+        }
+        if (this.action === "update" && paidTable) {
+          if (!rows.length) return { data: [], error: null };
+          const saved = await writePersonalItems({
+            data: {
+              table: this.table as "favorites",
+              action: "update",
+              rows: rows.map((row) => ({ ...row, ...updateValues })),
+            },
+          });
+          return this.singleResult(saved);
         }
         await Promise.all(
           rows.map((row) => {

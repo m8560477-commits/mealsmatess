@@ -50,6 +50,10 @@ export function requestRecipeImage(userId: string, recipeId: string): Promise<Im
         _user_id: userId,
       });
       if (creditError) throw creditError;
+      if (credit?.reason === "subscription_required")
+        throw new Error(
+          "Premium access is required to create a recipe photo. Open Premium to subscribe or restore purchases.",
+        );
       if (!credit?.allowed) {
         return {
           imageUrl: null,

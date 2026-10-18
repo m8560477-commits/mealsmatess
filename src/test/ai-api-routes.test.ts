@@ -75,6 +75,7 @@ describe("Mia API", () => {
       },
       error: null,
     });
+    mocks.text.mockResolvedValue("Try a rice and bean bowl with tomato.");
     const response = await miaPost(request({ message: "Suggest dinner" }));
     expect(response.status).toBe(200);
     const instructions = mocks.text.mock.calls[0]?.[0].instructions;

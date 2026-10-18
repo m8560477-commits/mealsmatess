@@ -1,18 +1,8 @@
+import { requireAdmin as assertAdmin } from "@/lib/admin-access.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
-
-async function assertAdmin(userId: string) {
-  const { firebaseAdmin } = await loadFirebaseAdmin();
-  const { data } = await firebaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!data) throw new Error("Forbidden");
-}
 
 // Public read (anon + authenticated) — flags drive UI availability
 export const listFeatureFlags = createServerFn({ method: "GET" }).handler(async () => {

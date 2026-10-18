@@ -1,3 +1,5 @@
+import { requirePremiumAccess } from "@/lib/entitlements.server";
+import { conflictsWithText, recipeMatchesDiet } from "@/lib/recipe-safety";
 import { aiProfile } from "@/lib/ai-profile";
 import { preferenceSummary } from "@/lib/preferences";
 import { createServerFn } from "@tanstack/react-start";
@@ -53,13 +55,14 @@ export const generatePersonalizedPlan = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_planner", context.userId, 5);
     const { firebaseAdmin } = await loadFirebaseAdmin();
 
-    const { data: savedProfile } = await firebaseAdmin
+    const { data: savedProfile, error: profileError } = await firebaseAdmin
       .from("profiles")
       .select(
         "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age,preferences",
       )
       .eq("id", context.userId)
       .maybeSingle();
+    if (profileError) throw profileError;
     const profile = aiProfile(savedProfile);
 
     const start = data.startDate ? new Date(`${data.startDate}T00:00:00.000Z`) : new Date();
@@ -79,7 +82,7 @@ User profile:
 - Allergies: ${(profile?.allergies ?? []).join(", ") || "none"}
 - Dietary preferences: ${(profile?.dietary_preferences ?? []).join(", ") || "none"}
 - Daily budget: ${profile?.budget_per_day ? `$${profile.budget_per_day}` : "flexible"}
-- Family size: ${profile?.family_size ?? 1}
+- Family size: ${profile?.preferences.household_size ?? profile?.family_size ?? 1}
 
 Prefer varied, culturally diverse dishes including South African options. Reply ONLY as JSON:
 {"plan":[{"day":1,"meal_type":"Breakfast","name":"...","calories":450,"short_reason":"..."}]}
@@ -127,6 +130,13 @@ Days: 1..${data.days}. One entry per meal per day.`;
             }),
         }),
       });
+      if (
+        profile &&
+        parsed.plan.some((meal) =>
+          conflictsWithText(profile.preferences, `${meal.name} ${meal.short_reason}`),
+        )
+      )
+        throw new Error("The plan conflicted with your dietary requirements. Please try again.");
       const suggestions: MealSuggestion[] = parsed.plan.map((p) => ({
         day: p.day,
         date: dates[Math.max(0, Math.min(p.day - 1, dates.length - 1))] ?? dates[0] ?? "",
@@ -170,6 +180,7 @@ export const buildGroceryFromPlan = createServerFn({ method: "POST" })
       .lte("plan_date", data.to);
     if (error) throw new Error(error.message);
 
+    await requirePremiumAccess(context.userId);
     // aggregate ingredients by name
     const map = new Map<string, { quantity: string | null; sources: Set<string> }>();
     for (const p of plans ?? []) {
@@ -233,13 +244,14 @@ export const aiPlanAndShop = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_planner", context.userId, 5);
     const { firebase, userId } = context;
 
-    const { data: savedProfile } = await firebase
+    const { data: savedProfile, error: profileError } = await firebase
       .from("profiles")
       .select(
         "goal,activity_level,allergies,budget_per_day,dietary_preferences,family_size,weight_kg,height_cm,age,preferences",
       )
       .eq("id", userId)
       .maybeSingle();
+    if (profileError) throw profileError;
     const profile = aiProfile(savedProfile);
 
     const start = data.startDate ? new Date(data.startDate) : new Date();
@@ -260,7 +272,7 @@ Profile:
 - Allergies (must avoid): ${(profile?.allergies ?? []).join(", ") || "none"}
 - Dietary preferences: ${(profile?.dietary_preferences ?? []).join(", ") || "none"}
 - Daily budget: ${profile?.budget_per_day ? `$${profile.budget_per_day}` : "flexible"}
-- Family size: ${profile?.family_size ?? 1}
+- Family size: ${profile?.preferences.household_size ?? profile?.family_size ?? 1}
 
 For EACH meal, include a compact ingredient list scaled for the family size.
 Use short pantry-friendly names ("chicken breast", "olive oil", "spinach").
@@ -314,6 +326,8 @@ Days: 1..${data.days}. One entry per meal per day.`;
             .max(data.days * Math.max(data.meals.length, 1)),
         }),
       });
+      if (profile && parsed.plan.some((meal) => !recipeMatchesDiet(profile.preferences, meal)))
+        throw new Error("The plan conflicted with your dietary requirements. Please retry.");
       suggestions = parsed.plan;
     } catch (err) {
       void trackEvent({
@@ -430,11 +444,12 @@ export const suggestSubstitutions = createServerFn({ method: "POST" })
     await enforceRateLimit("ai_substitute", context.userId, 20);
     const t0 = Date.now();
     try {
-      const { data: savedProfile } = await context.firebase
+      const { data: savedProfile, error: profileError } = await context.firebase
         .from("profiles")
         .select("allergies,dietary_preferences,preferences")
         .eq("id", context.userId)
         .maybeSingle();
+      if (profileError) throw profileError;
       const profile = aiProfile(savedProfile);
       const allergies = (profile?.allergies ?? []) as string[];
       const dietaryPreferences = (profile?.dietary_preferences ?? []) as string[];

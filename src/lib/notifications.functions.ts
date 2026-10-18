@@ -1,19 +1,9 @@
+import { requireAdmin as assertAdmin } from "@/lib/admin-access.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import type { AnnouncementInput } from "@/lib/notifications.types";
-
-async function assertAdmin(userId: string) {
-  const { firebaseAdmin } = await loadFirebaseAdmin();
-  const { data, error } = await firebaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error || !data) throw new Response("Forbidden", { status: 403 });
-}
 
 async function setNotificationReadStatus(userId: string, id: string, read: boolean) {
   const { getFirebaseAdminFirestore } = await loadFirebaseAdmin();

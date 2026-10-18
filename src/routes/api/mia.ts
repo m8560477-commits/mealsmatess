@@ -1,3 +1,4 @@
+import { conflictsWithText } from "@/lib/recipe-safety";
 import { aiProfile } from "@/lib/ai-profile";
 import { preferenceSummary } from "@/lib/preferences";
 import { createFileRoute } from "@tanstack/react-router";
@@ -96,7 +97,7 @@ export const Route = createFileRoute("/api/mia")({
             instructions: [
               MIA_INSTRUCTIONS,
               profile
-                ? `Saved food preferences: ${preferenceSummary(profile.preferences)}. Honor these preferences in your suggestions.`
+                ? `Saved food preferences: ${preferenceSummary(profile.preferences)}. Honor these preferences in your suggestions. Do not recommend or repeat prohibited ingredient names, including in avoidance statements.`
                 : "",
             ]
               .filter(Boolean)
@@ -105,6 +106,14 @@ export const Route = createFileRoute("/api/mia")({
             timeoutMs: 35_000,
             maxRetries: 0,
           });
+          if (profile && conflictsWithText(profile.preferences, reply))
+            return Response.json(
+              {
+                error:
+                  "Mia could not verify this answer against your dietary requirements. Please try a more specific request.",
+              },
+              { status: 422 },
+            );
           return Response.json({ reply });
         } catch (error) {
           return errorResponse(error);

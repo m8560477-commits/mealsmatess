@@ -1,4 +1,4 @@
-import { firebaseAdmin } from "@/server/firebase-admin";
+import { firebaseAdmin, getFirebaseServerServices } from "@/server/firebase-admin";
 import { ACHIEVEMENTS, ELITE_XP, XP_ACTIONS, levelFor, type XpAction } from "@/lib/xp";
 
 /** UTC day key, e.g. 2026-08-23 */
@@ -284,55 +284,34 @@ export async function fetchGamification(userId: string) {
 
 /** 50,000 XP → 30 days of free Premium. Claimable once, ever. */
 export async function claimEliteRewardFor(userId: string) {
-  const { data: stats } = await firebaseAdmin
-    .from("user_stats")
-    .select("total_xp,elite_reward_claimed_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!stats || stats.total_xp < ELITE_XP) throw new Response("Not enough XP yet", { status: 400 });
-  if (stats.elite_reward_claimed_at) throw new Response("Reward already claimed", { status: 400 });
-
-  const now = new Date();
-  const end = new Date(now.getTime() + 30 * 86400000);
-
-  const { data: sub } = await firebaseAdmin
-    .from("subscriptions")
-    .select("id,period_end,status")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (sub) {
-    const base = sub.period_end && new Date(sub.period_end) > now ? new Date(sub.period_end) : now;
-    await firebaseAdmin
-      .from("subscriptions")
-      .update({
-        period_end: new Date(base.getTime() + 30 * 86400000).toISOString(),
-        status: "active",
-        is_manual: true,
-        updated_at: now.toISOString(),
-      })
-      .eq("id", sub.id);
-  } else {
-    await firebaseAdmin.from("subscriptions").insert({
+  const { db } = getFirebaseServerServices();
+  return db.runTransaction(async (tx) => {
+    const rows = await tx.get(db.collection("user_stats").where("user_id", "==", userId).limit(1));
+    const stats = rows.docs[0];
+    const data = stats?.data();
+    const reward = db.collection("legacy_premium_access").doc(`xp_elite_${userId}`);
+    const prior = await tx.get(reward);
+    if (!stats || Number(data?.total_xp ?? 0) < ELITE_XP)
+      throw new Response("Not enough XP yet", { status: 400 });
+    if (data?.elite_reward_claimed_at || prior.exists)
+      throw new Response("Reward already claimed", { status: 400 });
+    const now = new Date().toISOString();
+    const end = new Date(Date.now() + 30 * 86400000).toISOString();
+    tx.set(reward, {
       user_id: userId,
       tier: "promo",
       status: "active",
       store: "promo",
-      is_manual: true,
-      auto_renew: false,
-      period_start: now.toISOString(),
-      period_end: end.toISOString(),
+      period_start: now,
+      period_end: end,
+      created_at: now,
     });
-  }
-
-  await firebaseAdmin
-    .from("user_stats")
-    .update({ elite_reward_claimed_at: now.toISOString(), updated_at: now.toISOString() })
-    .eq("user_id", userId);
-
-  return { ok: true, premiumUntil: end.toISOString() };
+    tx.update(stats.ref, { elite_reward_claimed_at: now, updated_at: now });
+    tx.set(db.collection("audit_logs").doc(), {
+      actor_id: userId,
+      action: "xp.premium_claimed",
+      created_at: now,
+    });
+    return { ok: true, premiumUntil: end };
+  });
 }

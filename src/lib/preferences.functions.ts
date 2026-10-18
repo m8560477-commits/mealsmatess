@@ -1,48 +1,51 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { normalizePreferences, type FoodPreferences } from "@/lib/preferences";
-
-const prefsSchema = z.object({
-  goal: z.string().max(60).nullable().default(null),
-  favorite_foods: z.array(z.string().max(60)).max(30).default([]),
-  allergies: z.array(z.string().max(60)).max(40).default([]),
-  dietary_restrictions: z.array(z.string().max(60)).max(30).default([]),
-  disliked_foods: z.array(z.string().max(60)).max(40).default([]),
-  meals_per_day: z.string().max(40).nullable().default(null),
-  cooking_level: z.string().max(40).nullable().default(null),
-  cooking_time: z.string().max(40).nullable().default(null),
-  food_budget: z.string().max(40).nullable().default(null),
-  preferred_features: z.array(z.string().max(40)).max(20).default([]),
-  onboarding_completed: z.boolean().default(false),
-});
+import { PreferencesSchema } from "@/lib/onboarding-model";
+import { getFirebaseServerServices } from "@/server/firebase-admin";
 
 export const getMyPreferences = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
-  .handler(async ({ context }): Promise<FoodPreferences | null> => {
-    const { data } = await context.firebase
-      .from("profiles")
-      .select("preferences, onboarding_completed")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (!data) return null;
-    const prefs = normalizePreferences(data.preferences);
-    return { ...prefs, onboarding_completed: Boolean(data.onboarding_completed) };
+  .handler(async ({ context }): Promise<FoodPreferences> => {
+    const { db, auth } = getFirebaseServerServices();
+    const profile = (await db.collection("users").doc(context.userId).get()).data();
+    const user = await auth.getUser(context.userId);
+    return normalizePreferences({
+      display_name: profile?.display_name ?? profile?.displayName ?? user.displayName ?? "",
+      allergies: profile?.allergies ?? [],
+      dietary_restrictions: profile?.dietary_preferences ?? [],
+      ...(profile?.preferences ?? {}),
+      onboarding_completed: profile?.onboarding_completed === true,
+    });
   });
-
 export const saveMyPreferences = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .validator((v: unknown) => prefsSchema.parse(v))
-  .handler(async ({ data, context }) => {
-    const payload = { ...data, updated_at: new Date().toISOString() };
-    const { error } = await context.firebase.from("profiles").upsert(
-      {
-        id: context.userId,
-        preferences: payload,
-        onboarding_completed: data.onboarding_completed,
-      },
-      { onConflict: "id" },
-    );
-    if (error) throw new Error(error.message);
-    return { ok: true };
+  .validator((raw: unknown) => PreferencesSchema.partial().parse(raw))
+  .handler(async ({ context, data }) => {
+    const { db } = getFirebaseServerServices();
+    const ref = db.collection("users").doc(context.userId);
+    return db.runTransaction(async (tx) => {
+      const current = (await tx.get(ref)).data() ?? {};
+      const preferences = normalizePreferences({
+        display_name: current.display_name ?? current.displayName ?? "",
+        allergies: current.allergies ?? [],
+        dietary_restrictions: current.dietary_preferences ?? [],
+        ...(current.preferences ?? {}),
+        ...data,
+        onboarding_completed: current.onboarding_completed === true,
+        updated_at: new Date().toISOString(),
+      });
+      tx.set(
+        ref,
+        {
+          id: context.userId,
+          preferences,
+          display_name: preferences.display_name,
+          locale: preferences.language,
+          currency: preferences.budget_currency,
+        },
+        { merge: true },
+      );
+      return preferences;
+    });
   });

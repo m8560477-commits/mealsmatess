@@ -1,3 +1,4 @@
+import { isTrustedAdmin as isAdmin } from "@/lib/admin-access.server";
 // Server-only restaurant marketplace logic. Never import from client code.
 import { firebaseAdmin } from "@/server/firebase-admin";
 import { slugify } from "@/lib/slug";
@@ -13,16 +14,6 @@ import {
 
 const BUCKET = "restaurant-media";
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365 * 5;
-
-async function isAdmin(userId: string): Promise<boolean> {
-  const { data } = await firebaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  return !!data;
-}
 
 /** Throws unless the user owns (or staffs) the restaurant, or is an admin. */
 async function assertMember(userId: string, restaurantId: string): Promise<void> {

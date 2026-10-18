@@ -1,3 +1,4 @@
+import { useAdmin } from "@/hooks/use-admin";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { MealMateLogo } from "@/components/mealmate-logo";
@@ -24,6 +25,7 @@ import { toast } from "sonner";
  * match the rounded, icon-forward look of the app shell.
  */
 export function AppHeader() {
+  const isAdmin = useAdmin();
   const { user } = useSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -129,6 +131,11 @@ export function AppHeader() {
                 <DropdownMenuItem onClick={() => navigate({ to: "/list" })}>
                   Grocery list
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin">Admin</Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>

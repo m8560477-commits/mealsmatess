@@ -13,7 +13,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { firebaseData } from "@/lib/firebase-data";
+import { usePreferences } from "@/hooks/use-preferences";
+import { EntitlementLifecycle, usePremium } from "@/hooks/use-premium";
 import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
@@ -184,34 +185,6 @@ function RootComponent() {
   }, [pathname, router, user]);
 
   useEffect(() => {
-    if (
-      !user ||
-      pathname === "/onboarding" ||
-      pathname.startsWith("/auth") ||
-      pathname === "/reset-password"
-    )
-      return;
-    let active = true;
-    firebaseData
-      .from("profiles")
-      .select("onboarding_completed")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[onboarding] status check failed", error);
-          return;
-        }
-        if (active && data && !data.onboarding_completed) {
-          void router.navigate({ to: "/onboarding", replace: true });
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [user, pathname, router]);
-
-  useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
       router.invalidate();
       if (firebaseUser) void queryClient.invalidateQueries();
@@ -225,6 +198,7 @@ function RootComponent() {
         <MascotThemeProvider>
           <LocaleProvider>
             <UpgradeModalProvider>
+              <EntitlementLifecycle />
               <div
                 className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
               >
@@ -239,7 +213,9 @@ function RootComponent() {
                   >
                     <AuthGate>
                       <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
-                        <Outlet />
+                        <AccountAccessGate>
+                          <Outlet />
+                        </AccountAccessGate>
                       </div>
                     </AuthGate>
                   </div>
@@ -254,4 +230,48 @@ function RootComponent() {
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+function AccountAccessGate({ children }: { children: ReactNode }) {
+  const { user } = useSession();
+  const preferences = usePreferences();
+  const premium = usePremium();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const router = useRouter();
+  const excluded =
+    [
+      "/onboarding",
+      "/premium",
+      "/profile",
+      "/admin",
+      "/support",
+      "/legal/terms",
+      "/legal/privacy",
+      "/reset-password",
+    ].includes(pathname) || pathname.startsWith("/auth");
+  const next =
+    user && !excluded && !preferences.loading && !preferences.error
+      ? !preferences.preferences.onboarding_completed
+        ? "/onboarding"
+        : !premium.loading && !premium.isPremium
+          ? "/premium"
+          : null
+      : null;
+  useEffect(() => {
+    if (next) void router.navigate({ to: next, replace: true });
+  }, [next, router]);
+  if (user && !excluded && (preferences.loading || premium.loading || next))
+    return (
+      <p className="p-8" role="status">
+        Loading your MealMate…
+      </p>
+    );
+  if (user && !excluded && preferences.error)
+    return (
+      <div className="p-8">
+        <p role="alert">We couldn't verify your profile. Please retry.</p>
+        <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
+  return children;
 }

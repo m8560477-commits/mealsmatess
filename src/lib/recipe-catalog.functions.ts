@@ -1,6 +1,10 @@
+import { aiProfile } from "@/lib/ai-profile";
+import { EMPTY_PREFERENCES } from "@/lib/preferences";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { preferenceScore } from "@/lib/preferences";
+import { recipeMatchesDiet } from "@/lib/recipe-safety";
 import { filterRecipeCatalog, recipeCatalogRecord } from "@/lib/recipe-catalog";
 
 export const listRecipeCatalog = createServerFn({ method: "GET" })
@@ -24,7 +28,19 @@ export const listRecipeCatalog = createServerFn({ method: "GET" })
       .map(recipeCatalogRecord)
       .filter((recipe) => recipe !== null);
     // Apply matching before the result limit, including older rows without created_at.
-    return filterRecipeCatalog(recipes, data);
+    const { data: profile, error: profileError } = await context.firebase
+      .from("profiles")
+      .select("preferences,allergies,dietary_preferences")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    const prefs = aiProfile(profile)?.preferences ?? EMPTY_PREFERENCES;
+    const safe = recipes.filter((recipe) => recipeMatchesDiet(prefs, recipe));
+    safe.sort(
+      (a, b) =>
+        preferenceScore(prefs, b.name, b.cuisine) - preferenceScore(prefs, a.name, a.cuisine),
+    );
+    return filterRecipeCatalog(safe, data);
   });
 
 export const getRecipeCatalogEntry = createServerFn({ method: "GET" })

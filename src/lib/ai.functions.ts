@@ -10,106 +10,12 @@ import {
   imageInputFromDataUrl,
 } from "@/lib/ai-engine.server";
 import { z } from "zod";
-import { slugify } from "@/lib/slug";
-import { curatedRecipeImageUrl } from "@/lib/recipe-image";
+import { callModel, toDbRecipe } from "@/lib/recipe-generation.server";
+import { recipeMatchesDiet } from "@/lib/recipe-safety";
+
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, auditLog, trackEvent } from "@/lib/security.server";
-
-const RecipeSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  description: z.string().trim().min(1).max(600),
-  cuisine: z.string().nullable().optional(),
-  category: z
-    .enum(["Breakfast", "Lunch", "Dinner", "Dessert", "Snacks", "Drinks"])
-    .nullable()
-    .optional(),
-  country: z.string().nullable().optional(),
-  diet_tags: z.array(z.string()).default([]),
-  meal_type: z.string().nullable().optional(),
-  cooking_time_minutes: z.number().int().min(1).max(720).nullable().optional(),
-  difficulty: z.enum(["Easy", "Medium", "Hard"]).nullable().optional(),
-  servings: z.number().int().min(1).max(24).nullable().optional(),
-  calories: z.number().int().min(0).max(10000).nullable().optional(),
-  protein_g: z.number().min(0).max(1000).nullable().optional(),
-  carbs_g: z.number().min(0).max(1000).nullable().optional(),
-  fat_g: z.number().min(0).max(1000).nullable().optional(),
-  ingredients: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1).max(180),
-        quantity: z.string().trim().min(1).max(80),
-      }),
-    )
-    .min(2)
-    .max(40),
-  steps: z.array(z.string().trim().min(1).max(700)).min(4).max(12),
-  fun_fact: z.string().nullable().optional(),
-  image_prompt: z.string().nullable().optional(),
-});
-
-type GeneratedRecipe = z.infer<typeof RecipeSchema>;
-
-const SYSTEM = `You are MealMate, an expert global chef and food writer with deep knowledge of South African cuisine (Pap, Chakalaka, Bunny Chow, Kota, Boerewors, Vetkoek, Mogodu, Samp and Beans, Malva Pudding, Bobotie, Umngqusho) as well as world cuisines.
-
-Return ONLY valid JSON matching this shape (no code fences, no commentary). Avoid claiming precision for nutrition: provide conservative rounded estimates per serving; the app labels these values as estimates. Always honor stated allergies and dietary restrictions, and never include an allergen even as a garnish or optional ingredient:
-{
-  "name": string,
-  "description": string (1-2 sentences),
-  "cuisine": string,
-  "category": one of "Breakfast" | "Lunch" | "Dinner" | "Dessert" | "Snacks" | "Drinks",
-  "country": string,
-  "diet_tags": string[] (subset of ["Vegan","Vegetarian","High Protein","Low Carb","Gluten Free","Healthy","Quick"]),
-  "meal_type": string,
-  "cooking_time_minutes": number,
-  "difficulty": "Easy" | "Medium" | "Hard",
-  "servings": number,
-  "calories": number (rough estimate per serving),
-  "protein_g": number, "carbs_g": number, "fat_g": number (rough estimates per serving),
-  "ingredients": [{ "name": string, "quantity": string }],
-  "steps": string[] (5-10 clear steps),
-  "fun_fact": string,
-  "image_prompt": string (concise, food-photography style)
-}`;
-
-async function callModel(prompt: string): Promise<GeneratedRecipe> {
-  return generateAiObject({
-    feature: "recipe.generate",
-    instructions: SYSTEM,
-    prompt,
-    schema: RecipeSchema,
-  });
-}
-
-function imageUrlFor(r: GeneratedRecipe): string | null {
-  return curatedRecipeImageUrl({ slug: slugify(r.name), name: r.name }, "hero") ?? null;
-}
-
-function toDbRecipe(r: GeneratedRecipe, userId: string | null) {
-  const slug = `${slugify(r.name)}-${Math.random().toString(36).slice(2, 7)}`;
-  return {
-    slug,
-    name: r.name,
-    description: r.description,
-    image_url: imageUrlFor(r),
-    cuisine: r.cuisine ?? null,
-    category: r.category ?? null,
-    country: r.country ?? null,
-    diet_tags: r.diet_tags ?? [],
-    meal_type: r.meal_type ?? null,
-    cooking_time_minutes: r.cooking_time_minutes ?? null,
-    difficulty: r.difficulty ?? null,
-    servings: r.servings ?? 2,
-    calories: r.calories ?? null,
-    protein_g: r.protein_g ?? null,
-    carbs_g: r.carbs_g ?? null,
-    fat_g: r.fat_g ?? null,
-    ingredients: r.ingredients ?? [],
-    steps: r.steps ?? [],
-    fun_fact: r.fun_fact ?? null,
-    created_by: userId,
-  };
-}
 
 // Surprise Me — signed-in users only, rate limited to 10/min per user
 export const surpriseMe = createServerFn({ method: "POST" })
@@ -118,11 +24,12 @@ export const surpriseMe = createServerFn({ method: "POST" })
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
     const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: savedProfile } = await firebaseAdmin
+    const { data: savedProfile, error: profileError } = await firebaseAdmin
       .from("profiles")
       .select("allergies,dietary_preferences,preferences")
       .eq("id", context.userId)
       .maybeSingle();
+    if (profileError) throw profileError;
     const profile = aiProfile(savedProfile);
     const themes = [
       "a comforting South African classic",
@@ -138,6 +45,10 @@ export const surpriseMe = createServerFn({ method: "POST" })
       const recipe = await callModel(
         `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact. Saved preferences: ${profile ? preferenceSummary(profile.preferences) : "none specified"}. Dietary preferences: ${(profile?.dietary_preferences ?? []).join(", ") || "none specified"}. Allergies that must be excluded: ${(profile?.allergies ?? []).join(", ") || "none specified"}.`,
       );
+      if (profile && !recipeMatchesDiet(profile.preferences, recipe))
+        throw new Error(
+          "The generated recipe conflicted with your dietary requirements. Please try again.",
+        );
       const row = toDbRecipe(recipe, context.userId);
       const { data, error } = await firebaseAdmin
         .from("recipes")
@@ -182,12 +93,24 @@ export const generateRecipe = createServerFn({ method: "POST" })
       const { firebaseAdmin } = await loadFirebaseAdmin();
       const t0 = Date.now();
       try {
+        const { data: savedProfile, error: profileError } = await firebaseAdmin
+          .from("profiles")
+          .select("allergies,dietary_preferences,preferences")
+          .eq("id", context.userId)
+          .maybeSingle();
+        if (profileError) throw profileError;
+        const profile = aiProfile(savedProfile);
+
         const { data: exact } = await firebaseAdmin
           .from("recipes")
-          .select("id,slug,name")
+          .select("id,slug,name,ingredients")
           .ilike("name", data.query)
           .limit(1);
-        if (exact && exact.length > 0) {
+        if (
+          exact &&
+          exact.length > 0 &&
+          (!profile || recipeMatchesDiet(profile.preferences, exact[0]))
+        ) {
           void trackEvent({
             user_id: context.userId,
             kind: "ai",
@@ -201,10 +124,14 @@ export const generateRecipe = createServerFn({ method: "POST" })
 
         const { data: fuzzy } = await firebaseAdmin
           .from("recipes")
-          .select("id,slug,name")
+          .select("id,slug,name,ingredients")
           .ilike("name", `%${data.query}%`)
           .limit(1);
-        if (fuzzy && fuzzy.length > 0) {
+        if (
+          fuzzy &&
+          fuzzy.length > 0 &&
+          (!profile || recipeMatchesDiet(profile.preferences, fuzzy[0]))
+        ) {
           void trackEvent({
             user_id: context.userId,
             kind: "ai",
@@ -217,12 +144,6 @@ export const generateRecipe = createServerFn({ method: "POST" })
         }
 
         await requireAiCredit(context.userId);
-        const { data: savedProfile } = await firebaseAdmin
-          .from("profiles")
-          .select("allergies,dietary_preferences,preferences")
-          .eq("id", context.userId)
-          .maybeSingle();
-        const profile = aiProfile(savedProfile);
         const allergies = (profile?.allergies ?? []) as string[];
         const dietaryPreferences = (profile?.dietary_preferences ?? []) as string[];
         const recipe = await callModel(
@@ -253,6 +174,10 @@ export const generateRecipe = createServerFn({ method: "POST" })
             "The generated recipe conflicted with a saved allergy. Please try again.",
           );
         }
+        if (profile && !recipeMatchesDiet(profile.preferences, recipe))
+          throw new Error(
+            "The generated recipe conflicted with your dietary requirements. Please try again.",
+          );
         const row = toDbRecipe(recipe, context.userId);
         const { data: inserted, error } = await firebaseAdmin
           .from("recipes")
@@ -470,19 +395,8 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
     const { firebaseAdmin } = await loadFirebaseAdmin();
 
     // Premium gate — check for an active subscription
-    const { data: sub } = await firebaseAdmin
-      .from("subscriptions")
-      .select("status,period_end,tier")
-      .eq("user_id", context.userId)
-      .in("status", ["trialing", "active", "in_grace"])
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    const now = Date.now();
-    const isPremium =
-      !!sub &&
-      (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-    if (!isPremium) throw new Error("Premium required to regenerate images");
+    const { requirePremiumAccess } = await import("@/lib/entitlements.server");
+    await requirePremiumAccess(context.userId);
 
     await enforceRateLimit("ai_image", context.userId, 5);
 
