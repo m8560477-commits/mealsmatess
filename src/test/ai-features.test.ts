@@ -116,6 +116,29 @@ describe("MealMate Independent AI Server (lovable-ai.server)", () => {
       expect(request.headers).not.toHaveProperty("Lovable-API-Key");
     });
 
+    it("does not surface an upstream HTML error page to the app", async () => {
+      process.env.LOVABLE_API_KEY = "lov_test_key";
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response("<!doctype html><html><body>upstream failure</body></html>", {
+            status: 502,
+            headers: { "Content-Type": "text/html" },
+          }),
+        ),
+      );
+
+      const result = await lovableFetch("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({ model: "google/gemini-2.5-flash" }),
+      }).catch((error: unknown) => error);
+
+      expect(result).toBeInstanceOf(Error);
+      expect((result as Error).message).toContain("HTML error page instead of JSON");
+      expect((result as Error).message).not.toContain("<html>");
+      expect((result as Error).message).not.toContain("upstream failure");
+    });
+
     it("rejects unauthorized paths", async () => {
       process.env.LOVABLE_API_KEY = "lov_test_key";
       await expect(lovableFetch("/unsupported/path", { body: "{}" })).rejects.toThrow(

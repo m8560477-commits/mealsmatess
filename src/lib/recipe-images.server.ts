@@ -612,7 +612,7 @@ export async function generateAndSaveAiImage(
     body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium" }),
   });
   if (!res.ok) {
-    console.error("recipe image generation failed", res.status, (await res.text()).slice(0, 300));
+    console.error("recipe image generation failed", res.status);
     return null;
   }
   const j = (await res.json()) as { data?: { b64_json?: string }[] };

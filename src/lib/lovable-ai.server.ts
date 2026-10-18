@@ -108,25 +108,33 @@ export async function lovableFetch(path: string, init: LovableInit): Promise<Res
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
+    const isHtmlError =
+      response.headers.get("content-type")?.toLowerCase().includes("text/html") ||
+      /^\s*(?:<!doctype\s+html|<html\b)/i.test(errorBody);
+    const safeDetail = isHtmlError
+      ? " The provider returned an HTML error page instead of JSON."
+      : "";
+    const provider = useGroq ? "Groq" : "Lovable AI";
+
     if (response.status === 401 || response.status === 403) {
       throw new Error(
         useGroq
-          ? `AI_AUTHENTICATION_FAILED (HTTP ${response.status}): GROQ_API_KEY was rejected by Groq. Response: ${errorBody.slice(0, 300)}`
-          : `AI_AUTHENTICATION_FAILED (HTTP ${response.status}): LOVABLE_API_KEY was rejected by ${targetUrl}. Response: ${errorBody.slice(0, 300)}`,
+          ? `AI_AUTHENTICATION_FAILED (HTTP ${response.status}): GROQ_API_KEY was rejected by Groq.${safeDetail}`
+          : `AI_AUTHENTICATION_FAILED (HTTP ${response.status}): LOVABLE_API_KEY was rejected by ${targetUrl}.${safeDetail}`,
       );
     }
     if (response.status === 402 && !useGroq) {
       throw new Error(
-        `AI_PAYMENT_REQUIRED (HTTP 402): AI gateway credits depleted for LOVABLE_API_KEY. Response: ${errorBody.slice(0, 300)}`,
+        `AI_PAYMENT_REQUIRED (HTTP 402): AI gateway credits depleted for LOVABLE_API_KEY.${safeDetail}`,
       );
     }
     if (response.status === 429) {
       throw new Error(
-        `AI_RATE_LIMITED (HTTP 429): ${useGroq ? "Groq" : "AI gateway"} rate limit exceeded. Please retry in a moment. Response: ${errorBody.slice(0, 300)}`,
+        `AI_RATE_LIMITED (HTTP 429): ${provider} rate limit exceeded. Please retry in a moment.${safeDetail}`,
       );
     }
     throw new Error(
-      `AI_GATEWAY_ERROR (HTTP ${response.status}): Request to ${targetUrl} failed. ${errorBody.slice(0, 300)}`,
+      `AI_GATEWAY_ERROR (HTTP ${response.status}): Request to ${targetUrl} failed.${safeDetail}`,
     );
   }
 

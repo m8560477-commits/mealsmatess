@@ -27,7 +27,7 @@ function getServices() {
   const encoded = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"];
   if (!encoded) {
     throw new Error(
-      "Firebase Admin is not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON as an encrypted Vercel environment variable.",
+      "Firebase Admin is not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON as a server-only encrypted Vercel environment variable; do not use a VITE_ prefix.",
     );
   }
 
@@ -51,6 +51,11 @@ function getServices() {
     throw new Error("Firebase Admin project must be mealmate-d2e53 and match the service account.");
   }
 
+  const bucketName =
+    process.env["FIREBASE_STORAGE_BUCKET"] || process.env["VITE_FIREBASE_STORAGE_BUCKET"];
+  if (!bucketName)
+    throw new Error("FIREBASE_STORAGE_BUCKET or VITE_FIREBASE_STORAGE_BUCKET is required.");
+
   const existingApp = getApps().find((app) => app.name === "mealmate-admin");
   const app =
     existingApp ??
@@ -62,15 +67,17 @@ function getServices() {
           privateKey: serviceAccount.private_key.replace(/\\n/g, "\n"),
         }),
         projectId,
-        storageBucket: process.env["VITE_FIREBASE_STORAGE_BUCKET"],
+        storageBucket: bucketName,
       },
       "mealmate-admin",
     );
-  const bucketName = process.env["VITE_FIREBASE_STORAGE_BUCKET"];
-  if (!bucketName)
-    throw new Error("VITE_FIREBASE_STORAGE_BUCKET is required for Firebase Storage.");
   initialized = {
-    db: getFirestore(app, process.env["FIREBASE_FIRESTORE_DATABASE_ID"] || "default"),
+    db: getFirestore(
+      app,
+      process.env["FIREBASE_FIRESTORE_DATABASE_ID"] ||
+        process.env["VITE_FIREBASE_FIRESTORE_DATABASE_ID"] ||
+        "default",
+    ),
     auth: getAuth(app),
     bucket: getStorage(app).bucket(bucketName),
   };
