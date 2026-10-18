@@ -19,6 +19,7 @@ import { Route as CoachRouteImport } from './routes/coach'
 import { Route as CookbookRouteImport } from './routes/cookbook'
 import { Route as GroceryRouteImport } from './routes/grocery'
 import { Route as ListRouteImport } from './routes/list'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PantryRouteImport } from './routes/pantry'
@@ -40,6 +41,8 @@ import { Route as OrderIdRouteImport } from './routes/order.$id'
 import { Route as PartnerDashboardRouteImport } from './routes/partner.dashboard'
 import { Route as RecipeSlugRouteImport } from './routes/recipe.$slug'
 import { Route as RestaurantSlugRouteImport } from './routes/restaurant.$slug'
+import { Route as ApiPublicAnnouncementsCronRouteImport } from './routes/api/public/announcements-cron'
+import { Route as ApiPublicFirebaseMessagingConfigRouteImport } from './routes/api/public/firebase-messaging-config'
 import { Route as ApiPublicWebhooksRevenuecatRouteImport } from './routes/api/public/webhooks.revenuecat'
 
 const IndexRoute = IndexRouteImport.update({
@@ -90,6 +93,11 @@ const GroceryRoute = GroceryRouteImport.update({
 const ListRoute = ListRouteImport.update({
   id: '/list',
   path: '/list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -197,6 +205,18 @@ const RestaurantSlugRoute = RestaurantSlugRouteImport.update({
   path: '/restaurant/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAnnouncementsCronRoute =
+  ApiPublicAnnouncementsCronRouteImport.update({
+    id: '/api/public/announcements-cron',
+    path: '/api/public/announcements-cron',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicFirebaseMessagingConfigRoute =
+  ApiPublicFirebaseMessagingConfigRouteImport.update({
+    id: '/api/public/firebase-messaging-config',
+    path: '/api/public/firebase-messaging-config',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksRevenuecatRoute =
   ApiPublicWebhooksRevenuecatRouteImport.update({
     id: '/api/public/webhooks/revenuecat',
@@ -215,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/cookbook': typeof CookbookRoute
   '/grocery': typeof GroceryRoute
   '/list': typeof ListRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/orders': typeof OrdersRoute
   '/pantry': typeof PantryRoute
@@ -236,6 +257,8 @@ export interface FileRoutesByFullPath {
   '/partner/dashboard': typeof PartnerDashboardRoute
   '/recipe/$slug': typeof RecipeSlugRoute
   '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/announcements-cron': typeof ApiPublicAnnouncementsCronRoute
+  '/api/public/firebase-messaging-config': typeof ApiPublicFirebaseMessagingConfigRoute
   '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRoutesByTo {
@@ -249,6 +272,7 @@ export interface FileRoutesByTo {
   '/cookbook': typeof CookbookRoute
   '/grocery': typeof GroceryRoute
   '/list': typeof ListRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/orders': typeof OrdersRoute
   '/pantry': typeof PantryRoute
@@ -270,6 +294,8 @@ export interface FileRoutesByTo {
   '/partner/dashboard': typeof PartnerDashboardRoute
   '/recipe/$slug': typeof RecipeSlugRoute
   '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/announcements-cron': typeof ApiPublicAnnouncementsCronRoute
+  '/api/public/firebase-messaging-config': typeof ApiPublicFirebaseMessagingConfigRoute
   '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRoutesById {
@@ -284,6 +310,7 @@ export interface FileRoutesById {
   '/cookbook': typeof CookbookRoute
   '/grocery': typeof GroceryRoute
   '/list': typeof ListRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/orders': typeof OrdersRoute
   '/pantry': typeof PantryRoute
@@ -305,6 +332,8 @@ export interface FileRoutesById {
   '/partner/dashboard': typeof PartnerDashboardRoute
   '/recipe/$slug': typeof RecipeSlugRoute
   '/restaurant/$slug': typeof RestaurantSlugRoute
+  '/api/public/announcements-cron': typeof ApiPublicAnnouncementsCronRoute
+  '/api/public/firebase-messaging-config': typeof ApiPublicFirebaseMessagingConfigRoute
   '/api/public/webhooks/revenuecat': typeof ApiPublicWebhooksRevenuecatRoute
 }
 export interface FileRouteTypes {
@@ -320,6 +349,7 @@ export interface FileRouteTypes {
     | '/cookbook'
     | '/grocery'
     | '/list'
+    | '/notifications'
     | '/onboarding'
     | '/orders'
     | '/pantry'
@@ -341,6 +371,8 @@ export interface FileRouteTypes {
     | '/partner/dashboard'
     | '/recipe/$slug'
     | '/restaurant/$slug'
+    | '/api/public/announcements-cron'
+    | '/api/public/firebase-messaging-config'
     | '/api/public/webhooks/revenuecat'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -354,6 +386,7 @@ export interface FileRouteTypes {
     | '/cookbook'
     | '/grocery'
     | '/list'
+    | '/notifications'
     | '/onboarding'
     | '/orders'
     | '/pantry'
@@ -375,6 +408,8 @@ export interface FileRouteTypes {
     | '/partner/dashboard'
     | '/recipe/$slug'
     | '/restaurant/$slug'
+    | '/api/public/announcements-cron'
+    | '/api/public/firebase-messaging-config'
     | '/api/public/webhooks/revenuecat'
   id:
     | '__root__'
@@ -388,6 +423,7 @@ export interface FileRouteTypes {
     | '/cookbook'
     | '/grocery'
     | '/list'
+    | '/notifications'
     | '/onboarding'
     | '/orders'
     | '/pantry'
@@ -409,6 +445,8 @@ export interface FileRouteTypes {
     | '/partner/dashboard'
     | '/recipe/$slug'
     | '/restaurant/$slug'
+    | '/api/public/announcements-cron'
+    | '/api/public/firebase-messaging-config'
     | '/api/public/webhooks/revenuecat'
   fileRoutesById: FileRoutesById
 }
@@ -423,6 +461,7 @@ export interface RootRouteChildren {
   CookbookRoute: typeof CookbookRoute
   GroceryRoute: typeof GroceryRoute
   ListRoute: typeof ListRoute
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   OrdersRoute: typeof OrdersRoute
   PantryRoute: typeof PantryRoute
@@ -442,6 +481,8 @@ export interface RootRouteChildren {
   OrderIdRoute: typeof OrderIdRoute
   RecipeSlugRoute: typeof RecipeSlugRoute
   RestaurantSlugRoute: typeof RestaurantSlugRoute
+  ApiPublicAnnouncementsCronRoute: typeof ApiPublicAnnouncementsCronRoute
+  ApiPublicFirebaseMessagingConfigRoute: typeof ApiPublicFirebaseMessagingConfigRoute
   ApiPublicWebhooksRevenuecatRoute: typeof ApiPublicWebhooksRevenuecatRoute
 }
 
@@ -515,6 +556,13 @@ declare module '@tanstack/react-router' {
       path: '/list'
       fullPath: '/list'
       preLoaderRoute: typeof ListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -664,6 +712,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/announcements-cron': {
+      id: '/api/public/announcements-cron'
+      path: '/api/public/announcements-cron'
+      fullPath: '/api/public/announcements-cron'
+      preLoaderRoute: typeof ApiPublicAnnouncementsCronRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/firebase-messaging-config': {
+      id: '/api/public/firebase-messaging-config'
+      path: '/api/public/firebase-messaging-config'
+      fullPath: '/api/public/firebase-messaging-config'
+      preLoaderRoute: typeof ApiPublicFirebaseMessagingConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/revenuecat': {
       id: '/api/public/webhooks/revenuecat'
       path: '/api/public/webhooks/revenuecat'
@@ -706,6 +768,7 @@ const rootRouteChildren: RootRouteChildren = {
   CookbookRoute: CookbookRoute,
   GroceryRoute: GroceryRoute,
   ListRoute: ListRoute,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   OrdersRoute: OrdersRoute,
   PantryRoute: PantryRoute,
@@ -725,6 +788,8 @@ const rootRouteChildren: RootRouteChildren = {
   OrderIdRoute: OrderIdRoute,
   RecipeSlugRoute: RecipeSlugRoute,
   RestaurantSlugRoute: RestaurantSlugRoute,
+  ApiPublicAnnouncementsCronRoute: ApiPublicAnnouncementsCronRoute,
+  ApiPublicFirebaseMessagingConfigRoute: ApiPublicFirebaseMessagingConfigRoute,
   ApiPublicWebhooksRevenuecatRoute: ApiPublicWebhooksRevenuecatRoute,
 }
 export const routeTree = rootRouteImport

@@ -4,6 +4,7 @@ import {
   getAiGatewayUrl,
   getLovableApiKey,
   DEFAULT_AI_GATEWAY_URL,
+  DEFAULT_GROQ_CHAT_MODEL,
 } from "@/lib/lovable-ai.server";
 
 describe("MealMate Independent AI Server (lovable-ai.server)", () => {
@@ -83,6 +84,59 @@ describe("MealMate Independent AI Server (lovable-ai.server)", () => {
 
       // Verify NO fallback to Lovable Cloud backend edge functions
       expect(calledUrl).not.toContain("/functions/v1/ai-gateway");
+    });
+
+    it("uses the existing Groq key for text chat when Lovable is not configured", async () => {
+      delete process.env.LOVABLE_API_KEY;
+      process.env.GROQ_API_KEY = "groq_test_key";
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content: "Hello, Chef." } }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      vi.stubGlobal("fetch", mockFetch);
+
+      const response = await lovableFetch("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: "Hello chef" }],
+        }),
+      });
+
+      expect(response.ok).toBe(true);
+      const [url, request] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe("https://api.groq.com/openai/v1/chat/completions");
+      expect(JSON.parse(String(request.body))).toMatchObject({
+        model: DEFAULT_GROQ_CHAT_MODEL,
+        messages: [{ role: "user", content: "Hello chef" }],
+      });
+      expect(request.headers).toMatchObject({ Authorization: "Bearer groq_test_key" });
+      expect(request.headers).not.toHaveProperty("Lovable-API-Key");
+    });
+
+    it("does not surface an upstream HTML error page to the app", async () => {
+      process.env.LOVABLE_API_KEY = "lov_test_key";
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response("<!doctype html><html><body>upstream failure</body></html>", {
+            status: 502,
+            headers: { "Content-Type": "text/html" },
+          }),
+        ),
+      );
+
+      const result = await lovableFetch("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({ model: "google/gemini-2.5-flash" }),
+      }).catch((error: unknown) => error);
+
+      expect(result).toBeInstanceOf(Error);
+      expect((result as Error).message).toContain("HTML error page instead of JSON");
+      expect((result as Error).message).not.toContain("<html>");
+      expect((result as Error).message).not.toContain("upstream failure");
     });
 
     it("rejects unauthorized paths", async () => {

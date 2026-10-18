@@ -69,7 +69,7 @@ async function callChat(messages: { role: string; content: string }[]): Promise<
       messages,
     }),
   });
-  if (!res.ok) throw new Error(`AI gateway ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`AI gateway request failed with status ${res.status}.`);
   const j = (await res.json()) as { choices: { message: { content: string } }[] };
   return j.choices?.[0]?.message?.content ?? "";
 }

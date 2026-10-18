@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RECIPE_PHOTOS } from "@/assets/recipes/manifest";
 import {
   recipeImageUrl,
   categoryFallbackUrl,
@@ -6,6 +7,17 @@ import {
 } from "@/lib/recipe-image";
 
 describe("Recipe image safety", () => {
+  it("serves every curated rendition from bundled local assets", () => {
+    const urls = Object.values(RECIPE_PHOTOS).flatMap((photo) => [
+      photo.thumb,
+      photo.card,
+      photo.hero,
+    ]);
+
+    expect(urls).toHaveLength(45);
+    expect(urls.every((url) => typeof url === "string" && !url.includes("/__l5e/"))).toBe(true);
+  });
+
   it("uses the persisted verified image", () => {
     expect(
       recipeImageUrl({

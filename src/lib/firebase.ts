@@ -57,6 +57,21 @@ export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+let authStateReady: Promise<void> | null = null;
+
+export async function waitForFirebaseAuth() {
+  if (!authStateReady) {
+    authStateReady = new Promise<void>((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, () => {
+        unsubscribe();
+        resolve();
+      });
+    });
+  }
+  await authStateReady;
+  return auth.currentUser;
+}
+
 export enum OperationType {
   CREATE = "create",
   UPDATE = "update",

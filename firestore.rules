@@ -111,6 +111,11 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
 
+      match /notifications/{notificationId} {
+        allow get, list: if isOwner(uid);
+        allow create, update, delete: if false;
+      }
+
       match /{collectionName}/{itemId} {
         allow read: if isOwner(uid)
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs'];

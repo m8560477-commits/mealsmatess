@@ -3,7 +3,14 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 import { renderErrorPage } from "./lib/error-page";
 import { attachFirebaseAuth } from "@/lib/firebase-auth-attacher";
 
-const errorMiddleware = createMiddleware().server(async ({ next }) => {
+function isHtmlDocumentRequest(request: Request) {
+  return (
+    request.method === "GET" &&
+    (request.headers.get("accept") ?? "").toLowerCase().includes("text/html")
+  );
+}
+
+const errorMiddleware = createMiddleware().server(async ({ next, request, handlerType }) => {
   try {
     return await next();
   } catch (error) {
@@ -11,6 +18,7 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
       throw error;
     }
     console.error(error);
+    if (handlerType === "serverFn" || !isHtmlDocumentRequest(request)) throw error;
     return new Response(renderErrorPage(), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },
