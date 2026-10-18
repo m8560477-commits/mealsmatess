@@ -16,6 +16,7 @@ type Row = Record<string, any> & { id: string };
 
 let initialized:
   | {
+      app: ReturnType<typeof initializeApp>;
       db: Firestore;
       auth: ReturnType<typeof getAuth>;
       bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>;
@@ -24,7 +25,9 @@ let initialized:
 
 function getServices() {
   if (initialized) return initialized;
-  const encoded = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"];
+  const encoded =
+    process.env["FIREBASE_SERVICE_ACCOUNT_JSON"] ||
+    process.env["VITE_FIREBASE_SERVICE_ACCOUNT_JSON"];
   if (!encoded) {
     throw new Error(
       "Firebase Admin is not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON as a server-only encrypted Vercel environment variable; do not use a VITE_ prefix.",
@@ -72,6 +75,7 @@ function getServices() {
       "mealmate-admin",
     );
   initialized = {
+    app,
     db: getFirestore(
       app,
       process.env["FIREBASE_FIRESTORE_DATABASE_ID"] ||
@@ -687,6 +691,14 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
     default:
       return { data: null, error: new Error(`Unsupported Firebase operation: ${name}`) };
   }
+}
+
+export function getFirebaseAdminFirestore() {
+  return getServices().db;
+}
+
+export function getFirebaseAdminMessaging() {
+  return getMessaging(getServices().app);
 }
 
 export function firebaseUserDb(userId: string) {

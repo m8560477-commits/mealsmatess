@@ -26,10 +26,7 @@ describe("server error response normalization", () => {
       method: "GET",
       headers: { accept: "text/html" },
     });
-    const response = Response.json(
-      { unhandled: true, message: "HTTPError" },
-      { status: 500 },
-    );
+    const response = Response.json({ unhandled: true, message: "HTTPError" }, { status: 500 });
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     const normalized = await normalizeCatastrophicSsrResponse(response, request);
