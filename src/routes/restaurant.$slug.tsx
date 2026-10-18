@@ -13,12 +13,17 @@ import { useCart } from "@/lib/cart";
 import { money, OpenBadge } from "@/components/restaurant/bits";
 import { formatDistance, haversineKm, useUserLocation } from "@/lib/geo";
 import { Button } from "@/components/ui/button";
+import { waitForFirebaseAuth } from "@/lib/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/restaurant/$slug")({
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(restaurantBySlugQuery(params.slug)),
+  ssr: false,
+  loader: async ({ context, params }) => {
+    const user = await waitForFirebaseAuth();
+    if (!user) return null;
+    return context.queryClient.ensureQueryData(restaurantBySlugQuery(params.slug));
+  },
   head: ({ params }) => ({
     meta: [
       { title: `${params.slug.replace(/-/g, " ")} | MealMate Restaurants` },

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { recipesByCategoryQuery } from "@/lib/queries";
+import { waitForFirebaseAuth } from "@/lib/firebase";
 import { generateRecipe, surpriseMe } from "@/lib/ai.functions";
 import { ensureRecipeImage } from "@/lib/recipe-images.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -49,10 +50,14 @@ export const Route = createFileRoute("/recipes")({
     ...(typeof search["q"] === "string" ? { q: search["q"] } : {}),
   }),
   loaderDeps: ({ search }) => ({ c: search.c, q: search.q }),
-  loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(
+  ssr: false,
+  loader: async ({ context, deps }) => {
+    const user = await waitForFirebaseAuth();
+    if (!user) return [];
+    return context.queryClient.ensureQueryData(
       recipesByCategoryQuery(deps.c && deps.c !== "All" ? deps.c : undefined, deps.q),
-    ),
+    );
+  },
   component: RecipesPage,
 });
 

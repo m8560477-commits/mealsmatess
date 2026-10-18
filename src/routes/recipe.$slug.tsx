@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { recipeBySlugQuery, myFavoritesQuery } from "@/lib/queries";
+import { waitForFirebaseAuth } from "@/lib/firebase";
 import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { usePremium } from "@/hooks/use-premium";
@@ -35,7 +36,10 @@ import { SubstitutionsButton } from "@/components/substitutions-popover";
 import { RecipeRatings } from "@/components/recipe-ratings";
 
 export const Route = createFileRoute("/recipe/$slug")({
+  ssr: false,
   loader: async ({ context, params }) => {
+    const user = await waitForFirebaseAuth();
+    if (!user) return null;
     const recipe = await context.queryClient.ensureQueryData(recipeBySlugQuery(params.slug));
     if (!recipe) throw notFound();
     return recipe;
@@ -75,11 +79,11 @@ export const Route = createFileRoute("/recipe/$slug")({
 type Ingredient = { name: string; quantity?: string };
 
 function RecipePage() {
+  const { slug } = Route.useParams();
   const recipe = Route.useLoaderData();
-  const { data } = useQuery(recipeBySlugQuery(recipe.slug));
-  const r = data ?? recipe;
-  if (!r) return null;
   const { user } = useSession();
+  const { data } = useQuery({ ...recipeBySlugQuery(slug), enabled: !!user });
+  const r = data ?? recipe;
   const { isPremium } = usePremium();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -94,7 +98,7 @@ function RecipePage() {
 
   // Create this recipe's own photo once (in the background); afterwards it's reused for everyone.
   useEffect(() => {
-    if (!user || !r.id || r.image_source || imageAsked.current === r.id) return;
+    if (!r || !user || !r.id || r.image_source || imageAsked.current === r.id) return;
     imageAsked.current = r.id;
     setMakingImage(true);
     ensureRecipeImage({ data: { recipeId: r.id } })
@@ -108,10 +112,10 @@ function RecipePage() {
       })
       .catch(() => undefined)
       .finally(() => setMakingImage(false));
-  }, [user, r.id, r.image_source, r.slug, queryClient]);
+  }, [user, r, queryClient]);
 
   async function regenerateImage() {
-    if (!user) {
+    if (!user || !r) {
       navigate({ to: "/auth" });
       return;
     }
@@ -133,6 +137,7 @@ function RecipePage() {
   }
 
   useEffect(() => {
+    if (!r) return;
     setContinueCooking({
       slug: r.slug,
       name: r.name,
@@ -143,7 +148,9 @@ function RecipePage() {
     if (user && r.id) {
       void trackRecipeView({ data: { recipeId: r.id } }).catch(() => {});
     }
-  }, [r.slug, r.id, user]);
+  }, [r, user]);
+
+  if (!r) return null;
 
   const ingredients = (Array.isArray(r.ingredients) ? r.ingredients : []) as Ingredient[];
   const steps = (Array.isArray(r.steps) ? r.steps : []) as string[];
@@ -157,7 +164,7 @@ function RecipePage() {
   ].filter(Boolean) as { icon: typeof Clock; label: string }[];
 
   async function toggleFavorite() {
-    if (!user) {
+    if (!user || !r) {
       navigate({ to: "/auth" });
       return;
     }
@@ -177,7 +184,7 @@ function RecipePage() {
   }
 
   async function addToGrocery() {
-    if (!user) {
+    if (!user || !r) {
       navigate({ to: "/auth" });
       return;
     }
