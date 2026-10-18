@@ -35,3 +35,9 @@ compatible with Vercel Hobby. Scheduled announcements are delivered on the next
 daily run, with Vercel's hourly timing window. For more frequent delivery, use a
 Vercel plan that supports it before changing the cron schedule in `vercel.json`.
 See [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+After building with the public Firebase web settings, run
+`node scripts/smoke-vercel.mjs` to check the packaged function in isolation.
+It verifies home-page rendering and unauthenticated JSON responses from the AI
+routes without Firebase Admin or AI credentials. The isolated copy prevents
+workspace dependencies from hiding missing deployment packages.
