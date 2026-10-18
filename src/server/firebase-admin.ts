@@ -53,8 +53,11 @@ function getServices() {
     throw new Error("Firebase Admin project must be mealmate-d2e53 and match the service account.");
   }
 
-  const bucketName =
-    process.env["FIREBASE_STORAGE_BUCKET"] || process.env["VITE_FIREBASE_STORAGE_BUCKET"];
+  const bucketName = (
+    process.env["FIREBASE_STORAGE_BUCKET"] ||
+    process.env["VITE_FIREBASE_STORAGE_BUCKET"] ||
+    ""
+  ).trim();
   if (!bucketName)
     throw new Error("FIREBASE_STORAGE_BUCKET or VITE_FIREBASE_STORAGE_BUCKET is required.");
 
