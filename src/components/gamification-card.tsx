@@ -133,46 +133,56 @@ export function GamificationCard() {
             Challenges
           </h3>
           <ul className="mt-2 space-y-2">
-            {data.challenges.map((c) => {
-              const done = !!c.completedAt;
-              const pct = Math.min((c.progress / c.goal) * 100, 100);
-              return (
-                <li
-                  key={c.code}
-                  className={cn(
-                    "rounded-2xl border border-border p-3",
-                    done && "border-primary/30 bg-primary/5",
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 text-sm font-semibold">
-                        {done ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
-                        <span className="truncate">{c.title}</span>
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>
+            {data.challenges.map(
+              (c: {
+                code: string;
+                completedAt?: string | null;
+                progress: number;
+                goal: number;
+                title: string;
+                description: string;
+                xpReward: number;
+              }) => {
+                const done = !!c.completedAt;
+                const pct = Math.min((c.progress / c.goal) * 100, 100);
+                return (
+                  <li
+                    key={c.code}
+                    className={cn(
+                      "rounded-2xl border border-border p-3",
+                      done && "border-primary/30 bg-primary/5",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 text-sm font-semibold">
+                          {done ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : null}
+                          <span className="truncate">{c.title}</span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{c.description}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-ember/15 px-2 py-0.5 text-[10px] font-bold text-ember">
+                        +{c.xpReward} XP
+                      </span>
                     </div>
-                    <span className="shrink-0 rounded-full bg-ember/15 px-2 py-0.5 text-[10px] font-bold text-ember">
-                      +{c.xpReward} XP
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          done ? "bg-primary" : "bg-ember",
-                        )}
-                        style={{ width: `${pct}%` }}
-                      />
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            done ? "bg-primary" : "bg-ember",
+                          )}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-semibold text-muted-foreground">
+                        {c.progress}/{c.goal}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-semibold text-muted-foreground">
-                      {c.progress}/{c.goal}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
+                  </li>
+                );
+              },
+            )}
           </ul>
         </div>
       )}
@@ -214,12 +224,14 @@ export function GamificationCard() {
             Recent XP
           </h3>
           <ul className="mt-2 space-y-1">
-            {data.recentEvents.slice(0, 5).map((e, i) => (
-              <li key={i} className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{e.label}</span>
-                <span className="font-bold text-primary">+{e.points}</span>
-              </li>
-            ))}
+            {data.recentEvents
+              .slice(0, 5)
+              .map((e: { label: string; points: number }, i: number) => (
+                <li key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{e.label}</span>
+                  <span className="font-bold text-primary">+{e.points}</span>
+                </li>
+              ))}
           </ul>
         </div>
       )}

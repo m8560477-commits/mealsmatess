@@ -49,9 +49,10 @@ const firebaseConfig = requiredFirebaseEnv as {
 };
 
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID
-  ? getFirestore(app, import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID)
-  : getFirestore(app);
+export const db = getFirestore(
+  app,
+  import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "default",
+);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
@@ -143,8 +144,12 @@ export async function signUpWithEmail(email: string, pass: string, displayName?:
   return cred;
 }
 
-export async function sendPasswordReset(email: string) {
-  return sendPasswordResetEmail(auth, email);
+export async function sendPasswordReset(email: string, continueUrl?: string) {
+  return sendPasswordResetEmail(
+    auth,
+    email,
+    continueUrl ? { url: continueUrl, handleCodeInApp: false } : undefined,
+  );
 }
 
 export async function signOutUser() {

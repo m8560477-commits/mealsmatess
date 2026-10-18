@@ -5,7 +5,7 @@
  * Money, availability and promotion rules are resolved here against the
  * database — the frontend never decides what an order costs.
  */
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { firebaseAdmin } from "@/server/firebase-admin";
 import { auditLog } from "@/lib/security.server";
 import {
   MarketplaceError,
@@ -31,7 +31,7 @@ import type {
 /* ---------------- Authorization ---------------- */
 
 export async function isAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
+  const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -48,7 +48,7 @@ export async function assertRestaurantMember(
   restaurantId: string,
   options: { managersOnly?: boolean } = {},
 ): Promise<void> {
-  const { data: owned } = await supabaseAdmin
+  const { data: owned } = await firebaseAdmin
     .from("restaurants")
     .select("id")
     .eq("id", restaurantId)
@@ -56,7 +56,7 @@ export async function assertRestaurantMember(
     .maybeSingle();
   if (owned) return;
 
-  const { data: staff } = await supabaseAdmin
+  const { data: staff } = await firebaseAdmin
     .from("restaurant_staff")
     .select("role")
     .eq("restaurant_id", restaurantId)
@@ -135,7 +135,7 @@ export type PricingResult = {
 };
 
 async function loadRestaurant(restaurantId: string): Promise<RestaurantRow> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await firebaseAdmin
     .from("restaurants")
     .select(
       "id,opening_hours,currency,approval_status,is_accepting_orders,pause_message,paused_until,delivery_fee,min_order_amount,supports_delivery,supports_pickup,delivery_estimate_minutes",
@@ -155,7 +155,7 @@ async function loadRestaurant(restaurantId: string): Promise<RestaurantRow> {
 
 async function loadBranch(restaurantId: string, branchId: string | null | undefined) {
   if (!branchId) return null;
-  const { data } = await supabaseAdmin
+  const { data } = await firebaseAdmin
     .from("restaurant_locations")
     .select(
       "id,restaurant_id,label,is_active,is_accepting_orders,opening_hours,delivery_fee,min_order_amount,delivery_estimate_minutes",
@@ -209,7 +209,7 @@ export async function priceCart(
   }
 
   const ids = [...new Set(input.items.map((i) => i.menu_item_id))];
-  const { data: menuRows, error: menuErr } = await (supabaseAdmin as any)
+  const { data: menuRows, error: menuErr } = await (firebaseAdmin as any)
     .from("menu_items")
     .select("id,name,price,is_available,is_hidden,modifier_groups")
     .in("id", ids)
@@ -285,7 +285,7 @@ async function resolvePromotion(
   const now = new Date();
   const trimmed = code?.trim();
 
-  let query = supabaseAdmin
+  let query = firebaseAdmin
     .from("restaurant_promotions")
     .select("*")
     .eq("restaurant_id", restaurantId)
@@ -302,7 +302,7 @@ async function resolvePromotion(
 
   let customerOrderCount = 0;
   if (userId) {
-    const { count } = await supabaseAdmin
+    const { count } = await firebaseAdmin
       .from("restaurant_orders")
       .select("id", { count: "exact", head: true })
       .eq("customer_id", userId);
@@ -313,7 +313,7 @@ async function resolvePromotion(
   for (const promotion of promotions) {
     let customerUsageCount = 0;
     if (userId && promotion.usage_limit_per_customer != null) {
-      const { count } = await supabaseAdmin
+      const { count } = await firebaseAdmin
         .from("promotion_redemptions")
         .select("id", { count: "exact", head: true })
         .eq("promotion_id", promotion.id)
@@ -375,7 +375,7 @@ export async function createOrder(userId: string, input: OrderV2Input) {
   const payment = paymentConfig();
 
   const orderNumber = `MM-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-  const { data: order, error } = await supabaseAdmin
+  const { data: order, error } = await firebaseAdmin
     .from("restaurant_orders")
     .insert({
       order_number: orderNumber,
@@ -403,7 +403,7 @@ export async function createOrder(userId: string, input: OrderV2Input) {
     throw new Error("We couldn't place your order. Please try again.");
   }
 
-  const { error: itemsErr } = await supabaseAdmin.from("order_items").insert(
+  const { error: itemsErr } = await firebaseAdmin.from("order_items").insert(
     priced.lines.map((l) => ({
       order_id: order.id,
       menu_item_id: l.menu_item_id,
@@ -417,19 +417,19 @@ export async function createOrder(userId: string, input: OrderV2Input) {
   );
   if (itemsErr) {
     console.error("[marketplace] createOrder items", itemsErr);
-    await supabaseAdmin.from("restaurant_orders").delete().eq("id", order.id);
+    await firebaseAdmin.from("restaurant_orders").delete().eq("id", order.id);
     throw new Error("We couldn't place your order. Please try again.");
   }
 
   if (priced.promotion) {
-    await supabaseAdmin.from("promotion_redemptions").insert({
+    await firebaseAdmin.from("promotion_redemptions").insert({
       promotion_id: priced.promotion.promotion.id,
       restaurant_id: priced.restaurant.id,
       order_id: order.id,
       user_id: userId,
       discount_amount: priced.promotion.discount,
     });
-    await supabaseAdmin
+    await firebaseAdmin
       .from("restaurant_promotions")
       .update({ usage_count: priced.promotion.promotion.usage_count + 1 })
       .eq("id", priced.promotion.promotion.id);
@@ -470,7 +470,7 @@ export async function createOrder(userId: string, input: OrderV2Input) {
 }
 
 export async function cancelOwnOrder(userId: string, orderId: string, reason?: string) {
-  const { data: order } = await supabaseAdmin
+  const { data: order } = await firebaseAdmin
     .from("restaurant_orders")
     .select("id,customer_id,status")
     .eq("id", orderId)
@@ -485,7 +485,7 @@ export async function cancelOwnOrder(userId: string, orderId: string, reason?: s
       "The kitchen has already started — please call the restaurant.",
     );
   }
-  const { error } = await supabaseAdmin
+  const { error } = await firebaseAdmin
     .from("restaurant_orders")
     .update({ status: "cancelled", rejection_reason: reason ?? "Cancelled by customer" })
     .eq("id", orderId);
@@ -503,7 +503,7 @@ export async function cancelOwnOrder(userId: string, orderId: string, reason?: s
 
 export async function listPromotionsForPartner(userId: string, restaurantId: string) {
   await assertRestaurantMember(userId, restaurantId);
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await firebaseAdmin
     .from("restaurant_promotions")
     .select("*")
     .eq("restaurant_id", restaurantId)
@@ -541,26 +541,26 @@ export async function savePromotion(userId: string, input: PromotionInput) {
     is_active: input.is_active,
   };
   const query = input.id
-    ? supabaseAdmin
+    ? firebaseAdmin
         .from("restaurant_promotions")
         .update(row as never)
         .eq("id", input.id)
         .eq("restaurant_id", input.restaurantId)
-    : supabaseAdmin.from("restaurant_promotions").insert(row as never);
+    : firebaseAdmin.from("restaurant_promotions").insert(row as never);
   const { data, error } = await query.select("*").single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function deletePromotion(userId: string, id: string) {
-  const { data: promo } = await supabaseAdmin
+  const { data: promo } = await firebaseAdmin
     .from("restaurant_promotions")
     .select("id,restaurant_id")
     .eq("id", id)
     .maybeSingle();
   if (!promo) return { ok: true };
   await assertRestaurantMember(userId, promo.restaurant_id, { managersOnly: true });
-  const { error } = await supabaseAdmin.from("restaurant_promotions").delete().eq("id", id);
+  const { error } = await firebaseAdmin.from("restaurant_promotions").delete().eq("id", id);
   if (error) throw new Error(error.message);
   return { ok: true };
 }
@@ -569,7 +569,7 @@ export async function deletePromotion(userId: string, id: string) {
 
 export async function listBranches(userId: string, restaurantId: string) {
   await assertRestaurantMember(userId, restaurantId);
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await firebaseAdmin
     .from("restaurant_locations")
     .select("*")
     .eq("restaurant_id", restaurantId)
@@ -596,26 +596,26 @@ export async function saveBranch(userId: string, input: BranchInput) {
     opening_hours: (input.opening_hours ?? {}) as never,
   };
   const query = input.id
-    ? supabaseAdmin
+    ? firebaseAdmin
         .from("restaurant_locations")
         .update(row as never)
         .eq("id", input.id)
         .eq("restaurant_id", input.restaurantId)
-    : supabaseAdmin.from("restaurant_locations").insert(row as never);
+    : firebaseAdmin.from("restaurant_locations").insert(row as never);
   const { data, error } = await query.select("*").single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function deleteBranch(userId: string, id: string) {
-  const { data: branch } = await supabaseAdmin
+  const { data: branch } = await firebaseAdmin
     .from("restaurant_locations")
     .select("id,restaurant_id")
     .eq("id", id)
     .maybeSingle();
   if (!branch) return { ok: true };
   await assertRestaurantMember(userId, branch.restaurant_id, { managersOnly: true });
-  const { error } = await supabaseAdmin.from("restaurant_locations").delete().eq("id", id);
+  const { error } = await firebaseAdmin.from("restaurant_locations").delete().eq("id", id);
   if (error) throw new Error(error.message);
   return { ok: true };
 }
@@ -630,7 +630,7 @@ export async function setOrderingPause(
   },
 ) {
   await assertRestaurantMember(userId, input.restaurantId, { managersOnly: true });
-  const { error } = await supabaseAdmin
+  const { error } = await firebaseAdmin
     .from("restaurants")
     .update({
       is_accepting_orders: input.is_accepting_orders,
@@ -651,7 +651,7 @@ export async function setOrderingPause(
 /* ---------------- Analytics ---------------- */
 
 export async function recordEvent(userId: string | null, event: AnalyticsEventInput) {
-  const { error } = await supabaseAdmin.from("telemetry_events").insert({
+  const { error } = await firebaseAdmin.from("telemetry_events").insert({
     user_id: userId,
     kind: "marketplace",
     name: event.name,
@@ -675,26 +675,33 @@ export async function partnerAnalytics(userId: string, restaurantId: string, day
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
 
   const [orders, events, redemptions] = await Promise.all([
-    supabaseAdmin
+    firebaseAdmin
       .from("restaurant_orders")
       .select("id,status,total,discount_total,placed_at,fulfillment_type")
       .eq("restaurant_id", restaurantId)
       .gte("placed_at", since),
-    supabaseAdmin
+    firebaseAdmin
       .from("telemetry_events")
       .select("name,metadata,created_at")
       .eq("kind", "marketplace")
       .gte("created_at", since)
       .limit(5000),
-    supabaseAdmin
+    firebaseAdmin
       .from("promotion_redemptions")
       .select("discount_amount")
       .eq("restaurant_id", restaurantId)
       .gte("created_at", since),
   ]);
 
-  const orderRows = orders.data ?? [];
-  const completed = orderRows.filter((o) => o.status === "completed");
+  const orderRows = (orders.data ?? []) as {
+    id: string;
+    status: string;
+    total?: number | string | null;
+    discount_total?: number | string | null;
+    placed_at: string;
+    fulfillment_type?: string | null;
+  }[];
+  const completed = orderRows.filter((order) => order.status === "completed");
   const revenue = round2(completed.reduce((s, o) => s + Number(o.total ?? 0), 0));
 
   const funnel: Record<string, number> = {};
@@ -727,7 +734,10 @@ export async function partnerAnalytics(userId: string, restaurantId: string, day
     revenue,
     avgOrder: completed.length ? round2(revenue / completed.length) : 0,
     promoDiscount: round2(
-      (redemptions.data ?? []).reduce((s, r) => s + Number(r.discount_amount ?? 0), 0),
+      ((redemptions.data ?? []) as { discount_amount?: number | string | null }[]).reduce(
+        (sum, redemption) => sum + Number(redemption.discount_amount ?? 0),
+        0,
+      ),
     ),
     funnel: {
       restaurant_view: funnel["restaurant_view"] ?? 0,

@@ -2,7 +2,7 @@
 // Providers (only those with a configured key are used, in priority order):
 //   Unsplash (UNSPLASH_ACCESS_KEY) -> Pexels (PEXELS_API_KEY) -> Bing (BING_IMAGE_SEARCH_KEY)
 // Candidates are ranked by metadata, then verified visually by Lovable AI.
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { firebaseAdmin } from "@/server/firebase-admin";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 
 export type ProviderName = "Unsplash" | "Pexels" | "Bing";
@@ -252,7 +252,7 @@ const SEARCHERS: Record<ProviderName, (q: string) => Promise<ImageCandidate[]>> 
 /** Search with a shared database cache so the same query never hits the API twice in a week. */
 export async function searchProvider(provider: ProviderName, q: string): Promise<ImageCandidate[]> {
   const cacheKey = `${provider}:${q.toLowerCase()}`;
-  const { data: cached } = await supabaseAdmin
+  const { data: cached } = await firebaseAdmin
     .from("image_search_cache")
     .select("results,created_at")
     .eq("cache_key", cacheKey)
@@ -261,7 +261,7 @@ export async function searchProvider(provider: ProviderName, q: string): Promise
     return cached.results as unknown as ImageCandidate[];
   }
   const results = (await SEARCHERS[provider](q)).filter((c) => c.url && c.thumb);
-  await supabaseAdmin.from("image_search_cache").upsert({
+  await firebaseAdmin.from("image_search_cache").upsert({
     cache_key: cacheKey,
     provider,
     query: q,
@@ -504,7 +504,7 @@ export async function saveImage(
       headers: { Authorization: `Client-ID ${process.env["UNSPLASH_ACCESS_KEY"]}` },
     }).catch(() => {});
   }
-  const { error } = await supabaseAdmin
+  const { error } = await firebaseAdmin
     .from("recipes")
     .update({
       image_url: c.url,
@@ -525,7 +525,7 @@ export async function saveImage(
 }
 
 export async function markChecked(recipeId: string, signature: string) {
-  await supabaseAdmin
+  await firebaseAdmin
     .from("recipes")
     .update({ image_checked_at: new Date().toISOString(), image_signature: signature })
     .eq("id", recipeId);
@@ -620,15 +620,15 @@ export async function generateAndSaveAiImage(
   if (!b64) return null;
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const path = `${r.id}/${signature}.png`;
-  const { error: upErr } = await supabaseAdmin.storage
+  const { error: upErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)
     .upload(path, bytes, { contentType: "image/png", upsert: true });
   if (upErr) throw upErr;
-  const { data: signed, error: signErr } = await supabaseAdmin.storage
+  const { data: signed, error: signErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)
     .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
   if (signErr || !signed) throw signErr ?? new Error("Could not sign image URL");
-  const { error } = await supabaseAdmin
+  const { error } = await firebaseAdmin
     .from("recipes")
     .update({
       image_url: signed.signedUrl,

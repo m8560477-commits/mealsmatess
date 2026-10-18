@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Plus, Trash2, Loader2, ShoppingCart, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { myPlannerQuery, myFavoritesQuery } from "@/lib/queries";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import {
@@ -153,7 +153,7 @@ function PlannerPage() {
     const fav = favorites?.find((f) => f.recipe_id === recipeId);
     setSaving(true);
     try {
-      const { error } = await supabase.from("meal_plans").insert({
+      const { error } = await firebaseData.from("meal_plans").insert({
         user_id: user.id,
         plan_date: day,
         meal_type: mealType,
@@ -172,7 +172,7 @@ function PlannerPage() {
   }
 
   async function removeMeal(id: string) {
-    await supabase.from("meal_plans").delete().eq("id", id);
+    await firebaseData.from("meal_plans").delete().eq("id", id);
     refresh();
   }
 

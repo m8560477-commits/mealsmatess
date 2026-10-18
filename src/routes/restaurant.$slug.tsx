@@ -290,7 +290,7 @@ function RestaurantPage() {
               Reviews
             </h2>
             <ul className="space-y-2">
-              {(reviews ?? []).map((r) => (
+              {(reviews ?? []).map((r: { id: string; rating: number; comment?: string | null }) => (
                 <li
                   key={r.id}
                   className="md3-surface rounded-2xl border border-border/60 bg-card p-3"

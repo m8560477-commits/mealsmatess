@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
+  const { firebaseAdmin } = await loadFirebaseAdmin();
+  const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -37,11 +38,11 @@ function daysBetween(from: Date, to: Date): string[] {
 
 // ---------- Unified analytics ----------
 export const getAdminAnalytics = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => RangeInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const from = new Date(data.from);
     const to = new Date(data.to);
     const fromIso = from.toISOString();
@@ -71,82 +72,82 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
       { count: mealPlansCount },
       { data: subscriptionsByStore },
     ] = await Promise.all([
-      supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
-      supabaseAdmin
+      firebaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
+      firebaseAdmin
         .from("profiles")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("profiles")
         .select("*", { count: "exact", head: true })
         .gte("created_at", prevFrom.toISOString())
         .lt("created_at", prevTo.toISOString()),
-      supabaseAdmin
+      firebaseAdmin
         .from("profiles")
         .select("created_at")
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin.from("recipes").select("*", { count: "exact", head: true }),
-      supabaseAdmin
+      firebaseAdmin.from("recipes").select("*", { count: "exact", head: true }),
+      firebaseAdmin
         .from("recipes")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("payments")
         .select("amount_usd,currency,kind,occurred_at")
         .gte("occurred_at", fromIso)
         .lte("occurred_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("payments")
         .select("amount_usd")
         .gte("occurred_at", prevFrom.toISOString())
         .lt("occurred_at", prevTo.toISOString()),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "active"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "trialing"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("tier", "lifetime"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .not("cancelled_at", "is", null)
         .gte("cancelled_at", fromIso)
         .lte("cancelled_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "expired"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("recipes")
         .select("id,name,slug,category,cuisine,image_url,created_at")
         .order("created_at", { ascending: false })
         .limit(500),
-      supabaseAdmin.from("favorites").select("recipe_id"),
-      supabaseAdmin
+      firebaseAdmin.from("favorites").select("recipe_id"),
+      firebaseAdmin
         .from("grocery_items")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin
+      firebaseAdmin
         .from("meal_plans")
         .select("*", { count: "exact", head: true })
         .gte("created_at", fromIso)
         .lte("created_at", toIso),
-      supabaseAdmin.from("subscriptions").select("store"),
+      firebaseAdmin.from("subscriptions").select("store"),
     ]);
 
     // Users timeseries
@@ -180,7 +181,9 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
       date,
       amount: Number(amount.toFixed(2)),
     }));
-    const prevRevenue = (prevPaymentsRows ?? []).reduce((s, p) => s + Number(p.amount_usd ?? 0), 0);
+    const prevRevenue = (
+      (prevPaymentsRows ?? []) as { amount_usd?: number | string | null }[]
+    ).reduce((sum, payment) => sum + Number(payment.amount_usd ?? 0), 0);
     const revenueGrowth = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
     const userGrowth =
       (prevNewUsers ?? 0) > 0
@@ -192,7 +195,15 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
     for (const f of favRows ?? []) {
       favMap.set(f.recipe_id, (favMap.get(f.recipe_id) ?? 0) + 1);
     }
-    const recipesById = new Map((allRecipes ?? []).map((r) => [r.id, r]));
+    const recipeRows = (allRecipes ?? []) as {
+      id: string;
+      name?: string;
+      slug?: string;
+      image_url?: string | null;
+      category?: string;
+      cuisine?: string;
+    }[];
+    const recipesById = new Map(recipeRows.map((recipe) => [recipe.id, recipe]));
     const topRecipes = Array.from(favMap.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
@@ -210,7 +221,7 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
     // Category / cuisine breakdown
     const catCount = new Map<string, number>();
     const cuisineCount = new Map<string, number>();
-    for (const r of allRecipes ?? []) {
+    for (const r of recipeRows) {
       if (r.category) catCount.set(r.category, (catCount.get(r.category) ?? 0) + 1);
       if (r.cuisine) cuisineCount.set(r.cuisine, (cuisineCount.get(r.cuisine) ?? 0) + 1);
     }
@@ -286,11 +297,11 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
 
 // ---------- Audit logs ----------
 export const adminListAuditLogs = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data } = await firebaseAdmin
       .from("audit_logs")
       .select("id,actor_id,action,target_table,target_id,ip_address,created_at")
       .order("created_at", { ascending: false })
@@ -300,27 +311,43 @@ export const adminListAuditLogs = createServerFn({ method: "GET" })
 
 // ---------- Users list ----------
 export const adminListUsers = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ search: z.string().optional() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let q = supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const columns = "id,display_name,username,currency,locale,created_at,follower_count,post_count";
+    const search = data.search?.trim();
+    if (search) {
+      const pattern = `%${search}%`;
+      const [byName, byUsername] = await Promise.all([
+        firebaseAdmin.from("profiles").select(columns).ilike("display_name", pattern).limit(200),
+        firebaseAdmin.from("profiles").select(columns).ilike("username", pattern).limit(200),
+      ]);
+      if (byName.error) throw new Error(byName.error.message);
+      if (byUsername.error) throw new Error(byUsername.error.message);
+      const users = new Map<string, Record<string, unknown>>();
+      for (const row of [...(byName.data ?? []), ...(byUsername.data ?? [])] as Record<
+        string,
+        unknown
+      >[]) {
+        if (typeof row["id"] === "string") users.set(row["id"], row);
+      }
+      return [...users.values()].slice(0, 200);
+    }
+
+    const { data: rows, error } = await firebaseAdmin
       .from("profiles")
-      .select("id,display_name,username,currency,locale,created_at,follower_count,post_count")
+      .select(columns)
       .order("created_at", { ascending: false })
       .limit(200);
-    if (data.search && data.search.trim()) {
-      const s = data.search.trim();
-      q = q.or(`display_name.ilike.%${s}%,username.ilike.%${s}%`);
-    }
-    const { data: rows } = await q;
+    if (error) throw new Error(error.message);
     return rows ?? [];
   });
 
 // ---------- Send announcement ----------
 export const adminSendAnnouncement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -331,8 +358,8 @@ export const adminSendAnnouncement = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("announcements").insert({
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { error } = await firebaseAdmin.from("announcements").insert({
       title: data.title,
       body: data.body,
       created_by: context.userId,
@@ -343,17 +370,17 @@ export const adminSendAnnouncement = createServerFn({ method: "POST" })
 
 // ---------- Telemetry (AI / Scan / Nutrition events) ----------
 export const getAdminTelemetry = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => RangeInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const from = new Date(data.from);
     const to = new Date(data.to);
     const fromIso = from.toISOString();
     const toIso = to.toISOString();
 
-    const { data: events } = await supabaseAdmin
+    const { data: events } = await firebaseAdmin
       .from("telemetry_events")
       .select("kind,name,latency_ms,success,user_id,created_at")
       .gte("created_at", fromIso)
@@ -361,7 +388,14 @@ export const getAdminTelemetry = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(20000);
 
-    const rows = events ?? [];
+    const rows = (events ?? []) as {
+      success: boolean;
+      latency_ms?: number | null;
+      created_at: string;
+      name: string;
+      kind: string;
+      user_id?: string | null;
+    }[];
     const total = rows.length;
     const successes = rows.filter((r) => r.success).length;
     const successRate = total > 0 ? (successes / total) * 100 : 0;

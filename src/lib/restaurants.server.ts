@@ -1,5 +1,5 @@
 // Server-only restaurant marketplace logic. Never import from client code.
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { firebaseAdmin } from "@/server/firebase-admin";
 import { slugify } from "@/lib/slug";
 import { auditLog } from "@/lib/security.server";
 import {
@@ -15,7 +15,7 @@ const BUCKET = "restaurant-media";
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365 * 5;
 
 async function isAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
+  const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -26,14 +26,14 @@ async function isAdmin(userId: string): Promise<boolean> {
 
 /** Throws unless the user owns (or staffs) the restaurant, or is an admin. */
 async function assertMember(userId: string, restaurantId: string): Promise<void> {
-  const { data: owned } = await supabaseAdmin
+  const { data: owned } = await firebaseAdmin
     .from("restaurants")
     .select("id")
     .eq("id", restaurantId)
     .eq("owner_id", userId)
     .maybeSingle();
   if (owned) return;
-  const { data: staff } = await supabaseAdmin
+  const { data: staff } = await firebaseAdmin
     .from("restaurant_staff")
     .select("id")
     .eq("restaurant_id", restaurantId)
@@ -48,7 +48,7 @@ async function uniqueSlug(name: string): Promise<string> {
   const base = slugify(name) || "restaurant";
   for (let i = 0; i < 20; i++) {
     const candidate = i === 0 ? base : `${base}-${i + 1}`;
-    const { data } = await supabaseAdmin
+    const { data } = await firebaseAdmin
       .from("restaurants")
       .select("id")
       .eq("slug", candidate)
@@ -59,7 +59,7 @@ async function uniqueSlug(name: string): Promise<string> {
 }
 
 export async function createApplication(userId: string, input: ApplicationInput) {
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await firebaseAdmin
     .from("restaurants")
     .select("id,approval_status")
     .eq("owner_id", userId)
@@ -69,7 +69,7 @@ export async function createApplication(userId: string, input: ApplicationInput)
   }
 
   const slug = await uniqueSlug(input.name);
-  const { data: restaurant, error } = await supabaseAdmin
+  const { data: restaurant, error } = await firebaseAdmin
     .from("restaurants")
     .insert({
       owner_id: userId,
@@ -97,7 +97,7 @@ export async function createApplication(userId: string, input: ApplicationInput)
   if (error) throw new Error(error.message);
 
   if (typeof input.latitude === "number" && typeof input.longitude === "number") {
-    await supabaseAdmin.from("restaurant_locations").insert({
+    await firebaseAdmin.from("restaurant_locations").insert({
       restaurant_id: restaurant.id,
       label: "Main",
       address: input.address,
@@ -106,11 +106,11 @@ export async function createApplication(userId: string, input: ApplicationInput)
     });
   }
 
-  await supabaseAdmin
+  await firebaseAdmin
     .from("restaurant_staff")
     .insert({ restaurant_id: restaurant.id, user_id: userId, role: "owner" });
 
-  await supabaseAdmin.from("restaurant_applications").insert({
+  await firebaseAdmin.from("restaurant_applications").insert({
     restaurant_id: restaurant.id,
     applicant_id: userId,
     status: "pending",
@@ -128,27 +128,27 @@ export async function createApplication(userId: string, input: ApplicationInput)
 }
 
 export async function fetchMyRestaurant(userId: string) {
-  const { data: restaurant } = await supabaseAdmin
+  const { data: restaurant } = await firebaseAdmin
     .from("restaurants")
     .select("*,restaurant_locations(id,label,address,latitude,longitude)")
     .eq("owner_id", userId)
     .maybeSingle();
 
   if (!restaurant) {
-    const { data: staff } = await supabaseAdmin
+    const { data: staff } = await firebaseAdmin
       .from("restaurant_staff")
       .select("restaurant_id")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
     if (!staff) return { restaurant: null, application: null, menu: [] };
-    const { data: viaStaff } = await supabaseAdmin
+    const { data: viaStaff } = await firebaseAdmin
       .from("restaurants")
       .select("*,restaurant_locations(id,label,address,latitude,longitude)")
       .eq("id", staff.restaurant_id)
       .maybeSingle();
     if (!viaStaff) return { restaurant: null, application: null, menu: [] };
-    const { data: menu } = await supabaseAdmin
+    const { data: menu } = await firebaseAdmin
       .from("menu_items")
       .select("*")
       .eq("restaurant_id", viaStaff.id)
@@ -157,14 +157,14 @@ export async function fetchMyRestaurant(userId: string) {
   }
 
   const [{ data: application }, { data: menu }] = await Promise.all([
-    supabaseAdmin
+    firebaseAdmin
       .from("restaurant_applications")
       .select("id,status,rejection_reason,requested_changes,admin_notes,reviewed_at,created_at")
       .eq("restaurant_id", restaurant.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabaseAdmin
+    firebaseAdmin
       .from("menu_items")
       .select("*")
       .eq("restaurant_id", restaurant.id)
@@ -183,7 +183,7 @@ export async function updateRestaurantProfile(userId: string, input: ProfileUpda
   Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
 
   if (Object.keys(patch).length > 0) {
-    const { error } = await supabaseAdmin
+    const { error } = await firebaseAdmin
       .from("restaurants")
       .update(patch as never)
       .eq("id", restaurantId);
@@ -191,19 +191,19 @@ export async function updateRestaurantProfile(userId: string, input: ProfileUpda
   }
 
   if (typeof latitude === "number" && typeof longitude === "number") {
-    const { data: loc } = await supabaseAdmin
+    const { data: loc } = await firebaseAdmin
       .from("restaurant_locations")
       .select("id")
       .eq("restaurant_id", restaurantId)
       .limit(1)
       .maybeSingle();
     if (loc) {
-      await supabaseAdmin
+      await firebaseAdmin
         .from("restaurant_locations")
         .update({ latitude, longitude, address: rest.address ?? null })
         .eq("id", loc.id);
     } else {
-      await supabaseAdmin.from("restaurant_locations").insert({
+      await firebaseAdmin.from("restaurant_locations").insert({
         restaurant_id: restaurantId,
         label: "Main",
         latitude,
@@ -233,7 +233,7 @@ export async function uploadMedia(
   if (restaurantId) {
     await assertMember(userId, restaurantId);
   } else {
-    const { data } = await supabaseAdmin
+    const { data } = await firebaseAdmin
       .from("restaurants")
       .select("id")
       .eq("owner_id", userId)
@@ -250,34 +250,34 @@ export async function uploadMedia(
   const ext = (input.fileName.split(".").pop() ?? "jpg").toLowerCase().slice(0, 5);
   const path = `${restaurantId}/${input.kind}-${Date.now()}.${ext}`;
 
-  const { error } = await supabaseAdmin.storage
+  const { error } = await firebaseAdmin.storage
     .from(BUCKET)
     .upload(path, bytes, { contentType: input.contentType, upsert: true });
   if (error) throw new Error(error.message);
 
-  const { data: signed, error: signErr } = await supabaseAdmin.storage
+  const { data: signed, error: signErr } = await firebaseAdmin.storage
     .from(BUCKET)
     .createSignedUrl(path, SIGNED_URL_TTL);
   if (signErr || !signed) throw new Error(signErr?.message ?? "Could not sign media URL");
 
   if (input.kind === "logo") {
-    await supabaseAdmin
+    await firebaseAdmin
       .from("restaurants")
       .update({ logo_url: signed.signedUrl })
       .eq("id", restaurantId);
   } else if (input.kind === "cover") {
-    await supabaseAdmin
+    await firebaseAdmin
       .from("restaurants")
       .update({ cover_image_url: signed.signedUrl })
       .eq("id", restaurantId);
   } else if (input.kind === "food") {
-    const { data: r } = await supabaseAdmin
+    const { data: r } = await firebaseAdmin
       .from("restaurants")
       .select("food_photos")
       .eq("id", restaurantId)
       .maybeSingle();
     const photos = Array.isArray(r?.food_photos) ? (r!.food_photos as string[]) : [];
-    await supabaseAdmin
+    await firebaseAdmin
       .from("restaurants")
       .update({ food_photos: [...photos, signed.signedUrl].slice(0, 20) as never })
       .eq("id", restaurantId);
@@ -299,7 +299,7 @@ export async function persistMenuItem(userId: string, input: MenuItemInput) {
     sort_order: input.sort_order,
   };
   if (input.id) {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await firebaseAdmin
       .from("menu_items")
       .update(row)
       .eq("id", input.id)
@@ -309,20 +309,20 @@ export async function persistMenuItem(userId: string, input: MenuItemInput) {
     if (error) throw new Error(error.message);
     return data;
   }
-  const { data, error } = await supabaseAdmin.from("menu_items").insert(row).select("*").single();
+  const { data, error } = await firebaseAdmin.from("menu_items").insert(row).select("*").single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function removeMenuItem(userId: string, id: string) {
-  const { data: item } = await supabaseAdmin
+  const { data: item } = await firebaseAdmin
     .from("menu_items")
     .select("id,restaurant_id")
     .eq("id", id)
     .maybeSingle();
   if (!item) return { ok: true };
   await assertMember(userId, item.restaurant_id);
-  const { error } = await supabaseAdmin.from("menu_items").delete().eq("id", id);
+  const { error } = await firebaseAdmin.from("menu_items").delete().eq("id", id);
   if (error) throw new Error(error.message);
   return { ok: true };
 }
@@ -343,7 +343,7 @@ export async function fetchRestaurantOrders(
   await assertMember(userId, restaurantId);
   const statuses =
     scope === "active" ? ACTIVE_STATUSES : (["completed", "cancelled"] as OrderStatus[]);
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await firebaseAdmin
     .from("restaurant_orders")
     .select(
       "id,status,subtotal,delivery_fee,total,currency,delivery_address,contact_phone,notes,placed_at,completed_at,rejection_reason,order_items(id,name,unit_price,quantity,notes)",
@@ -362,7 +362,7 @@ export async function setOrderStatus(
   status: OrderStatus,
   reason?: string,
 ) {
-  const { data: order } = await supabaseAdmin
+  const { data: order } = await firebaseAdmin
     .from("restaurant_orders")
     .select("id,restaurant_id,status")
     .eq("id", orderId)
@@ -379,7 +379,7 @@ export async function setOrderStatus(
   if (status === "completed") patch["completed_at"] = new Date().toISOString();
   if (status === "cancelled") patch["rejection_reason"] = reason ?? null;
 
-  const { error } = await supabaseAdmin
+  const { error } = await firebaseAdmin
     .from("restaurant_orders")
     .update(patch as never)
     .eq("id", orderId);
@@ -399,14 +399,18 @@ export async function setOrderStatus(
 export async function fetchRestaurantStats(userId: string, restaurantId: string) {
   await assertMember(userId, restaurantId);
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await firebaseAdmin
     .from("restaurant_orders")
     .select("status,total,placed_at")
     .eq("restaurant_id", restaurantId)
     .gte("placed_at", since);
   if (error) throw new Error(error.message);
 
-  const rows = data ?? [];
+  const rows = (data ?? []) as {
+    status: string;
+    total?: number | string | null;
+    placed_at: string;
+  }[];
   const completed = rows.filter((r) => r.status === "completed");
   const revenue = completed.reduce((s, r) => s + Number(r.total ?? 0), 0);
   const byDay = new Map<string, number>();
@@ -425,7 +429,7 @@ export async function fetchRestaurantStats(userId: string, restaurantId: string)
 }
 
 export async function persistOrder(userId: string, input: OrderInput) {
-  const { data: restaurant } = await supabaseAdmin
+  const { data: restaurant } = await firebaseAdmin
     .from("restaurants")
     .select("id,approval_status,is_accepting_orders,delivery_fee,min_order_amount,currency")
     .eq("id", input.restaurantId)
@@ -438,14 +442,24 @@ export async function persistOrder(userId: string, input: OrderInput) {
   }
 
   const ids = input.items.map((i) => i.menu_item_id);
-  const { data: menuItems, error: menuErr } = await supabaseAdmin
+  const { data: menuItems, error: menuErr } = await firebaseAdmin
     .from("menu_items")
     .select("id,name,price,is_available,is_hidden,restaurant_id")
     .in("id", ids)
     .eq("restaurant_id", input.restaurantId);
   if (menuErr) throw new Error(menuErr.message);
 
-  const map = new Map((menuItems ?? []).map((m) => [m.id, m]));
+  const map = new Map(
+    (
+      (menuItems ?? []) as {
+        id: string;
+        name: string;
+        price: number;
+        is_available: boolean;
+        is_hidden: boolean;
+      }[]
+    ).map((m) => [m.id, m]),
+  );
   const lines = input.items.map((i) => {
     const item = map.get(i.menu_item_id);
     if (!item || item.is_hidden || !item.is_available) {
@@ -468,7 +482,7 @@ export async function persistOrder(userId: string, input: OrderInput) {
   const deliveryFee = Number(restaurant.delivery_fee ?? 0);
   const total = Math.round((subtotal + deliveryFee) * 100) / 100;
 
-  const { data: order, error } = await supabaseAdmin
+  const { data: order, error } = await firebaseAdmin
     .from("restaurant_orders")
     .insert({
       order_number: `MM-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`,
@@ -487,7 +501,7 @@ export async function persistOrder(userId: string, input: OrderInput) {
     .single();
   if (error) throw new Error(error.message);
 
-  const { error: itemsErr } = await supabaseAdmin
+  const { error: itemsErr } = await firebaseAdmin
     .from("order_items")
     .insert(lines.map((l) => ({ ...l, order_id: order.id })));
   if (itemsErr) throw new Error(itemsErr.message);
@@ -503,7 +517,7 @@ async function assertAdmin(userId: string) {
 
 export async function adminListApplications(userId: string, status: string) {
   await assertAdmin(userId);
-  let q = supabaseAdmin
+  let q = firebaseAdmin
     .from("restaurant_applications")
     .select(
       "id,status,created_at,reviewed_at,rejection_reason,requested_changes,admin_notes,restaurant_id,submitted_data,restaurants(name,slug,cuisine,address,phone,email,owner_name,logo_url,approval_status)",
@@ -525,14 +539,14 @@ export async function adminReviewApplication(
   },
 ) {
   await assertAdmin(userId);
-  const { data: app } = await supabaseAdmin
+  const { data: app } = await firebaseAdmin
     .from("restaurant_applications")
     .select("id,restaurant_id")
     .eq("id", input.applicationId)
     .maybeSingle();
   if (!app) throw new Response("Application not found", { status: 404 });
 
-  await supabaseAdmin
+  await firebaseAdmin
     .from("restaurant_applications")
     .update({
       status: input.decision,
@@ -545,7 +559,7 @@ export async function adminReviewApplication(
     .eq("id", input.applicationId);
 
   if (app.restaurant_id) {
-    await supabaseAdmin
+    await firebaseAdmin
       .from("restaurants")
       .update({
         approval_status: input.decision,

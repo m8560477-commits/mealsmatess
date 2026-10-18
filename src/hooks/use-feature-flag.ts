@@ -11,7 +11,7 @@ export function useFeatureFlags() {
 
 export function useFeatureFlag(key: string, fallback = false): boolean {
   const { data } = useFeatureFlags();
-  const flag = data?.find((f) => f.key === key);
+  const flag = data?.find((f: { key: string; enabled: boolean }) => f.key === key);
   if (!flag) return fallback;
   return !!flag.enabled;
 }

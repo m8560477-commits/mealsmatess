@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -56,7 +56,7 @@ function useIsAdmin(userId: string | undefined) {
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     if (!userId) return setIsAdmin(false);
-    void supabase
+    void firebaseData
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)

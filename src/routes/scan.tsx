@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Camera, CalendarDays, Flame, Loader2, Plus, Sparkles, Utensils } from "lucide-react";
 import { scanKitchen, scanDish, type ScannedDish } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -154,14 +154,14 @@ function ScanPage() {
     if (!dish || !user || saving) return;
     setSaving(true);
     try {
-      const { error: planErr } = await supabase.from("meal_plans").insert({
+      const { error: planErr } = await firebaseData.from("meal_plans").insert({
         user_id: user.id,
         plan_date: planDate,
         meal_type: mealType,
         custom_name: dish.name,
       });
       if (planErr) throw planErr;
-      const { error: logErr } = await supabase.from("nutrition_logs").insert({
+      const { error: logErr } = await firebaseData.from("nutrition_logs").insert({
         user_id: user.id,
         name: dish.name,
         meal_type: mealType,
@@ -192,7 +192,7 @@ function ScanPage() {
     if (!items || !user || saving) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("pantry_items").insert(
+      const { error } = await firebaseData.from("pantry_items").insert(
         items.map((i) => ({
           user_id: user.id,
           name: i.name,

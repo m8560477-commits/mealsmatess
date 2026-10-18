@@ -36,7 +36,7 @@
   },
   {
     "capability": "ai edge function",
-    "source": "supabase/functions/ai-gateway",
+    "source": "src/lib/lovable-ai.server.ts",
     "outcome": "preserve",
     "status": "implemented",
     "next_action": "Exercise AI Chef in preview"

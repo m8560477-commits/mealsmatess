@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 
 export type FeedRestaurant = {
   id: string;
@@ -76,21 +76,21 @@ export const marketplaceFeedQuery = () =>
     staleTime: 60_000,
     queryFn: async (): Promise<MarketplaceFeed> => {
       const [restaurantsRes, promotionsRes, dishesRes] = await Promise.all([
-        supabase
+        firebaseData
           .from("restaurants")
           .select(RESTAURANT_COLUMNS)
           .eq("approval_status", "approved")
           .eq("is_demo", false)
           .order("name")
           .limit(60),
-        supabase
+        firebaseData
           .from("restaurant_promotions")
           .select(
             "id,restaurant_id,code,title,description,kind,value,min_order_amount,max_discount_amount,starts_at,ends_at,is_active",
           )
           .eq("is_active", true)
           .limit(60),
-        supabase
+        firebaseData
           .from("menu_items")
           .select(
             "id,restaurant_id,name,description,image_url,price,category,dietary_tags,is_available",
@@ -154,7 +154,7 @@ export const orderHistoryRestaurantsQuery = (userId: string | undefined) =>
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<string[]> => {
       if (!userId) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (firebaseData as any)
         .from("restaurant_orders")
         .select("restaurant_id,placed_at")
         .eq("customer_id", userId)

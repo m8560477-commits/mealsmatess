@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { trendingRecipesQuery, southAfricanFavoritesQuery, myFavoritesQuery, type RecipeRecord } from "@/lib/queries";
 import { surpriseMe, generateRecipe } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { getContinueCooking } from "@/lib/continue-cooking";
 import { TrendingCard } from "@/components/recipe-card";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -159,9 +159,9 @@ function Index() {
       return;
     }
     if (favoriteIds.has(recipeId)) {
-      await supabase.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
+      await firebaseData.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
     } else {
-      await supabase.from("favorites").insert({ user_id: user.id, recipe_id: recipeId });
+      await firebaseData.from("favorites").insert({ user_id: user.id, recipe_id: recipeId });
     }
     queryClient.invalidateQueries({ queryKey: ["favorites"] });
   }

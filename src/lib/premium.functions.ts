@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 // Free-tier limits — enforced server-side before any AI work
 export const FREE_LIMITS = {
@@ -21,10 +22,10 @@ function periodKey(period: "day" | "month"): string {
 
 // ---------- Entitlement ----------
 export const getMyEntitlement = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: sub } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data: sub } = await firebaseAdmin
       .from("subscriptions")
       .select("*")
       .eq("user_id", context.userId)
@@ -54,9 +55,9 @@ export const getMyEntitlement = createServerFn({ method: "GET" })
 // ---------- Usage ----------
 // Plan allowance summary (server-calculated from the database; limits are configurable in app_settings).
 export const getMyUsage = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.rpc("my_ai_usage");
+    const { data, error } = await context.firebase.rpc("my_ai_usage");
     if (error) throw new Error(error.message);
     const u = data as {
       day_used: number;
@@ -115,9 +116,9 @@ export async function enforceAndIncrement(
   userId: string,
   feature: FeatureKey,
 ): Promise<{ allowed: boolean; remaining: number; premium: boolean }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { firebaseAdmin } = await loadFirebaseAdmin();
   // Premium check
-  const { data: sub } = await supabaseAdmin
+  const { data: sub } = await firebaseAdmin
     .from("subscriptions")
     .select("status,tier,period_end")
     .eq("user_id", userId)
@@ -134,7 +135,7 @@ export async function enforceAndIncrement(
 
   const cfg = FREE_LIMITS[feature];
   const pk = periodKey(cfg.period);
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await firebaseAdmin
     .from("usage_limits")
     .select("count")
     .eq("user_id", userId)
@@ -145,7 +146,7 @@ export async function enforceAndIncrement(
   const current = existing?.count ?? 0;
   if (current >= cfg.max) return { allowed: false, remaining: 0, premium: false };
 
-  await supabaseAdmin.from("usage_limits").upsert(
+  await firebaseAdmin.from("usage_limits").upsert(
     {
       user_id: userId,
       feature,
@@ -161,24 +162,24 @@ export async function enforceAndIncrement(
 
 // ---------- Referral ----------
 export const getMyReferral = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let { data: row } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    let { data: row } = await firebaseAdmin
       .from("referral_codes")
       .select("code")
       .eq("user_id", context.userId)
       .maybeSingle();
     if (!row) {
       const code = generateCode();
-      await supabaseAdmin.from("referral_codes").insert({ user_id: context.userId, code });
+      await firebaseAdmin.from("referral_codes").insert({ user_id: context.userId, code });
       row = { code };
     }
-    const { count: totalReferred } = await supabaseAdmin
+    const { count: totalReferred } = await firebaseAdmin
       .from("referrals")
       .select("*", { count: "exact", head: true })
       .eq("referrer_id", context.userId);
-    const { count: rewarded } = await supabaseAdmin
+    const { count: rewarded } = await firebaseAdmin
       .from("referrals")
       .select("*", { count: "exact", head: true })
       .eq("referrer_id", context.userId)
@@ -194,26 +195,26 @@ function generateCode(len = 8): string {
 }
 
 export const applyReferralCode = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ code: z.string().min(4).max(16) }).parse(v))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const code = data.code.trim().toUpperCase();
-    const { data: owner } = await supabaseAdmin
+    const { data: owner } = await firebaseAdmin
       .from("referral_codes")
       .select("user_id")
       .eq("code", code)
       .maybeSingle();
     if (!owner) throw new Error("Invalid referral code");
     if (owner.user_id === context.userId) throw new Error("You can't refer yourself");
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await firebaseAdmin
       .from("referrals")
       .select("id")
       .eq("referred_id", context.userId)
       .maybeSingle();
     if (existing) throw new Error("You already used a referral code");
 
-    await supabaseAdmin.from("referrals").insert({
+    await firebaseAdmin.from("referrals").insert({
       referrer_id: owner.user_id,
       referred_id: context.userId,
       code,
@@ -228,12 +229,12 @@ export const applyReferralCode = createServerFn({ method: "POST" })
 
 // ---------- Promo Codes ----------
 export const redeemPromoCode = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ code: z.string().min(2).max(40) }).parse(v))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const code = data.code.trim().toUpperCase();
-    const { data: promo } = await supabaseAdmin
+    const { data: promo } = await firebaseAdmin
       .from("promo_codes")
       .select("*")
       .eq("code", code)
@@ -245,7 +246,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
       throw new Error("This promo code has been fully redeemed");
 
     // Prevent duplicate redemption
-    const { data: dup } = await supabaseAdmin
+    const { data: dup } = await firebaseAdmin
       .from("promo_redemptions")
       .select("id")
       .eq("code_id", promo.id)
@@ -280,7 +281,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
 
     // Grant subscription time
     if (grantedDays > 0 || grantedLifetime) {
-      const { data: current } = await supabaseAdmin
+      const { data: current } = await firebaseAdmin
         .from("subscriptions")
         .select("*")
         .eq("user_id", context.userId)
@@ -297,7 +298,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
         : new Date(baseline + grantedDays * 86400000).toISOString();
 
       if (current) {
-        await supabaseAdmin
+        await firebaseAdmin
           .from("subscriptions")
           .update({
             tier: grantedLifetime ? "lifetime" : tier,
@@ -308,7 +309,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
           })
           .eq("id", current.id);
       } else {
-        await supabaseAdmin.from("subscriptions").insert({
+        await firebaseAdmin.from("subscriptions").insert({
           user_id: context.userId,
           tier: grantedLifetime ? "lifetime" : tier,
           status: "active",
@@ -320,17 +321,17 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
       }
     }
 
-    await supabaseAdmin.from("promo_redemptions").insert({
+    await firebaseAdmin.from("promo_redemptions").insert({
       code_id: promo.id,
       user_id: context.userId,
       granted_days: grantedDays,
       granted_lifetime: grantedLifetime,
     });
-    await supabaseAdmin
+    await firebaseAdmin
       .from("promo_codes")
       .update({ redemption_count: promo.redemption_count + 1 })
       .eq("id", promo.id);
-    await supabaseAdmin.from("subscription_events").insert({
+    await firebaseAdmin.from("subscription_events").insert({
       user_id: context.userId,
       event_type: `promo:${promo.reward_kind}`,
       source: "promo",
@@ -351,8 +352,8 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
 
 // ---------- Admin ----------
 async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
+  const { firebaseAdmin } = await loadFirebaseAdmin();
+  const { data } = await firebaseAdmin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -362,31 +363,48 @@ async function assertAdmin(userId: string) {
 }
 
 export const adminListSubscribers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: subs } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data: subs } = await firebaseAdmin
       .from("subscriptions")
       .select(
         "id,user_id,tier,status,store,period_start,period_end,trial_end,auto_renew,is_manual,created_at",
       )
       .order("created_at", { ascending: false })
       .limit(500);
-    const ids = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
-    const { data: profiles } = await supabaseAdmin
+    const subscriptionRows = (subs ?? []) as {
+      id: string;
+      user_id: string;
+      tier: string;
+      status: string;
+      store?: string | null;
+      period_start?: string | null;
+      period_end?: string | null;
+      trial_end?: string | null;
+      auto_renew?: boolean | null;
+      is_manual?: boolean | null;
+      created_at: string;
+    }[];
+    const ids = Array.from(new Set(subscriptionRows.map((subscription) => subscription.user_id)));
+    const { data: profiles } = await firebaseAdmin
       .from("profiles")
       .select("id,display_name")
       .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
-    const profMap = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
-    return (subs ?? []).map((s) => ({ ...s, display_name: profMap.get(s.user_id) ?? "—" }));
+    const profileRows = (profiles ?? []) as { id: string; display_name?: string | null }[];
+    const profMap = new Map(profileRows.map((profile) => [profile.id, profile.display_name]));
+    return subscriptionRows.map((subscription) => ({
+      ...subscription,
+      display_name: profMap.get(subscription.user_id) ?? "—",
+    }));
   });
 
 export const adminStats = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const [
       { count: active },
       { count: trialing },
@@ -394,31 +412,34 @@ export const adminStats = createServerFn({ method: "GET" })
       { count: refTotal },
       { count: refRewarded },
     ] = await Promise.all([
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "active"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("status", "trialing"),
-      supabaseAdmin
+      firebaseAdmin
         .from("subscriptions")
         .select("*", { count: "exact", head: true })
         .eq("tier", "lifetime"),
-      supabaseAdmin.from("referrals").select("*", { count: "exact", head: true }),
-      supabaseAdmin
+      firebaseAdmin.from("referrals").select("*", { count: "exact", head: true }),
+      firebaseAdmin
         .from("referrals")
         .select("*", { count: "exact", head: true })
         .eq("status", "rewarded"),
     ]);
     const since = new Date(Date.now() - 30 * 86400000).toISOString();
-    const { data: payments30 } = await supabaseAdmin
+    const { data: payments30 } = await firebaseAdmin
       .from("payments")
       .select("amount_usd,kind")
       .gte("occurred_at", since)
       .in("kind", ["initial", "renewal", "trial_conversion"]);
-    const revenue30 = (payments30 ?? []).reduce((sum, p) => sum + Number(p.amount_usd ?? 0), 0);
+    const revenue30 = ((payments30 ?? []) as { amount_usd?: number | string | null }[]).reduce(
+      (sum, payment) => sum + Number(payment.amount_usd ?? 0),
+      0,
+    );
     return {
       active: active ?? 0,
       trialing: trialing ?? 0,
@@ -430,11 +451,11 @@ export const adminStats = createServerFn({ method: "GET" })
   });
 
 export const adminListPromos = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data } = await firebaseAdmin
       .from("promo_codes")
       .select("*")
       .order("created_at", { ascending: false });
@@ -452,11 +473,11 @@ const PromoInput = z.object({
   notes: z.string().max(500).nullable().optional(),
 });
 export const adminSavePromo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => PromoInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const row = {
       code: data.code.trim().toUpperCase(),
       reward_kind: data.reward_kind,
@@ -468,11 +489,11 @@ export const adminSavePromo = createServerFn({ method: "POST" })
       created_by: context.userId,
     };
     if (data.id) {
-      const { error } = await supabaseAdmin.from("promo_codes").update(row).eq("id", data.id);
+      const { error } = await firebaseAdmin.from("promo_codes").update(row).eq("id", data.id);
       if (error) throw new Error(error.message);
       return { id: data.id };
     }
-    const { data: inserted, error } = await supabaseAdmin
+    const { data: inserted, error } = await firebaseAdmin
       .from("promo_codes")
       .insert(row)
       .select("id")
@@ -482,25 +503,25 @@ export const adminSavePromo = createServerFn({ method: "POST" })
   });
 
 export const adminDeletePromo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("promo_codes").delete().eq("id", data.id);
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { error } = await firebaseAdmin.from("promo_codes").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const adminGrantPremium = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ userId: z.string().uuid(), days: z.number().int().min(1).max(3650) }).parse(v),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: current } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data: current } = await firebaseAdmin
       .from("subscriptions")
       .select("*")
       .eq("user_id", data.userId)
@@ -513,7 +534,7 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
         : Date.now();
     const newEnd = new Date(baseline + data.days * 86400000).toISOString();
     if (current) {
-      await supabaseAdmin
+      await firebaseAdmin
         .from("subscriptions")
         .update({
           status: "active",
@@ -524,7 +545,7 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
         })
         .eq("id", current.id);
     } else {
-      await supabaseAdmin.from("subscriptions").insert({
+      await firebaseAdmin.from("subscriptions").insert({
         user_id: data.userId,
         tier: "promo",
         status: "active",
@@ -534,7 +555,7 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
         is_manual: true,
       });
     }
-    await supabaseAdmin.from("subscription_events").insert({
+    await firebaseAdmin.from("subscription_events").insert({
       user_id: data.userId,
       event_type: "admin:grant",
       source: "admin",
@@ -545,17 +566,17 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
   });
 
 export const adminRevokePremium = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    await firebaseAdmin
       .from("subscriptions")
       .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
       .eq("user_id", data.userId)
       .in("status", ["trialing", "active", "in_grace"]);
-    await supabaseAdmin.from("subscription_events").insert({
+    await firebaseAdmin.from("subscription_events").insert({
       user_id: data.userId,
       event_type: "admin:revoke",
       source: "admin",
@@ -566,10 +587,10 @@ export const adminRevokePremium = createServerFn({ method: "POST" })
   });
 
 export const adminIsAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data } = await firebaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)

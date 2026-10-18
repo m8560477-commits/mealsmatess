@@ -4,7 +4,8 @@ import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { curatedRecipeImageUrl } from "@/lib/recipe-image";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, auditLog, trackEvent } from "@/lib/security.server";
 
 const RecipeSchema = z.object({
@@ -124,7 +125,7 @@ function toDbRecipe(r: GeneratedRecipe, userId: string | null) {
 
 // Surprise Me — signed-in users only, rate limited to 10/min per user
 export const surpriseMe = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
@@ -142,9 +143,9 @@ export const surpriseMe = createServerFn({ method: "POST" })
       const recipe = await callModel(
         `Surprise the user with ${theme}. Pick something delightful and specific — not generic. Include one fun fact.`,
       );
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { firebaseAdmin } = await loadFirebaseAdmin();
       const row = toDbRecipe(recipe, context.userId);
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await firebaseAdmin
         .from("recipes")
         .insert(row)
         .select("id,slug")
@@ -174,15 +175,15 @@ export const surpriseMe = createServerFn({ method: "POST" })
 
 // Search / generate a specific recipe — signed-in users only, rate limited.
 export const generateRecipe = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ query: z.string().trim().min(1).max(200) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
     await enforceRateLimit("ai_generate", context.userId, 10);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const t0 = Date.now();
     try {
-      const { data: exact } = await supabaseAdmin
+      const { data: exact } = await firebaseAdmin
         .from("recipes")
         .select("id,slug,name")
         .ilike("name", data.query)
@@ -199,7 +200,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
         return { slug: exact[0]?.slug ?? "", id: exact[0]?.id ?? null, cached: true };
       }
 
-      const { data: fuzzy } = await supabaseAdmin
+      const { data: fuzzy } = await firebaseAdmin
         .from("recipes")
         .select("id,slug,name")
         .ilike("name", `%${data.query}%`)
@@ -220,7 +221,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
         `Create a real, authentic recipe for: "${data.query}". If the dish exists in any culture, use the traditional version. Be specific and accurate.`,
       );
       const row = toDbRecipe(recipe, context.userId);
-      const { data: inserted, error } = await supabaseAdmin
+      const { data: inserted, error } = await firebaseAdmin
         .from("recipes")
         .insert(row)
         .select("id,slug")
@@ -258,7 +259,7 @@ export const generateRecipe = createServerFn({ method: "POST" })
 
 // Kitchen Scan — identify ingredients from a photo
 export const scanKitchen = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ imageDataUrl: z.string().startsWith("data:image/") }).parse(v),
   )
@@ -340,7 +341,7 @@ export type ScannedDish = z.infer<typeof DishSchema>;
 
 // Dish Scan — identify a plated meal and estimate its nutrition
 export const scanDish = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ imageDataUrl: z.string().startsWith("data:image/") }).parse(v),
   )
@@ -397,7 +398,7 @@ If the photo does not show food, set is_food to false and name to "Not food".`,
 
 // Ask anything about food — a single-turn Q&A used by the AI Chat quick action
 export const askFoodQuestion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ question: z.string().trim().min(1).max(500) }).parse(v),
   )
@@ -448,14 +449,14 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
 // Regenerate a recipe's hero image with Lovable AI (gemini-3-pro-image).
 // Premium-only. Uploads to the community-media bucket and updates recipes.image_url.
 export const regenerateRecipeImage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ slug: z.string().min(1) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
 
     // Premium gate — check for an active subscription
-    const { data: sub } = await supabaseAdmin
+    const { data: sub } = await firebaseAdmin
       .from("subscriptions")
       .select("status,period_end,tier")
       .eq("user_id", context.userId)
@@ -471,7 +472,7 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
 
     await enforceRateLimit("ai_image", context.userId, 5);
 
-    const { data: recipe, error: rErr } = await supabaseAdmin
+    const { data: recipe, error: rErr } = await firebaseAdmin
       .from("recipes")
       .select("id, slug, name, cuisine, country")
       .eq("slug", data.slug)
@@ -502,17 +503,17 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
 
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const path = `recipes/${recipe.slug}-${Date.now()}.png`;
-      const { error: upErr } = await supabaseAdmin.storage
+      const { error: upErr } = await firebaseAdmin.storage
         .from("community-media")
         .upload(path, bytes, { contentType: "image/png", upsert: true });
       if (upErr) throw new Error(upErr.message);
-      const { data: signed, error: signErr } = await supabaseAdmin.storage
+      const { data: signed, error: signErr } = await firebaseAdmin.storage
         .from("community-media")
         .createSignedUrl(path, 60 * 60 * 24 * 365);
       if (signErr || !signed) throw new Error(signErr?.message ?? "Failed to sign url");
       const publicUrl = signed.signedUrl;
 
-      const { error: updErr } = await supabaseAdmin
+      const { error: updErr } = await firebaseAdmin
         .from("recipes")
         .update({ image_url: publicUrl })
         .eq("id", recipe.id);

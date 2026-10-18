@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ShoppingBag } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { useMyOrdersRealtime } from "@/lib/marketplace.realtime";
 import { money } from "@/components/restaurant/bits";
@@ -35,7 +35,7 @@ function OrdersPage() {
     queryKey: ["my-orders", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("restaurant_orders")
         .select("id,status,total,currency,placed_at,restaurants(name,slug)")
         .order("placed_at", { ascending: false });
@@ -74,31 +74,40 @@ function OrdersPage() {
         </div>
       ) : (
         <ul className="mt-6 space-y-3">
-          {(data ?? []).map((o) => {
-            const restaurant = o.restaurants as { name: string; slug: string } | null;
-            return (
-              <li key={o.id}>
-                <Link
-                  to="/order/$id"
-                  params={{ id: o.id }}
-                  className="md3-surface flex items-center justify-between gap-3 rounded-3xl border border-border/60 bg-card p-4 transition-shadow hover:shadow-lg"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{restaurant?.name ?? "Restaurant"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(o.placed_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="secondary" className="rounded-full">
-                      {ORDER_STATUS_LABEL[o.status as OrderStatus]}
-                    </Badge>
-                    <p className="mt-1 text-sm font-semibold">{money(o.total, o.currency)}</p>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
+          {(data ?? []).map(
+            (o: {
+              id: string;
+              restaurants?: unknown;
+              placed_at: string;
+              status: string;
+              total: number;
+              currency: string;
+            }) => {
+              const restaurant = o.restaurants as { name: string; slug: string } | null;
+              return (
+                <li key={o.id}>
+                  <Link
+                    to="/order/$id"
+                    params={{ id: o.id }}
+                    className="md3-surface flex items-center justify-between gap-3 rounded-3xl border border-border/60 bg-card p-4 transition-shadow hover:shadow-lg"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{restaurant?.name ?? "Restaurant"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(o.placed_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="secondary" className="rounded-full">
+                        {ORDER_STATUS_LABEL[o.status as OrderStatus]}
+                      </Badge>
+                      <p className="mt-1 text-sm font-semibold">{money(o.total, o.currency)}</p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            },
+          )}
         </ul>
       )}
     </div>

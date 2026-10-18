@@ -1,194 +1,157 @@
-/**
- * Realtime bridges. A change made in the MealMate Partner Platform lands in
- * the database and is pushed straight into the customer app — no refresh.
- */
-import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listRestaurantOrders } from "@/lib/restaurants.functions";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  where,
+  type QueryConstraint,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
-/** Menu, price, availability and restaurant-profile changes for one restaurant. */
+function watchCollection(
+  table: string,
+  constraints: QueryConstraint[],
+  onChange: (snapshot: unknown) => void,
+) {
+  const activeQuery = query(collection(db, table), ...constraints);
+  return onSnapshot(activeQuery, onChange, (error) =>
+    console.error(`[firebase realtime] ${table}`, error),
+  );
+}
+
 export function useRestaurantRealtime(restaurantId: string | undefined, slug?: string) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!restaurantId) return;
-    const channel = supabase
-      .channel(`restaurant-live-${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "menu_items",
-          filter: `restaurant_id=eq.${restaurantId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["restaurant-menu", restaurantId] });
-          queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "restaurants", filter: `id=eq.${restaurantId}` },
-        () => {
-          if (slug) queryClient.invalidateQueries({ queryKey: ["restaurant", slug] });
-          queryClient.invalidateQueries({ queryKey: ["restaurants", "approved"] });
-          queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "restaurant_promotions",
-          filter: `restaurant_id=eq.${restaurantId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["restaurant-promotions", restaurantId] });
-          queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "restaurant_locations",
-          filter: `restaurant_id=eq.${restaurantId}`,
-        },
-        () => queryClient.invalidateQueries({ queryKey: ["restaurant-branches", restaurantId] }),
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+    const invalidateMenu = () => {
+      void queryClient.invalidateQueries({ queryKey: ["restaurant-menu", restaurantId] });
+      void queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
     };
+    const unsubscribers = [
+      onSnapshot(
+        doc(db, "restaurants", restaurantId),
+        () => {
+          if (slug) void queryClient.invalidateQueries({ queryKey: ["restaurant", slug] });
+          void queryClient.invalidateQueries({ queryKey: ["restaurants", "approved"] });
+          void queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+        },
+        (error) => console.error("[firebase realtime] restaurant", error),
+      ),
+      watchCollection(
+        "menu_items",
+        [where("restaurant_id", "==", restaurantId), where("is_hidden", "==", false)],
+        invalidateMenu,
+      ),
+      watchCollection(
+        "restaurant_promotions",
+        [where("restaurant_id", "==", restaurantId), where("is_active", "==", true)],
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["restaurant-promotions", restaurantId] });
+          void queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+        },
+      ),
+      watchCollection("restaurant_locations", [where("restaurant_id", "==", restaurantId)], () => {
+        void queryClient.invalidateQueries({ queryKey: ["restaurant-branches", restaurantId] });
+      }),
+    ];
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [restaurantId, slug, queryClient]);
 }
 
-/** Marketplace-wide menu/restaurant changes, for the discovery feed. */
 export function useMarketplaceRealtime() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const channel = supabase
-      .channel("marketplace-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurants" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
-        queryClient.invalidateQueries({ queryKey: ["restaurants", "approved"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
-      })
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "restaurant_promotions" },
+    const unsubscribers = [
+      watchCollection(
+        "restaurants",
+        [where("approval_status", "==", "approved"), where("is_demo", "==", false)],
         () => {
-          queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+          void queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+          void queryClient.invalidateQueries({ queryKey: ["restaurants", "approved"] });
         },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      ),
+      watchCollection(
+        "menu_items",
+        [where("is_available", "==", true), where("is_hidden", "==", false)],
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+        },
+      ),
+      watchCollection("restaurant_promotions", [where("is_active", "==", true)], () => {
+        void queryClient.invalidateQueries({ queryKey: ["marketplace-feed"] });
+      }),
+    ];
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [queryClient]);
 }
 
-/** Live order status for one customer order. */
 export function useOrderRealtime(orderId: string | undefined, onChange?: (status: string) => void) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!orderId) return;
-    const channel = supabase
-      .channel(`order-live-${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "restaurant_orders",
-          filter: `id=eq.${orderId}`,
-        },
-        (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["order", orderId] });
-          queryClient.invalidateQueries({ queryKey: ["restaurant-order", orderId] });
-          queryClient.invalidateQueries({ queryKey: ["my-orders"] });
-          const status = (payload.new as { status?: string } | null)?.status;
-          if (status && onChange) onChange(status);
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // onChange is intentionally excluded: callers pass inline handlers.
+    return onSnapshot(
+      doc(db, "restaurant_orders", orderId),
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+        void queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+        void queryClient.invalidateQueries({ queryKey: ["restaurant-order", orderId] });
+        void queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+        const status = snapshot.data().status;
+        if (typeof status === "string") onChange?.(status);
+      },
+      (error) => console.error("[firebase realtime] order", error),
+    );
+    // The callback is intentionally excluded because callers pass inline handlers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, queryClient]);
 }
 
-/** Live order queue for the partner dashboard. */
 export function usePartnerOrdersRealtime(
   restaurantId: string | undefined,
   onNewOrder?: () => void,
 ) {
   const queryClient = useQueryClient();
+  const loadOrders = useServerFn(listRestaurantOrders);
+  const previousOrderIds = useRef<Set<string> | null>(null);
+
+  const { data: orders } = useQuery({
+    queryKey: ["partner-orders-live", restaurantId],
+    enabled: Boolean(restaurantId && auth.currentUser),
+    queryFn: () => loadOrders({ data: { restaurantId: restaurantId!, scope: "active" } }),
+    refetchInterval: 15_000,
+  });
 
   useEffect(() => {
-    if (!restaurantId) return;
-    const channel = supabase
-      .channel(`partner-orders-${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "restaurant_orders",
-          filter: `restaurant_id=eq.${restaurantId}`,
-        },
-        (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["partner", "orders", restaurantId] });
-          queryClient.invalidateQueries({ queryKey: ["partner", "stats", restaurantId] });
-          if (payload.eventType === "INSERT" && onNewOrder) onNewOrder();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    if (!orders || !restaurantId) return;
+    const nextIds = new Set<string>((orders as { id: string }[]).map((order) => order.id));
+    const previous = previousOrderIds.current;
+    if (previous) {
+      const receivedNewOrder = [...nextIds].some((orderId) => !previous.has(orderId));
+      if (receivedNewOrder) onNewOrder?.();
+      void queryClient.invalidateQueries({ queryKey: ["partner", "orders", restaurantId] });
+      void queryClient.invalidateQueries({ queryKey: ["partner", "stats", restaurantId] });
+    }
+    previousOrderIds.current = nextIds;
+    // The callback is intentionally excluded because callers pass inline handlers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurantId, queryClient]);
+  }, [orders, restaurantId, queryClient]);
 }
 
-/** Live status updates across all of one customer's orders. */
 export function useMyOrdersRealtime(userId: string | undefined) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      .channel(`my-orders-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "restaurant_orders",
-          filter: `customer_id=eq.${userId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["my-orders"] });
-          queryClient.invalidateQueries({ queryKey: ["my-restaurant-orders"] });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    if (!userId || auth.currentUser?.uid !== userId) return;
+    return watchCollection("restaurant_orders", [where("customer_id", "==", userId)], () => {
+      void queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+      void queryClient.invalidateQueries({ queryKey: ["my-restaurant-orders"] });
+    });
   }, [userId, queryClient]);
 }

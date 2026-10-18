@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 
 export type CurrencyCode = "USD" | "ZAR" | "EUR" | "GBP" | "AUD" | "CAD" | "NZD";
@@ -104,7 +104,7 @@ export function useCurrency(): {
     queryKey: ["currency", user?.id ?? "anon"],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await firebaseData
         .from("profiles")
         .select("currency")
         .eq("id", user!.id)
@@ -127,7 +127,7 @@ export function useCurrency(): {
       window.dispatchEvent(new CustomEvent("mealmate-currency-changed", { detail: next }));
     }
     if (user) {
-      await supabase
+      await firebaseData
         .from("profiles")
         .update({ currency: next } as never)
         .eq("id", user.id);

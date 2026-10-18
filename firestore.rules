@@ -2,43 +2,175 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default-deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // Assumed data model: user profiles live at users/{uid}; personal collections
+    // live below that document. Orders contain customer contact/address data and
+    // are readable only by their customer. Public catalog documents contain no
+    // account credentials or user email addresses. All privileged mutations use
+    // Firebase Admin in authenticated Vercel server functions.
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    function validOptionalString(data, field, maxLength) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLength);
     }
 
-    // Connection test document
-    match /test/{testId} {
-      allow get: if true;
+    function validUserProfile(uid, data) {
+      return data.keys().hasOnly([
+          'id', 'email', 'displayName', 'photoURL', 'goal', 'createdAt',
+          'onboarding_completed', 'currency', 'locale', 'theme'
+        ])
+        && data.id == uid
+        && data.email is string && data.email.size() <= 254
+        && validOptionalString(data, 'displayName', 100)
+        && validOptionalString(data, 'photoURL', 2048)
+        && validOptionalString(data, 'goal', 80)
+        && validOptionalString(data, 'createdAt', 40)
+        && validOptionalString(data, 'currency', 3)
+        && validOptionalString(data, 'locale', 12)
+        && validOptionalString(data, 'theme', 40)
+        && (!('onboarding_completed' in data) || data.onboarding_completed is bool);
     }
 
-    // User profile documents
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create, update: if isOwner(userId);
+    function validTimestampString(data, field) {
+      return !(field in data) || (data[field] is string && data[field].size() <= 40);
+    }
+
+    function validOwnedItem(collectionName, uid, itemId) {
+      let data = request.resource.data;
+      return data.id == itemId
+        && data.user_id == uid
+        && (
+          (collectionName == 'favorites'
+            && data.keys().hasOnly(['id', 'user_id', 'recipe_id', 'created_at'])
+            && data.recipe_id is string && data.recipe_id.size() > 0 && data.recipe_id.size() <= 128
+            && validTimestampString(data, 'created_at'))
+          || (collectionName == 'grocery'
+            && data.keys().hasOnly(['id', 'user_id', 'name', 'checked', 'category', 'quantity', 'created_at'])
+            && data.name is string && data.name.size() > 0 && data.name.size() <= 160
+            && data.checked is bool
+            && validOptionalString(data, 'category', 80)
+            && validOptionalString(data, 'quantity', 80)
+            && validTimestampString(data, 'created_at'))
+          || (collectionName == 'pantry'
+            && data.keys().hasOnly(['id', 'user_id', 'name', 'quantity', 'category', 'expires_at', 'source', 'created_at'])
+            && data.name is string && data.name.size() > 0 && data.name.size() <= 160
+            && validOptionalString(data, 'quantity', 80)
+            && validOptionalString(data, 'category', 80)
+            && validOptionalString(data, 'expires_at', 40)
+            && validOptionalString(data, 'source', 40)
+            && validTimestampString(data, 'created_at'))
+          || (collectionName == 'mealPlans'
+            && data.keys().hasOnly(['id', 'user_id', 'plan_date', 'meal_type', 'recipe_id', 'custom_name', 'created_at'])
+            && data.plan_date is string && data.plan_date.size() == 10
+            && data.meal_type is string && data.meal_type.size() <= 40
+            && validOptionalString(data, 'recipe_id', 128)
+            && validOptionalString(data, 'custom_name', 160)
+            && validTimestampString(data, 'created_at'))
+          || (collectionName == 'nutritionLogs'
+            && data.keys().hasOnly(['id', 'user_id', 'name', 'meal_type', 'logged_at', 'calories', 'protein_g', 'carbs_g', 'fat_g', 'servings', 'created_at'])
+            && data.name is string && data.name.size() > 0 && data.name.size() <= 160
+            && data.meal_type is string && data.meal_type.size() <= 40
+            && data.logged_at is string && data.logged_at.size() <= 40
+            && (!('calories' in data) || data.calories == null || (data.calories is number && data.calories >= 0 && data.calories <= 10000))
+            && (!('protein_g' in data) || data.protein_g == null || (data.protein_g is number && data.protein_g >= 0 && data.protein_g <= 1000))
+            && (!('carbs_g' in data) || data.carbs_g == null || (data.carbs_g is number && data.carbs_g >= 0 && data.carbs_g <= 1000))
+            && (!('fat_g' in data) || data.fat_g == null || (data.fat_g is number && data.fat_g >= 0 && data.fat_g <= 1000))
+            && (!('servings' in data) || (data.servings is number && data.servings > 0 && data.servings <= 100))
+            && validTimestampString(data, 'created_at'))
+        );
+    }
+
+    function safeOwnedItemUpdate(collectionName) {
+      return collectionName == 'grocery'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'checked', 'category', 'quantity']);
+    }
+
+    function isCustomerOrder(orderId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/restaurant_orders/$(orderId))
+        && get(/databases/$(database)/documents/restaurant_orders/$(orderId)).data.customer_id == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create: if isOwner(uid) && validUserProfile(uid, request.resource.data);
+      allow update: if isOwner(uid)
+        && validUserProfile(uid, request.resource.data)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
 
-      // User favorites subcollection
-      match /favorites/{favoriteId} {
-        allow read, write: if isOwner(userId) && isValidId(favoriteId);
+      match /{collectionName}/{itemId} {
+        allow read: if isOwner(uid)
+          && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs'];
+        allow create: if isOwner(uid)
+          && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs']
+          && validOwnedItem(collectionName, uid, itemId);
+        allow update: if isOwner(uid)
+          && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs']
+          && validOwnedItem(collectionName, uid, itemId)
+          && safeOwnedItemUpdate(collectionName)
+          && request.resource.data.user_id == resource.data.user_id
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.created_at == resource.data.created_at;
+        allow delete: if isOwner(uid)
+          && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs'];
       }
+    }
 
-      // User pantry items subcollection
-      match /pantry/{pantryId} {
-        allow read, write: if isOwner(userId) && isValidId(pantryId);
-      }
+    // Authenticated users can browse the catalog; writes are server-only.
+    match /recipes/{recipeId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /ad_placements/{placementId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /restaurants/{restaurantId} {
+      allow read: if isSignedIn()
+        && resource.data.approval_status == 'approved'
+        && resource.data.is_demo == false;
+      allow write: if false;
+    }
+    match /restaurant_locations/{locationId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+    match /menu_items/{itemId} {
+      allow read: if isSignedIn() && resource.data.is_hidden == false;
+      allow write: if false;
+    }
+    match /restaurant_promotions/{promotionId} {
+      allow read: if isSignedIn() && resource.data.is_active == true;
+      allow write: if false;
+    }
+    match /restaurant_orders/{orderId} {
+      allow get, list: if isSignedIn() && resource.data.customer_id == request.auth.uid;
+      allow write: if false;
+    }
+    match /order_items/{itemId} {
+      allow get, list: if isCustomerOrder(resource.data.order_id);
+      allow write: if false;
+    }
+    match /user_roles/{roleId} {
+      allow get, list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow write: if false;
     }
   }
 }

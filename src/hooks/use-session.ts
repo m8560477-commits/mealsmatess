@@ -104,16 +104,8 @@ export function useSession() {
       displayName: firebaseUser.displayName,
       photoURL: firebaseUser.photoURL,
       emailVerified: firebaseUser.emailVerified,
-      email_confirmed_at: firebaseUser.emailVerified
-        ? new Date().toISOString()
-        : firebaseUser.email
-          ? new Date().toISOString()
-          : null,
-      confirmed_at: firebaseUser.emailVerified
-        ? new Date().toISOString()
-        : firebaseUser.email
-          ? new Date().toISOString()
-          : null,
+      email_confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
+      confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
       provider: "firebase",
     };
   }

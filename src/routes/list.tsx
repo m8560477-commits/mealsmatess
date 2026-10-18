@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, ShoppingCart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { myGroceryQuery } from "@/lib/queries";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,24 +47,24 @@ function ListPage() {
   async function addItem(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !user) return;
-    await supabase.from("grocery_items").insert({ user_id: user.id, name: name.trim() });
+    await firebaseData.from("grocery_items").insert({ user_id: user.id, name: name.trim() });
     setName("");
     refresh();
   }
 
   async function toggle(id: string, checked: boolean) {
-    await supabase.from("grocery_items").update({ checked }).eq("id", id);
+    await firebaseData.from("grocery_items").update({ checked }).eq("id", id);
     refresh();
   }
 
   async function remove(id: string) {
-    await supabase.from("grocery_items").delete().eq("id", id);
+    await firebaseData.from("grocery_items").delete().eq("id", id);
     refresh();
   }
 
   async function clearChecked() {
     const finished = checkedCount;
-    await supabase.from("grocery_items").delete().eq("checked", true);
+    await firebaseData.from("grocery_items").delete().eq("checked", true);
     refresh();
     if (finished > 0 && user) {
       try {

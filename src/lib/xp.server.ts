@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { firebaseAdmin } from "@/server/firebase-admin";
 import { ACHIEVEMENTS, ELITE_XP, XP_ACTIONS, levelFor, type XpAction } from "@/lib/xp";
 
 /** UTC day key, e.g. 2026-08-23 */
@@ -21,7 +21,7 @@ export function monthKey(d = new Date()) {
 }
 
 async function unlock(userId: string, code: string) {
-  await supabaseAdmin
+  await firebaseAdmin
     .from("user_achievements")
     .upsert({ user_id: userId, code }, { onConflict: "user_id,code" });
 }
@@ -42,7 +42,7 @@ async function syncLevelAchievements(userId: string, totalXp: number) {
 /** Update the daily streak; returns the new streak length. */
 export async function touchStreak(userId: string) {
   const today = dayKey();
-  const { data: stats } = await supabaseAdmin
+  const { data: stats } = await firebaseAdmin
     .from("user_stats")
     .select("current_streak,longest_streak,last_active_date")
     .eq("user_id", userId)
@@ -54,7 +54,7 @@ export async function touchStreak(userId: string) {
   const next = stats?.last_active_date === yesterday ? (stats.current_streak ?? 0) + 1 : 1;
   const longest = Math.max(next, stats?.longest_streak ?? 0);
 
-  await supabaseAdmin.from("user_stats").upsert(
+  await firebaseAdmin.from("user_stats").upsert(
     {
       user_id: userId,
       current_streak: next,
@@ -81,7 +81,7 @@ async function insertXp(
   metadata: Record<string, unknown> = {},
 ) {
   const points = XP_ACTIONS[action].points;
-  const { error } = await supabaseAdmin.from("xp_events").insert({
+  const { error } = await firebaseAdmin.from("xp_events").insert({
     user_id: userId,
     action,
     points,
@@ -89,21 +89,27 @@ async function insertXp(
     metadata: metadata as never,
   });
   // 23505 = duplicate, meaning this exact award already happened. Not an error.
-  if (error && error.code !== "23505") throw new Error(error.message);
+  const code = error && "code" in error ? error.code : undefined;
+  if (error && code !== "23505") throw new Error(error.message);
   return !error;
 }
 
 /** Advance challenge progress for an action and award challenge XP on completion. */
 async function progressChallenges(userId: string, action: XpAction) {
-  const { data: challenges } = await supabaseAdmin
+  const { data: challenges } = await firebaseAdmin
     .from("challenges")
     .select("id,code,kind,action,goal,xp_reward")
     .eq("is_active", true)
     .eq("action", action);
 
-  for (const c of challenges ?? []) {
+  for (const c of (challenges ?? []) as {
+    id: string;
+    code: string;
+    kind: "weekly" | "monthly";
+    goal: number;
+  }[]) {
     const period = c.kind === "weekly" ? weekKey() : monthKey();
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await firebaseAdmin
       .from("user_challenges")
       .select("id,progress,completed_at")
       .eq("user_id", userId)
@@ -115,7 +121,7 @@ async function progressChallenges(userId: string, action: XpAction) {
     const progress = (existing?.progress ?? 0) + 1;
     const completed = progress >= c.goal;
 
-    await supabaseAdmin.from("user_challenges").upsert(
+    await firebaseAdmin.from("user_challenges").upsert(
       {
         ...(existing?.id ? { id: existing.id } : {}),
         user_id: userId,
@@ -154,7 +160,7 @@ export async function awardXpFor(
   await touchStreak(userId);
   if (awarded) await progressChallenges(userId, action);
 
-  const { data: stats } = await supabaseAdmin
+  const { data: stats } = await firebaseAdmin
     .from("user_stats")
     .select("total_xp")
     .eq("user_id", userId)
@@ -163,7 +169,7 @@ export async function awardXpFor(
   await syncLevelAchievements(userId, totalXp);
 
   if (action === "recipe_cooked") {
-    const { count } = await supabaseAdmin
+    const { count } = await firebaseAdmin
       .from("xp_events")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -173,7 +179,7 @@ export async function awardXpFor(
   }
   if (action === "weekly_plan_completed") await unlock(userId, "plan_1");
   if (action === "grocery_list_completed") {
-    const { count } = await supabaseAdmin
+    const { count } = await firebaseAdmin
       .from("xp_events")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -191,29 +197,51 @@ export async function awardXpFor(
 
 export async function fetchGamification(userId: string) {
   const [statsRes, eventsRes, achRes, challengeRes] = await Promise.all([
-    supabaseAdmin.from("user_stats").select("*").eq("user_id", userId).maybeSingle(),
-    supabaseAdmin
+    firebaseAdmin.from("user_stats").select("*").eq("user_id", userId).maybeSingle(),
+    firebaseAdmin
       .from("xp_events")
       .select("action,points,created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(15),
-    supabaseAdmin.from("user_achievements").select("code,unlocked_at").eq("user_id", userId),
-    supabaseAdmin.from("challenges").select("*").eq("is_active", true),
+    firebaseAdmin.from("user_achievements").select("code,unlocked_at").eq("user_id", userId),
+    firebaseAdmin.from("challenges").select("*").eq("is_active", true),
   ]);
 
-  const challenges = challengeRes.data ?? [];
+  const challenges = (challengeRes.data ?? []) as {
+    id: string;
+    code: string;
+    kind: "weekly" | "monthly";
+    goal: number;
+    title: string;
+    description: string;
+    xp_reward: number;
+  }[];
   const periods = [
-    ...new Set(challenges.map((c) => (c.kind === "weekly" ? weekKey() : monthKey()))),
+    ...new Set(
+      challenges.map((challenge) => (challenge.kind === "weekly" ? weekKey() : monthKey())),
+    ),
   ];
-  const { data: userChallenges } = await supabaseAdmin
+  const { data: userChallenges } = await firebaseAdmin
     .from("user_challenges")
     .select("challenge_id,period_key,progress,completed_at")
     .eq("user_id", userId)
     .in("period_key", periods.length ? periods : ["none"]);
 
   const totalXp = statsRes.data?.total_xp ?? 0;
-  const unlocked = new Map((achRes.data ?? []).map((a) => [a.code, a.unlocked_at]));
+  const unlocked = new Map(
+    ((achRes.data ?? []) as { code: string; unlocked_at: string | null }[]).map((achievement) => [
+      achievement.code,
+      achievement.unlocked_at,
+    ]),
+  );
+
+  const userChallengeRows = (userChallenges ?? []) as {
+    challenge_id: string;
+    period_key: string;
+    progress: number;
+    completed_at: string | null;
+  }[];
 
   return {
     totalXp,
@@ -222,11 +250,13 @@ export async function fetchGamification(userId: string) {
     longestStreak: statsRes.data?.longest_streak ?? 0,
     eliteRewardClaimedAt: statsRes.data?.elite_reward_claimed_at ?? null,
     eliteRewardAvailable: totalXp >= ELITE_XP && !statsRes.data?.elite_reward_claimed_at,
-    recentEvents: (eventsRes.data ?? []).map((e) => ({
-      action: e.action,
-      points: e.points,
-      created_at: e.created_at,
-      label: XP_ACTIONS[e.action as XpAction]?.label ?? e.action,
+    recentEvents: (
+      (eventsRes.data ?? []) as { action: string; points: number; created_at: string }[]
+    ).map((event) => ({
+      action: event.action,
+      points: event.points,
+      created_at: event.created_at,
+      label: XP_ACTIONS[event.action as XpAction]?.label ?? event.action,
     })),
     achievements: ACHIEVEMENTS.map((a) => ({
       ...a,
@@ -234,8 +264,9 @@ export async function fetchGamification(userId: string) {
     })),
     challenges: challenges.map((c) => {
       const period = c.kind === "weekly" ? weekKey() : monthKey();
-      const uc = (userChallenges ?? []).find(
-        (u) => u.challenge_id === c.id && u.period_key === period,
+      const uc = userChallengeRows.find(
+        (userChallenge) =>
+          userChallenge.challenge_id === c.id && userChallenge.period_key === period,
       );
       return {
         code: c.code,
@@ -253,7 +284,7 @@ export async function fetchGamification(userId: string) {
 
 /** 50,000 XP → 30 days of free Premium. Claimable once, ever. */
 export async function claimEliteRewardFor(userId: string) {
-  const { data: stats } = await supabaseAdmin
+  const { data: stats } = await firebaseAdmin
     .from("user_stats")
     .select("total_xp,elite_reward_claimed_at")
     .eq("user_id", userId)
@@ -265,7 +296,7 @@ export async function claimEliteRewardFor(userId: string) {
   const now = new Date();
   const end = new Date(now.getTime() + 30 * 86400000);
 
-  const { data: sub } = await supabaseAdmin
+  const { data: sub } = await firebaseAdmin
     .from("subscriptions")
     .select("id,period_end,status")
     .eq("user_id", userId)
@@ -276,7 +307,7 @@ export async function claimEliteRewardFor(userId: string) {
 
   if (sub) {
     const base = sub.period_end && new Date(sub.period_end) > now ? new Date(sub.period_end) : now;
-    await supabaseAdmin
+    await firebaseAdmin
       .from("subscriptions")
       .update({
         period_end: new Date(base.getTime() + 30 * 86400000).toISOString(),
@@ -286,7 +317,7 @@ export async function claimEliteRewardFor(userId: string) {
       })
       .eq("id", sub.id);
   } else {
-    await supabaseAdmin.from("subscriptions").insert({
+    await firebaseAdmin.from("subscriptions").insert({
       user_id: userId,
       tier: "promo",
       status: "active",
@@ -298,7 +329,7 @@ export async function claimEliteRewardFor(userId: string) {
     });
   }
 
-  await supabaseAdmin
+  await firebaseAdmin
     .from("user_stats")
     .update({ elite_reward_claimed_at: now.toISOString(), updated_at: now.toISOString() })
     .eq("user_id", userId);

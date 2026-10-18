@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 const ADMIN_EMAIL = "tatendamkhwanazi6@gmail.com";
 const CreateManagedRestaurantSchema = z.object({
@@ -19,11 +20,11 @@ async function assertManagedAdmin(context: { userId: string }) {
 }
 
 export const listManagedRestaurants = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
     await assertManagedAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await (supabaseAdmin as any)
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { data, error } = await (firebaseAdmin as any)
       .from("restaurants")
       .select("id,name,email,owner_name,approval_status,created_at")
       .order("created_at", { ascending: false });
@@ -37,12 +38,12 @@ export const listManagedRestaurants = createServerFn({ method: "GET" })
   });
 
 export const launchManagedRestaurant = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((value: unknown) => RestaurantIdSchema.parse(value))
   .handler(async ({ data, context }) => {
     await assertManagedAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { error } = await firebaseAdmin
       .from("restaurants")
       .update({ approval_status: "approved" })
       .eq("id", data.restaurantId);
@@ -51,36 +52,34 @@ export const launchManagedRestaurant = createServerFn({ method: "POST" })
   });
 
 export const createManagedRestaurant = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((value: unknown) => CreateManagedRestaurantSchema.parse(value))
   .handler(async ({ data, context }) => {
     await assertManagedAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const email = data.email.trim().toLowerCase();
-    const { data: invite, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { getOrCreateFirebaseUser } = await loadFirebaseAdmin();
+    const { user: owner, created: ownerCreated } = await getOrCreateFirebaseUser(
       email,
-      {
-        data: { full_name: data.ownerName, account_type: "restaurant" },
-      },
+      data.ownerName.trim(),
     );
-    if (inviteError && !inviteError.message.toLowerCase().includes("already registered"))
-      throw inviteError;
+    const ownerId = owner.uid;
+    const { error: profileError } = await firebaseAdmin.from("profiles").upsert(
+      {
+        id: ownerId,
+        email,
+        display_name: owner.displayName || data.ownerName.trim(),
+        created_at: owner.metadata.creationTime ?? new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    if (profileError) throw new Error(profileError.message);
 
-    let ownerId = invite.user?.id ?? null;
-    if (!ownerId) {
-      const { data: existing } = await supabaseAdmin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-      });
-      ownerId = existing.users.find((user) => user.email?.toLowerCase() === email)?.id ?? null;
-    }
-
-    if (!ownerId) throw new Error("Could not find or invite the owner account.");
     const slug = `${data.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")}-${crypto.randomUUID().slice(0, 8)}`;
-    const { data: restaurant, error: restaurantError } = await supabaseAdmin
+    const { data: restaurant, error: restaurantError } = await firebaseAdmin
       .from("restaurants")
       .insert({
         name: data.name.trim(),
@@ -93,13 +92,13 @@ export const createManagedRestaurant = createServerFn({ method: "POST" })
       .select("id,name,slug,email")
       .single();
     if (restaurantError) throw restaurantError;
-    await supabaseAdmin
+    await firebaseAdmin
       .from("restaurant_staff")
       .insert({ restaurant_id: restaurant.id, user_id: ownerId, role: "owner" });
     return {
       restaurant: { ...restaurant, owner_email: restaurant.email },
       trialEndsAt: null,
-      invited: Boolean(invite.user),
+      invited: ownerCreated,
       sponsored: false,
     };
   });

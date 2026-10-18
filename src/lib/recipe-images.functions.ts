@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 const RECIPE_COLS =
   "id,name,cuisine,category,meal_type,description,diet_tags,ingredients,steps,created_by,image_url,image_source,image_confidence,image_locked,image_signature,image_checked_at";
@@ -8,8 +9,8 @@ const RECIPE_COLS =
 const IdSchema = z.object({ recipeId: z.string().uuid() });
 
 async function loadRecipe(recipeId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
+  const { firebaseAdmin } = await loadFirebaseAdmin();
+  const { data, error } = await firebaseAdmin
     .from("recipes")
     .select(RECIPE_COLS)
     .eq("id", recipeId)
@@ -31,10 +32,10 @@ async function assertCanEdit(userId: string, createdBy: string | null) {
  * Uses a cached verified photo, otherwise finds and stores a matching photo.
  */
 export const ensureRecipeImage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
-    const { data: accessible, error } = await context.supabase
+    const { data: accessible, error } = await context.firebase
       .from("recipes")
       .select("id")
       .eq("id", data.recipeId)
@@ -51,10 +52,10 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
         searched: false,
       };
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     // Each recipe gets its own AI photo built from its ingredients and steps, generated once and reused.
     {
-      const { data: ok } = await supabaseAdmin.rpc("check_rate_limit", {
+      const { data: ok } = await firebaseAdmin.rpc("check_rate_limit", {
         _bucket: "recipe_image_ai",
         _identifier: context.userId,
         _max_per_minute: 6,
@@ -67,7 +68,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
           searched: false,
           reason: "rate_limited",
         };
-      const { data: credit } = await supabaseAdmin.rpc("consume_image_credit", {
+      const { data: credit } = await firebaseAdmin.rpc("consume_image_credit", {
         _user_id: context.userId,
       });
       const c = credit as {
@@ -101,7 +102,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
       }
       if (url) return { imageUrl: url, source: "AI", confidence: 100, searched: true };
       // Release the claim so a later search can retry.
-      await supabaseAdmin.from("recipes").update({ image_checked_at: null }).eq("id", r.id);
+      await firebaseAdmin.from("recipes").update({ image_checked_at: null }).eq("id", r.id);
       if (srv.configuredProviders().length === 0) {
         return { imageUrl: null, source: null, confidence: null, searched: true, reason: "failed" };
       }
@@ -116,7 +117,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
       };
     }
     // Global throttle protects the image APIs from bursts of page views.
-    const { data: allowed } = await supabaseAdmin.rpc("check_rate_limit", {
+    const { data: allowed } = await firebaseAdmin.rpc("check_rate_limit", {
       _bucket: "recipe_image_search",
       _identifier: "global",
       _max_per_minute: 20,
@@ -152,7 +153,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
   });
 
 export const getImageAlternatives = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const srv = await import("@/lib/recipe-images.server");
@@ -184,7 +185,7 @@ const ChooseSchema = z.object({
 });
 
 export const chooseRecipeImage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => ChooseSchema.parse(v))
   .handler(async ({ data, context }) => {
     const srv = await import("@/lib/recipe-images.server");
@@ -208,7 +209,7 @@ export const chooseRecipeImage = createServerFn({ method: "POST" })
 
 /** Kept for compatibility; bulk generation is disabled by user preference. */
 export const backfillRecipeImages = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z.object({ batchSize: z.number().int().min(1).max(10).default(5) }).parse(v ?? {}),
   )

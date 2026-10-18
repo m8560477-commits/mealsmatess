@@ -3,7 +3,8 @@ import { requireAiCredit } from "@/lib/ai-credits.server";
 import { lovableFetch } from "@/lib/lovable-ai.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 const RecipeSchema = z.object({
   not_recipe: z.boolean().optional(),
@@ -95,7 +96,7 @@ function imageUrlFor(name: string, imagePrompt: string | null | undefined) {
 }
 
 export const importRecipeFromUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ url: z.string().url().max(1000) }).parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
@@ -127,7 +128,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
       throw new Error("No recipe could be detected from this video.");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { firebaseAdmin } = await loadFirebaseAdmin();
     const userId = context.userId;
 
     const slug = `${slugify(parsed.name)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -154,7 +155,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
       created_by: userId,
     };
 
-    const { data: inserted, error } = await supabaseAdmin
+    const { data: inserted, error } = await firebaseAdmin
       .from("recipes")
       .insert(row)
       .select("id,slug")
@@ -162,7 +163,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Auto-favorite so the recipe lands in the Cookbook immediately.
-    await supabaseAdmin
+    await firebaseAdmin
       .from("favorites")
       .insert({ user_id: userId, recipe_id: inserted.id })
       .then(
@@ -174,7 +175,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
   });
 
 export const updateRecipeBasics = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) =>
     z
       .object({
@@ -187,8 +188,8 @@ export const updateRecipeBasics = createServerFn({ method: "POST" })
       .parse(v),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    const { error } = await firebaseAdmin
       .from("recipes")
       .update({
         name: data.name,
@@ -203,15 +204,15 @@ export const updateRecipeBasics = createServerFn({ method: "POST" })
   });
 
 export const deleteImportedRecipe = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireFirebaseAuth])
   .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
+    const { firebaseAdmin } = await loadFirebaseAdmin();
+    await firebaseAdmin
       .from("favorites")
       .delete()
       .eq("user_id", context.userId)
       .eq("recipe_id", data.id);
-    await supabaseAdmin.from("recipes").delete().eq("id", data.id).eq("created_by", context.userId);
+    await firebaseAdmin.from("recipes").delete().eq("id", data.id).eq("created_by", context.userId);
     return { ok: true };
   });

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
+import { signOutUnified } from "@/hooks/use-session";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -27,7 +27,7 @@ export function AppHeader() {
   async function handleSignOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    await supabase.auth.signOut();
+    await signOutUnified();
     navigate({ to: "/auth", replace: true });
   }
 

@@ -88,7 +88,14 @@ export function FlagsTab() {
       </div>
 
       <div className="space-y-2">
-        {(flags ?? []).map((f) => (
+        {(
+          (flags ?? []) as {
+            key: string;
+            description?: string | null;
+            enabled: boolean;
+            rollout_percent: number;
+          }[]
+        ).map((f) => (
           <div
             key={f.key}
             className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4"

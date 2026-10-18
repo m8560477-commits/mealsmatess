@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Megaphone, ExternalLink } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { usePremium } from "@/hooks/use-premium";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function adPlacementsQuery(slot: AdSlotName) {
     queryKey: ["ad-placements", slot],
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Placement[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await firebaseData
         .from("ad_placements")
         .select(
           "id, slot, title, body, image_url, cta_label, target_url, advertiser, weight, starts_at, ends_at",
@@ -38,7 +38,7 @@ export function adPlacementsQuery(slot: AdSlotName) {
         .limit(10);
       if (error) throw error;
       const now = Date.now();
-      return (data ?? []).filter(
+      return ((data ?? []) as Placement[]).filter(
         (p) =>
           (!p.starts_at || new Date(p.starts_at).getTime() <= now) &&
           (!p.ends_at || new Date(p.ends_at).getTime() >= now),

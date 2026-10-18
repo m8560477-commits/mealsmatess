@@ -89,23 +89,43 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
           return new Response("Bad JSON", { status: 400 });
         }
         const evt = body.event;
-        if (!evt || !evt.type || !evt.app_user_id) {
+        if (!evt || !evt.id || !evt.type || !evt.app_user_id || !/^[A-Za-z0-9_-]{1,128}$/.test(evt.id)) {
           return new Response("Bad payload", { status: 400 });
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        // Idempotency
-        if (evt.id) {
-          const { data: dup } = await supabaseAdmin
-            .from("subscription_events")
-            .select("id")
-            .eq("rc_event_id", evt.id)
-            .maybeSingle();
-          if (dup) return new Response("Duplicate", { status: 200 });
+        const { firebaseAdmin, firebaseAuthUserExists } = await import("@/server/firebase-admin");
+        const userId = evt.app_user_id;
+        if (!(await firebaseAuthUserExists(userId))) {
+          return new Response("Unknown Firebase user", { status: 400 });
         }
 
-        const userId = evt.app_user_id; // app must set RC appUserId = supabase user.id
+        const { data: previousEvent } = await firebaseAdmin
+          .from("subscription_events")
+          .select("id,processed,claimed_at")
+          .eq("rc_event_id", evt.id)
+          .maybeSingle();
+        if (previousEvent && previousEvent.processed !== false) {
+          return new Response("Duplicate", { status: 200 });
+        }
+        if (previousEvent) {
+          const claimTime = Date.parse(String(previousEvent.claimed_at ?? ""));
+          if (Number.isFinite(claimTime) && Date.now() - claimTime < 120_000) {
+            return new Response("Processing", { status: 503 });
+          }
+          await firebaseAdmin.from("subscription_events").delete().eq("rc_event_id", evt.id);
+        }
+
+        const claimedAt = new Date().toISOString();
+        const { error: claimError } = await firebaseAdmin.from("subscription_events").insert({
+          user_id: userId,
+          event_type: evt.type,
+          source: "revenuecat",
+          rc_event_id: evt.id,
+          payload: JSON.parse(JSON.stringify(evt)),
+          processed: false,
+          claimed_at: claimedAt,
+        });
+        if (claimError) return new Response("Processing", { status: 503 });
         const tier = tierFromProduct(evt.product_id);
         const store = storeFrom(evt.store);
         const periodEnd = evt.expiration_at_ms
@@ -116,7 +136,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
           : new Date().toISOString();
 
         // Find or create subscription for this user
-        const { data: existing } = await supabaseAdmin
+        const { data: existing } = await firebaseAdmin
           .from("subscriptions")
           .select("*")
           .eq("user_id", userId)
@@ -142,9 +162,9 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
             is_manual: false,
           } as const;
           if (existing) {
-            await supabaseAdmin.from("subscriptions").update(patch).eq("id", existing.id);
+            await firebaseAdmin.from("subscriptions").update(patch).eq("id", existing.id);
           } else {
-            await supabaseAdmin.from("subscriptions").insert(patch);
+            await firebaseAdmin.from("subscriptions").insert(patch);
           }
 
           // Payment record for real money events
@@ -160,7 +180,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
                 : evt.type === "RENEWAL"
                   ? "renewal"
                   : "initial";
-            await supabaseAdmin
+            await firebaseAdmin
               .from("payments")
               .insert({
                 user_id: userId,
@@ -180,7 +200,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
 
           // Reward pending referrals on first paid conversion
           if (evt.type === "INITIAL_PURCHASE" || evt.type === "TRIAL_CONVERTED") {
-            const { data: ref } = await supabaseAdmin
+            const { data: ref } = await firebaseAdmin
               .from("referrals")
               .select("*")
               .eq("referred_id", userId)
@@ -189,7 +209,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
             if (ref) {
               await grantDays(ref.referrer_id, ref.reward_days);
               await grantDays(userId, ref.reward_days);
-              await supabaseAdmin
+              await firebaseAdmin
                 .from("referrals")
                 .update({ status: "rewarded", rewarded_at: new Date().toISOString() })
                 .eq("id", ref.id);
@@ -203,7 +223,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
                 : evt.type === "REFUND"
                   ? "cancelled"
                   : "expired";
-            await supabaseAdmin
+            await firebaseAdmin
               .from("subscriptions")
               .update({
                 status: newStatus,
@@ -214,7 +234,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
               .eq("id", existing.id);
           }
           if (evt.type === "REFUND" && evt.id) {
-            await supabaseAdmin
+            await firebaseAdmin
               .from("payments")
               .insert({
                 user_id: userId,
@@ -235,21 +255,18 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
           }
         } else if (evt.type === "BILLING_ISSUE") {
           if (existing) {
-            await supabaseAdmin
+            await firebaseAdmin
               .from("subscriptions")
               .update({ status: "in_grace" })
               .eq("id", existing.id);
           }
         }
 
-        await supabaseAdmin.from("subscription_events").insert({
-          user_id: userId,
-          subscription_id: existing?.id ?? null,
-          event_type: evt.type,
-          source: "revenuecat",
-          rc_event_id: evt.id,
-          payload: JSON.parse(JSON.stringify(evt)),
-        });
+        const { error: completionError } = await firebaseAdmin
+          .from("subscription_events")
+          .update({ processed: true, completed_at: new Date().toISOString() })
+          .eq("rc_event_id", evt.id);
+        if (completionError) throw completionError;
 
         return new Response("ok", { status: 200 });
       },
@@ -258,8 +275,8 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
 });
 
 async function grantDays(userId: string, days: number) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: current } = await supabaseAdmin
+  const { firebaseAdmin } = await import("@/server/firebase-admin");
+  const { data: current } = await firebaseAdmin
     .from("subscriptions")
     .select("*")
     .eq("user_id", userId)
@@ -272,7 +289,7 @@ async function grantDays(userId: string, days: number) {
       : Date.now();
   const newEnd = new Date(baseline + days * 86400000).toISOString();
   if (current) {
-    await supabaseAdmin
+    await firebaseAdmin
       .from("subscriptions")
       .update({
         status: "active",
@@ -281,7 +298,7 @@ async function grantDays(userId: string, days: number) {
       })
       .eq("id", current.id);
   } else {
-    await supabaseAdmin.from("subscriptions").insert({
+    await firebaseAdmin.from("subscriptions").insert({
       user_id: userId,
       tier: "promo",
       status: "active",

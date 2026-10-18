@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import {
   THEME_STORAGE_KEY,
@@ -40,7 +40,7 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    supabase
+    firebaseData
       .from("profiles")
       .select("theme")
       .eq("id", user.id)
@@ -82,7 +82,7 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
       }
       if (!user) return;
       setSaving(true);
-      const { error } = await supabase
+      const { error } = await firebaseData
         .from("profiles")
         .update({ theme: id } as never)
         .eq("id", user.id);

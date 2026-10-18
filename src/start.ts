@@ -1,7 +1,7 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { attachFirebaseAuth } from "@/lib/firebase-auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -20,7 +20,7 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 
 // Add hardening headers (HSTS, XFO, XCTO, Referrer-Policy, Permissions-Policy, CSP)
 // to every server response. CSP is intentionally permissive for third-party image hosts
-// (Lovable recipe assets, Supabase Storage, Unsplash) and the AI gateway.
+// (Lovable recipe assets, Firebase Storage, Unsplash) and the AI gateway.
 const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
   const result = await next();
   // `next()` may return a Response OR a framework result object (e.g. { response, context }).
@@ -60,6 +60,6 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [attachFirebaseAuth],
   requestMiddleware: [errorMiddleware, securityHeadersMiddleware],
 }));
