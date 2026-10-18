@@ -1,533 +1,717 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChefHat, Loader2, Sparkles } from "lucide-react";
-import { ChefMascot } from "@/components/chef-mascot";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
-import { type FoodPreferences } from "@/lib/preferences";
-import { cn } from "@/lib/utils";
+import { useSession } from "@/hooks/use-session";
+import { type FoodPreferences, preferenceSummary, writeLocalPreferences } from "@/lib/preferences";
+import {
+  COUNTRY_OPTIONS,
+  LANGUAGE_OPTIONS,
+  FOOD_GOALS,
+  currencyForCountry,
+  assertRequiredAnswers,
+} from "@/lib/onboarding-model";
+import {
+  createOnboardingExperience,
+  getOnboardingExperience,
+  completeOnboarding,
+} from "@/lib/onboarding.functions";
+import { SubscriptionOptions } from "@/components/subscription-options";
+import { ChefMascot } from "@/components/chef-mascot";
+import { RecipeImage } from "@/components/recipe-image";
+import { Button } from "@/components/ui/button";
+import bowlPhoto from "@/assets/recipes/rainbow-buddha-bowl.webp";
+import jollofPhoto from "@/assets/recipes/west-african-jollof-rice.webp";
+import chickenPhoto from "@/assets/recipes/greek-chicken-salad.webp";
 
 export const Route = createFileRoute("/onboarding")({
-  head: () => ({
-    meta: [
-      { title: "Personalise your kitchen — MealMate" },
-      {
-        name: "description",
-        content:
-          "Create a MealMate cooking profile based on your habits, goals, household and dietary needs.",
-      },
-      { property: "og:title", content: "Personalise your kitchen — MealMate" },
-      {
-        property: "og:description",
-        content:
-          "Create a MealMate cooking profile based on your habits, goals, household and dietary needs.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Your MealMate, personalized" }] }),
   component: OnboardingPage,
 });
-
-type Answers = {
-  cookingFrequency: string;
-  mainChallenge: string;
-  mealDecision: string;
-  foodWaste: string;
-  priority: string;
-  cookingTime: string;
-  household: string;
-  dietary: string[];
-  goal: string;
-};
-type QuestionKey = keyof Answers;
-type Stage =
-  | "quiz"
-  | "results"
-  | "impact"
-  | "solution"
-  | "features"
-  | "plan"
-  | "premium"
-  | "saving"
-  | "complete";
-
-const QUESTIONS: {
-  key: QuestionKey;
-  title: string;
-  options: readonly string[];
-  multi?: boolean;
-}[] = [
-  {
-    key: "cookingFrequency",
-    title: "How often do you cook at home?",
-    options: ["Almost every day", "A few times a week", "Occasionally", "Rarely"],
-  },
-  {
-    key: "mainChallenge",
-    title: "What's your biggest cooking challenge?",
-    options: [
-      "I don't know what to cook",
-      "I forget what ingredients I have",
-      "I waste food before using it",
-      "Groceries are getting expensive",
-      "Meal planning takes too much time",
-      "Finding suitable recipes is difficult",
-    ],
-  },
-  {
-    key: "mealDecision",
-    title: "How do you decide what to eat?",
-    options: [
-      "I use whatever is available",
-      "I search for recipes",
-      "I plan meals in advance",
-      "I order food or buy ready-made meals",
-    ],
-  },
-  {
-    key: "foodWaste",
-    title: "How often do ingredients go unused?",
-    options: ["Rarely", "Sometimes", "Often", "I'm not sure"],
-  },
-  {
-    key: "priority",
-    title: "What matters most when choosing a recipe?",
-    options: [
-      "Low cost",
-      "Quick preparation",
-      "Healthy and balanced meals",
-      "Taste and variety",
-      "Using ingredients I already have",
-    ],
-  },
-  {
-    key: "cookingTime",
-    title: "How much time do you have to cook?",
-    options: ["Under 15 minutes", "15–30 minutes", "30–45 minutes", "More than 45 minutes"],
-  },
-  {
-    key: "household",
-    title: "Who are you usually cooking for?",
-    options: ["Just me", "Two people", "A family", "A household with different preferences"],
-  },
-  {
-    key: "dietary",
-    title: "Do you have dietary preferences?",
-    multi: true,
-    options: [
-      "No specific preference",
-      "Vegetarian",
-      "Vegan",
-      "High-protein",
-      "Gluten-free",
-      "Dairy-free",
-    ],
-  },
-  {
-    key: "goal",
-    title: "What would you most like MealMate to help you achieve?",
-    options: [
-      "Save money on groceries",
-      "Waste less food",
-      "Cook more consistently",
-      "Discover new recipes",
-      "Plan meals for the week",
-      "Keep my kitchen organized",
-    ],
-  },
+const titles = [
+  "Let's make food work for you.",
+  "A little about you",
+  "What brings you to the table?",
+  "Food that feels right",
+  "What do you love eating?",
+  "Your kitchen, your pace",
+  "Make your budget go further",
+  "Find your rhythm",
+  "Meet your MealMate",
+  "Creating your experience",
+  "Made for you",
+  "Your personalized food journey starts here.",
 ];
-
-const INITIAL: Answers = {
-  cookingFrequency: "",
-  mainChallenge: "",
-  mealDecision: "",
-  foodWaste: "",
-  priority: "",
-  cookingTime: "",
-  household: "",
-  dietary: [],
-  goal: "",
-};
-const STAGES: Stage[] = ["quiz", "results", "impact", "solution", "features", "plan", "premium"];
-
-function benefitsFor(a: Answers) {
-  const benefits: string[] = [];
-  if (a.mainChallenge.includes("don't know"))
-    benefits.push("Explore recipe suggestions instead of starting from a blank page.");
-  if (a.mainChallenge.includes("ingredients"))
-    benefits.push("Keep your recorded ingredients organized in one place.");
-  if (a.mainChallenge.includes("waste"))
-    benefits.push("Plan meals around recorded ingredients before buying more.");
-  if (a.mainChallenge.includes("expensive"))
-    benefits.push("Check what you already have before creating your shopping list.");
-  if (a.mainChallenge.includes("time"))
-    benefits.push("Use your preferred cooking time to narrow down recipe choices.");
-  if (a.mainChallenge.includes("suitable"))
-    benefits.push("Use your preferences to find more relevant recipes.");
-  if (a.goal === "Plan meals for the week")
-    benefits.push("Bring your meal decisions together in a weekly plan.");
-  benefits.push(`Focus on recipes suited to ${a.cookingTime.toLowerCase() || "your schedule"}.`);
-  return [...new Set(benefits)].slice(0, 4);
-}
-
-function mapPreferences(current: FoodPreferences, a: Answers): FoodPreferences {
-  const restrictions = a.dietary.filter((item) => item !== "No specific preference");
-  return {
-    ...current,
-    goal: a.goal || current.goal,
-    dietary_restrictions: restrictions,
-    meals_per_day: a.household || current.meals_per_day,
-    cooking_time: a.cookingTime || current.cooking_time,
-    food_budget: a.priority === "Low cost" ? "Budget friendly" : current.food_budget,
-    preferred_features: [
-      a.mainChallenge,
-      a.mealDecision,
-      a.priority,
-      a.cookingFrequency,
-      a.foodWaste,
-    ].filter(Boolean),
-    onboarding_completed: true,
-  };
-}
-
-function OnboardingPage() {
-  const navigate = useNavigate();
-  const { preferences, save } = usePreferences();
-  const [stage, setStage] = useState<Stage>("quiz");
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Answers>(INITIAL);
-  const benefits = useMemo(() => benefitsFor(answers), [answers]);
-  const question = QUESTIONS[questionIndex] ?? {
-    key: "cookingFrequency" as const,
-    title: "How often do you cook at home?",
-    options: ["Almost every day"] as const,
-  };
-  const progress =
-    stage === "quiz"
-      ? ((questionIndex + 1) / QUESTIONS.length) * 100
-      : ((STAGES.indexOf(stage) + 1) / STAGES.length) * 100;
-
-  function selected(option: string) {
-    return question.key === "dietary"
-      ? answers.dietary.includes(option)
-      : answers[question.key] === option;
-  }
-  function choose(option: string) {
-    if (question.key !== "dietary") return setAnswers((a) => ({ ...a, [question.key]: option }));
-    setAnswers((a) => ({
-      ...a,
-      dietary:
-        option === "No specific preference"
-          ? [option]
-          : a.dietary.includes(option)
-            ? a.dietary.filter((x) => x !== option)
-            : [...a.dietary.filter((x) => x !== "No specific preference"), option],
-    }));
-  }
-  function nextQuestion() {
-    if (questionIndex < QUESTIONS.length - 1) setQuestionIndex((i) => i + 1);
-    else setStage("results");
-  }
-  function back() {
-    if (stage === "quiz" && questionIndex > 0) return setQuestionIndex((i) => i - 1);
-    const i = STAGES.indexOf(stage);
-    if (i > 0) setStage(STAGES[i - 1] ?? "quiz");
-  }
-  async function finish(destination: "/" | "/premium") {
-    setStage("saving");
-    try {
-      await save(mapPreferences(preferences, answers));
-      if (destination === "/premium") await navigate({ to: "/premium", replace: true });
-      else setStage("complete");
-    } catch {
-      toast.error("We couldn't save your cooking profile. Please try again.");
-      setStage("premium");
-    }
-  }
-
-  return (
-    <main
-      className="onboarding-shell fixed inset-0 z-50 overflow-y-auto bg-background text-foreground"
-      data-tone={["mint", "coral", "sky", "yellow"][questionIndex % 4]}
-    >
-      <div className="mx-auto flex min-h-full w-full max-w-xl flex-col px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(env(safe-area-inset-top),1.5rem)] sm:px-8">
-        <header className="mb-7 grid grid-cols-[80px_1fr_80px] items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={back}
-            disabled={stage === "quiz" && questionIndex === 0}
-            className={cn(
-              "justify-self-start",
-              stage === "quiz" && questionIndex === 0 && "invisible",
-            )}
-          >
-            <ArrowLeft /> Back
-          </Button>
-          <span className="flex items-center gap-2 justify-self-center font-display text-lg font-semibold">
-            <ChefHat className="size-5 text-primary" />
-            MealMate
-          </span>
-          <span className="justify-self-end text-xs text-muted-foreground">Your kitchen</span>
-        </header>
-        {stage !== "complete" && stage !== "saving" && (
-          <div className="mb-6 flex gap-1.5" aria-hidden="true">
-            {["bg-setup-mint", "bg-setup-coral", "bg-setup-sky", "bg-setup-yellow"].map((color) => (
-              <span key={color} className={cn("h-1.5 flex-1 rounded-full", color)} />
-            ))}
-          </div>
-        )}
-
-        <section className="flex flex-1 flex-col">
-          {stage === "quiz" && (
-            <div key={questionIndex} className="step-in-right flex flex-1 flex-col">
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <span className="inline-flex items-center gap-2 rounded-md bg-setup-mint px-3 py-2 text-xs font-bold text-setup-ink">
-                  <Sparkles className="size-4" />
-                  Your kitchen, your way
-                </span>
-                <ChefMascot className="size-20 shrink-0" />
-              </div>
-              <div className="mb-4 flex items-center gap-3">
-                <p className="shrink-0 text-xs font-semibold text-muted-foreground">
-                  {String(questionIndex + 1).padStart(2, "0")} /{" "}
-                  {String(QUESTIONS.length).padStart(2, "0")}
-                </p>
-                <div
-                  className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-label="Kitchen profile questions"
-                  aria-valuenow={Math.round(progress)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div
-                    className="setup-progress h-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-              <h1 className="onboarding-heading font-display text-3xl font-semibold leading-tight sm:text-4xl">
-                {question.title}
-              </h1>
-              <p className="mb-7 mt-3 text-sm text-muted-foreground">
-                Help us personalize your cooking experience.
-              </p>
-              <div className="space-y-2.5">
-                {question.options.map((option, index) => (
-                  <Button
-                    key={option}
-                    variant="outline"
-                    className="onboarding-choice h-auto min-h-14 w-full justify-start gap-3 whitespace-normal rounded-lg px-3 py-3 text-left"
-                    onClick={() => choose(option)}
-                    aria-pressed={selected(option)}
-                  >
-                    <span
-                      className="choice-marker grid size-8 shrink-0 place-items-center rounded-md text-xs font-bold text-setup-ink"
-                      aria-hidden
-                    >
-                      {selected(option) ? <Check /> : String.fromCharCode(65 + index)}
-                    </span>
-                    <span className="flex-1">{option}</span>
-                  </Button>
-                ))}
-              </div>
-              <div className="mt-auto space-y-2 pt-8">
-                <Button
-                  className="h-13 w-full rounded-lg"
-                  onClick={nextQuestion}
-                  disabled={
-                    question.key === "dietary"
-                      ? answers.dietary.length === 0
-                      : !answers[question.key]
-                  }
-                >
-                  {questionIndex === QUESTIONS.length - 1 ? "Show my results" : "Continue"}
-                  <ArrowRight />
-                </Button>
-                <Button variant="ghost" className="w-full" onClick={nextQuestion}>
-                  Skip this question
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {stage === "results" && (
-            <InfoStage
-              eyebrow="Your cooking profile"
-              title="Your kitchen has more potential."
-              text={
-                <>
-                  Your main challenge is{" "}
-                  <strong>{answers.mainChallenge || "your cooking routine"}</strong>. MealMate can
-                  turn your preferences into practical meal ideas.
-                </>
-              }
-              items={[
-                `Your goal: ${answers.goal || "Explore better meal planning"}`,
-                `Cooking time: ${answers.cookingTime || "Flexible"}`,
-                `Cooking for: ${answers.household || "Not specified"}`,
-              ]}
-              action="Continue"
-              onAction={() => setStage("impact")}
-            />
-          )}
-          {stage === "impact" && (
-            <InfoStage
-              eyebrow="Your everyday routine"
-              title="Make everyday cooking simpler."
-              text="A little organization can reduce guesswork and help you make better use of your ingredients and time."
-              items={benefits}
-              action="Show me the solution"
-              onAction={() => setStage("solution")}
-            />
-          )}
-          {stage === "solution" && (
-            <InfoStage
-              eyebrow="Meet your kitchen companion"
-              title="Less guessing. More cooking."
-              text="MealMate brings your pantry, recipes, weekly meals and shopping lists into one practical experience."
-              items={[
-                "Use what you have — start with pantry ingredients.",
-                "Plan your meals around your real routine.",
-                "Shop with purpose using missing ingredients.",
-              ]}
-              action="Explore the features"
-              onAction={() => setStage("features")}
-            />
-          )}
-          {stage === "features" && (
-            <InfoStage
-              eyebrow="Your kitchen toolkit"
-              title="Everything starts with what you have."
-              text="MealMate connects the cooking tools already in your account."
-              items={[
-                "Pantry-powered recipes",
-                "A plan for your week",
-                "Smarter shopping lists",
-                "Ingredient scanning and tracking",
-              ]}
-              action="Create my plan"
-              onAction={() => setStage("plan")}
-            />
-          )}
-          {stage === "plan" && (
-            <InfoStage
-              eyebrow="Your personalized starting point"
-              title="A plan built around you."
-              text="Start with these practical steps, then add your real pantry ingredients for more relevant matching."
-              items={[
-                "Record the ingredients in your kitchen.",
-                `Choose recipes suited to ${answers.cookingTime || "your schedule"}.`,
-                `Focus on your goal: ${answers.goal || "better meal planning"}.`,
-                "Build your weekly plan and shopping list.",
-              ]}
-              action="Continue"
-              onAction={() => setStage("premium")}
-            />
-          )}
-          {stage === "premium" && (
-            <InfoStage
-              eyebrow="MealMate Premium"
-              title="Make every ingredient count."
-              text="Get more ways to plan meals, discover recipes and organize your kitchen with MealMate Premium."
-              items={[
-                "More recipe inspiration",
-                "Personalized meal planning",
-                "Organized shopping lists",
-                "Expanded pantry tools",
-              ]}
-              action="View real plans and prices"
-              onAction={() => void finish("/premium")}
-              secondaryAction="Not now, continue free"
-              onSecondary={() => void finish("/")}
-            />
-          )}
-          {stage === "saving" && (
-            <div className="my-auto text-center" role="status">
-              <Loader2 className="mx-auto size-8 animate-spin text-primary" />
-              <h1 className="mt-6 font-display text-3xl">Saving your kitchen profile.</h1>
-            </div>
-          )}
-          {stage === "complete" && (
-            <InfoStage
-              eyebrow="Welcome to MealMate"
-              title="Let's get cooking."
-              text="Your preferences are saved. Add your ingredients to start finding meals that suit your kitchen."
-              items={[]}
-              action="Continue to MealMate"
-              onAction={() => navigate({ to: "/", replace: true })}
-            />
-          )}
-        </section>
-        {stage !== "complete" && stage !== "saving" && (
-          <footer className="pt-8 text-center text-xs text-muted-foreground">
-            Cook what you already have.
-          </footer>
-        )}
-      </div>
-    </main>
-  );
-}
-
-function InfoStage({
-  eyebrow,
-  title,
-  text,
-  items,
-  action,
-  onAction,
-  secondaryAction,
-  onSecondary,
+const foods = [
+  "Chicken",
+  "Beef",
+  "Fish",
+  "Rice dishes",
+  "Pasta",
+  "Vegetables",
+  "Traditional South African meals",
+  "Indian cuisine",
+  "Italian cuisine",
+  "Asian cuisine",
+  "Fast food",
+  "Vegetarian meals",
+];
+function Choices({
+  options,
+  value,
+  onChange,
+  single = false,
 }: {
-  eyebrow: string;
-  title: string;
-  text: React.ReactNode;
-  items: string[];
-  action: string;
-  onAction: () => void;
-  secondaryAction?: string;
-  onSecondary?: () => void;
+  options: readonly string[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  single?: boolean;
 }) {
   return (
-    <div className="step-in-right my-auto py-6">
-      <ChefMascot className="mb-5 size-28" animate />
-      <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-setup-sky px-3 py-2 text-xs font-bold text-setup-ink">
-        <Sparkles className="size-4" />
-        {eyebrow}
-      </p>
-      <h1 className="onboarding-heading font-display text-3xl font-semibold leading-tight sm:text-4xl">
-        {title}
-      </h1>
-      <p className="mt-5 leading-7 text-muted-foreground">{text}</p>
-      {!!items.length && (
-        <div className="mt-7 divide-y divide-border">
-          {items.map((item, index) => (
-            <div key={item} className="setup-item flex items-start gap-3 py-4 text-sm">
-              <span className="choice-marker grid size-8 shrink-0 place-items-center rounded-md text-xs font-bold text-setup-ink">
-                <Check className="size-4" />
-              </span>
-              <span className="pt-1">{item}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="mt-8 space-y-2">
-        <Button
-          className="h-auto min-h-13 w-full whitespace-normal rounded-lg py-3"
-          onClick={onAction}
+    <div className="onboarding-choices">
+      {options.map((option) => (
+        <button
+          type="button"
+          className="onboarding-choice"
+          aria-pressed={value.includes(option)}
+          key={option}
+          onClick={() =>
+            onChange(
+              single
+                ? [option]
+                : value.includes(option)
+                  ? value.filter((v) => v !== option)
+                  : [...value, option],
+            )
+          }
         >
-          {action}
-          <ArrowRight />
+          <span>{option}</span>
+          {value.includes(option) && <Check className="h-4 w-4 shrink-0" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+function Tags({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [text, setText] = useState("");
+  function add() {
+    const next = text
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (next.length) onChange([...new Set([...value, ...next])].slice(0, 40));
+    setText("");
+  }
+  return (
+    <fieldset className="space-y-2">
+      <legend>{label}</legend>
+      <div className="flex gap-2">
+        <input
+          className="onboarding-input"
+          aria-label={label}
+          placeholder="Type an ingredient, then Add"
+          value={text}
+          maxLength={100}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          onBlur={add}
+        />
+        <Button type="button" variant="outline" onClick={add}>
+          Add
         </Button>
-        {secondaryAction && onSecondary && (
-          <Button variant="ghost" className="w-full" onClick={onSecondary}>
-            {secondaryAction}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {value.map((v) => (
+          <button
+            type="button"
+            className="rounded-full border px-3 py-1 text-sm"
+            key={v}
+            aria-label={`Remove ${v}`}
+            onClick={() => onChange(value.filter((item) => item !== v))}
+          >
+            {v} ×
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+function OnboardingPage() {
+  const { user } = useSession();
+  const pref = usePreferences();
+  if (!user)
+    return (
+      <main className="p-8">
+        <h1>Make MealMate yours</h1>
+        <Link to="/auth">Sign in to save your progress</Link>
+      </main>
+    );
+  if (pref.loading)
+    return (
+      <p className="p-8" role="status">
+        Loading your saved preferences…
+      </p>
+    );
+  if (pref.error)
+    return (
+      <main className="p-8">
+        <p role="alert">We couldn't load your saved preferences. Please retry before editing.</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </main>
+    );
+  return (
+    <OnboardingFlow key={user.id} userId={user.id} initial={pref.preferences} save={pref.save} />
+  );
+}
+function OnboardingFlow({
+  userId,
+  initial,
+  save,
+}: {
+  userId: string;
+  initial: FoodPreferences;
+  save: (p: FoodPreferences) => Promise<void>;
+}) {
+  const [answers, setAnswers] = useState(initial);
+  const [step, setStep] = useState(initial.onboarding_completed ? 1 : initial.onboarding_step);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const latest = useRef(answers);
+  const queue = useRef(Promise.resolve());
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const experience = useQuery({
+    queryKey: ["onboarding-experience", userId],
+    queryFn: () => getOnboardingExperience(),
+  });
+  const content = useRef<HTMLElement>(null);
+  useEffect(() => {
+    content.current?.focus();
+    document.getElementById("app-scroll")?.scrollTo({ top: 0 });
+  }, [step]);
+  function update(patch: Partial<FoodPreferences>) {
+    const next = { ...latest.current, ...patch, updated_at: new Date().toISOString() };
+    latest.current = next;
+    setAnswers(next);
+    setDirty(true);
+    writeLocalPreferences(next, userId);
+    setStatus("Saved on this device");
+  }
+  function persist(value: FoodPreferences) {
+    const task = queue.current.catch(() => undefined).then(() => save(value));
+    queue.current = task;
+    return task;
+  }
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => {
+      const value = latest.current;
+      void persist(value)
+        .then(() => {
+          if (latest.current === value) {
+            setDirty(false);
+            setStatus("Progress saved");
+          }
+        })
+        .catch(() => setStatus("Saved on this device. Continue to retry syncing."));
+    }, 600);
+    return () => clearTimeout(timer);
+    // Local edits deliberately drive the save queue; remote refreshes never replace in-progress answers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, dirty]);
+  async function go(nextStep: number) {
+    setBusy(true);
+    setError("");
+    try {
+      if (nextStep > step) {
+        if (step === 1 && (!answers.display_name.trim() || !answers.country))
+          throw new Error("Please enter your name and country.");
+        if (step === 2 && !answers.goals.length) throw new Error("Choose at least one food goal.");
+        if (step === 5 && (!answers.cooking_level || !answers.cooking_time))
+          throw new Error("Choose your cooking level and usual time.");
+        if (step === 7) assertRequiredAnswers(answers);
+      }
+      const next = { ...latest.current, onboarding_step: nextStep };
+      update(next);
+      await persist(next);
+      setDirty(false);
+      setStep(nextStep);
+      setStatus("Progress saved");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not save. Your progress is kept on this device.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function generate() {
+    setBusy(true);
+    setError("");
+    try {
+      await persist(latest.current);
+      const result = await createOnboardingExperience();
+      qc.setQueryData(["onboarding-experience", userId], result);
+      const next = { ...latest.current, onboarding_step: 10 };
+      update(next);
+      await persist(next);
+      setDirty(false);
+      setStep(10);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not create your experience. Your preferences are saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function finish() {
+    await persist({ ...latest.current, onboarding_step: 11 });
+    await completeOnboarding();
+    await qc.invalidateQueries({ queryKey: ["preferences", userId] });
+    await qc.invalidateQueries({ queryKey: ["recipes"] });
+    await navigate({ to: "/" });
+  }
+  const selection = (
+    key: "goals" | "diets" | "favorite_foods" | "meal_types" | "reminders",
+    options: readonly string[],
+  ) => (
+    <Choices
+      options={options}
+      value={answers[key]}
+      onChange={(value) => update({ [key]: value })}
+    />
+  );
+  return (
+    <main className="onboarding-shell" ref={content} tabIndex={-1}>
+      <header className="flex items-center justify-between gap-3">
+        <Link to="/" className="font-display text-xl">
+          MealMate
+        </Link>
+        <span className="text-xs tracking-widest">YOUR FOOD. YOUR WAY.</span>
+      </header>
+      <div className="mt-6 flex justify-between text-xs">
+        <span>{step + 1} / 12</span>
+        <span aria-live="polite">{status}</span>
+      </div>
+      <progress
+        className="onboarding-progress"
+        max={12}
+        value={step + 1}
+        aria-label={`Step ${step + 1} of 12`}
+      />
+      <section key={step} inert={busy} className="onboarding-step space-y-6">
+        {step !== 11 && (
+          <h1 className="font-display text-3xl leading-tight sm:text-4xl">{titles[step]}</h1>
+        )}
+        {step === 0 && (
+          <>
+            <p className="text-lg">
+              A MealMate experience built around your life, your taste and your goals.
+            </p>
+            <img
+              className="onboarding-hero"
+              src={bowlPhoto}
+              alt="A colourful bowl of fresh vegetables, grains and greens"
+            />
+            <div className="flex items-center gap-3">
+              <ChefMascot className="h-20 w-20" />
+              <p>Hi, I'm Mia. Let's find food you'll look forward to.</p>
+            </div>
+          </>
+        )}
+        {step === 1 && (
+          <>
+            <label className="block">
+              What should we call you?
+              <input
+                className="onboarding-input"
+                autoComplete="given-name"
+                maxLength={100}
+                value={answers.display_name}
+                onChange={(e) => update({ display_name: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              What country are you in?
+              <select
+                className="onboarding-input"
+                value={answers.country}
+                onChange={(e) =>
+                  update({
+                    country: e.target.value,
+                    budget_currency: currencyForCountry(e.target.value),
+                  })
+                }
+              >
+                <option value="">Select your country</option>
+                {COUNTRY_OPTIONS.map(([code, name]) => (
+                  <option value={code} key={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              Which language do you prefer?
+              <select
+                className="onboarding-input"
+                value={answers.language}
+                onChange={(e) => update({ language: e.target.value })}
+              >
+                {LANGUAGE_OPTIONS.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              How many people do you usually cook for?
+              <input
+                className="onboarding-input"
+                type="number"
+                min={1}
+                max={20}
+                value={answers.household_size}
+                onChange={(e) =>
+                  update({ household_size: Math.min(20, Math.max(1, Number(e.target.value))) })
+                }
+              />
+            </label>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <p>Pick as many as you like. Your goals can change with you.</p>
+            {selection("goals", FOOD_GOALS)}
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <Choices
+              options={[
+                "No specific diet",
+                "Vegetarian",
+                "Vegan",
+                "Pescatarian",
+                "High-protein",
+                "Gluten-free",
+                "Dairy-free",
+                "Halal",
+                "Kosher",
+              ]}
+              value={answers.diets.length ? answers.diets : ["No specific diet"]}
+              onChange={(value) =>
+                update({
+                  diets:
+                    value[value.length - 1] === "No specific diet"
+                      ? []
+                      : value.filter((v) => v !== "No specific diet"),
+                })
+              }
+            />
+            <Tags
+              label="Allergies"
+              value={answers.allergies}
+              onChange={(value) => update({ allergies: value })}
+            />
+            <Tags
+              label="Dietary restrictions"
+              value={answers.dietary_restrictions}
+              onChange={(value) => update({ dietary_restrictions: value })}
+            />
+            <Tags
+              label="Ingredients you prefer to avoid"
+              value={answers.disliked_foods}
+              onChange={(value) => update({ disliked_foods: value })}
+            />
+            <p className="text-sm">
+              We'll exclude known conflicts from recommendations. Always check ingredient labels and
+              preparation for cross-contact.
+            </p>
+          </>
+        )}
+        {step === 4 && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <img src={chickenPhoto} className="onboarding-food-photo" alt="Greek chicken salad" />
+              <img
+                src={jollofPhoto}
+                className="onboarding-food-photo"
+                alt="West African jollof rice"
+              />
+            </div>
+            <label className="block">
+              Search foods and cuisines
+              <input
+                className="onboarding-input"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <Choices
+              options={[
+                ...new Set([
+                  ...foods,
+                  ...answers.favorite_foods,
+                  ...(search.trim() ? [search.trim()] : []),
+                ]),
+              ].filter((v) => v.toLowerCase().includes(search.toLowerCase()))}
+              value={answers.favorite_foods}
+              onChange={(value) => update({ favorite_foods: value })}
+            />
+          </>
+        )}
+        {step === 5 && (
+          <>
+            <h2>Your cooking level</h2>
+            <Choices
+              options={["Beginner", "Intermediate", "Experienced"]}
+              value={answers.cooking_level ? [answers.cooking_level] : []}
+              single
+              onChange={(v) => update({ cooking_level: v[0] })}
+            />
+            <h2>How much time do you normally have?</h2>
+            <Choices
+              options={["Under 15 minutes", "15–30 minutes", "30–60 minutes", "More than an hour"]}
+              value={answers.cooking_time ? [answers.cooking_time] : []}
+              single
+              onChange={(v) => update({ cooking_time: v[0] })}
+            />
+          </>
+        )}
+        {step === 6 && (
+          <>
+            <p>
+              A guide for practical meal suggestions, not a spending target. Grocery prices vary.
+            </p>
+            <label className="block">
+              Food or grocery budget ({answers.budget_currency})
+              <input
+                className="onboarding-input"
+                type="number"
+                min={0}
+                max={100000000}
+                step="0.01"
+                placeholder="Not sure yet"
+                value={answers.budget_amount ?? ""}
+                onChange={(e) =>
+                  update({ budget_amount: e.target.value === "" ? null : Number(e.target.value) })
+                }
+              />
+            </label>
+            <Choices
+              options={["day", "week", "month"]}
+              value={[answers.budget_period]}
+              single
+              onChange={(v) => update({ budget_period: v[0] as FoodPreferences["budget_period"] })}
+            />
+            <Button
+              variant="outline"
+              onClick={() => {
+                update({ budget_amount: null });
+                void go(7);
+              }}
+            >
+              Not sure yet
+            </Button>
+          </>
+        )}
+        {step === 7 && (
+          <>
+            <h2>Which meals matter most?</h2>
+            {selection("meal_types", ["Breakfast", "Lunch", "Dinner", "Snacks"])}
+            <h2>How would you like to plan?</h2>
+            <Choices
+              options={["Individual meals", "An entire week", "Meals for a household"]}
+              value={[
+                {
+                  individual: "Individual meals",
+                  week: "An entire week",
+                  household: "Meals for a household",
+                }[answers.planning_style],
+              ]}
+              single
+              onChange={(v) =>
+                update({
+                  planning_style:
+                    v[0] === "An entire week"
+                      ? "week"
+                      : v[0] === "Meals for a household"
+                        ? "household"
+                        : "individual",
+                })
+              }
+            />
+            <h2>Reminders you'd find useful</h2>
+            {selection("reminders", [
+              "Meal planning",
+              "Cooking",
+              "Grocery shopping",
+              "Use ingredients before they expire",
+            ])}
+            <p className="text-sm">
+              These choices save your interests. Enable supported notifications in Profile when
+              you're ready; we won't ask for permission here.
+            </p>
+          </>
+        )}
+        {step === 8 && (
+          <>
+            <ChefMascot className="h-28 w-28" />
+            <h2 className="font-display text-2xl">You're all set, {answers.display_name}!</h2>
+            <p>Your MealMate will focus on {answers.goals.join(", ").toLowerCase()}.</p>
+            <div className="rounded-2xl border p-5 text-sm leading-relaxed">
+              {preferenceSummary(answers)}
+            </div>
+            <p>
+              Next, Mia will use your answers to prepare real starter recipes and a suggested plan.
+            </p>
+          </>
+        )}
+        {step === 9 && (
+          <>
+            <ChefMascot className="h-28 w-28" />
+            <p>
+              We'll select suitable recipes, prepare your first plan and ask Mia for a personal
+              greeting and ideas.
+            </p>
+            {busy ? (
+              <div role="status" className="flex items-center gap-3">
+                <Loader2 className="animate-spin" />
+                Preparing your recipes and Mia's suggestions…
+              </div>
+            ) : (
+              <Button onClick={() => void generate()}>Create my experience</Button>
+            )}
+            <p className="text-sm">
+              This may take a moment. If it fails, your answers stay saved and you can retry.
+            </p>
+          </>
+        )}
+        {step === 10 && (
+          <>
+            {experience.isLoading ? (
+              <p role="status">Loading your preview…</p>
+            ) : experience.data ? (
+              <>
+                <p className="text-lg">{experience.data.greeting}</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {experience.data.recipes.map((recipe, i) => (
+                    <article key={recipe.id} className="overflow-hidden rounded-2xl border">
+                      <RecipeImage recipe={recipe} className="aspect-square w-full object-cover" />
+                      <div className="space-y-2 p-4">
+                        <h2 className="font-semibold">{recipe.name}</h2>
+                        <p className="text-sm">
+                          {recipe.cooking_time_minutes
+                            ? `${recipe.cooking_time_minutes} min · `
+                            : ""}
+                          {recipe.difficulty}
+                        </p>
+                        <p className="text-sm">{experience.data!.explanations[i]}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <h2 className="font-display text-xl">Your suggested first plan</h2>
+                <p className="text-sm">
+                  A starting point for your household of {answers.household_size}. Review and save
+                  it in Planner after setup.
+                </p>
+                <ul className="space-y-2">
+                  {experience.data.plan.map((item, i) => (
+                    <li className="rounded-xl border p-3" key={i}>
+                      Day {item.day} · {item.meal}: {item.name}
+                    </li>
+                  ))}
+                </ul>
+                <h2 className="font-display text-xl">Ask Mia</h2>
+                <ul>
+                  {experience.data.prompts.map((prompt) => (
+                    <li className="my-2 rounded-xl border p-3" key={prompt}>
+                      {prompt}
+                    </li>
+                  ))}
+                </ul>
+                {!!experience.data.shoppingTips.length && (
+                  <>
+                    <h2>Budget-aware shopping ideas</h2>
+                    <ul>
+                      {experience.data.shoppingTips.map((tip) => (
+                        <li className="my-2" key={tip}>
+                          {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {initial.onboarding_completed && (
+                  <Button onClick={() => void navigate({ to: "/" })}>Save and return home</Button>
+                )}
+              </>
+            ) : (
+              <p role="alert">
+                Your preview isn't available. Go back and create your experience again.
+              </p>
+            )}
+            <Button variant="outline" disabled={busy} onClick={() => void go(1)}>
+              Edit preferences
+            </Button>
+          </>
+        )}
+        {step === 11 && <SubscriptionOptions onContinue={finish} />}
+        {error && (
+          <p role="alert" className="rounded-xl border border-red-500 p-3">
+            {error}
+          </p>
+        )}
+      </section>
+      <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t pt-5">
+        {step > 0 ? (
+          <Button variant="outline" disabled={busy} onClick={() => void go(step - 1)}>
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        ) : (
+          <span />
+        )}
+        {[3, 4].includes(step) && (
+          <button className="text-sm underline" disabled={busy} onClick={() => void go(step + 1)}>
+            Skip
+          </button>
+        )}
+        {step < 11 && step !== 9 && (
+          <Button
+            disabled={busy || (step === 10 && !experience.data)}
+            onClick={() => void go(step + 1)}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {step === 0 ? "Personalize my experience" : "Continue"}
+            <ArrowRight className="h-4 w-4" />
           </Button>
         )}
-      </div>
-    </div>
+      </footer>
+    </main>
   );
 }

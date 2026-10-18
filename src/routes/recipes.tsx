@@ -1,3 +1,5 @@
+import { usePreferences } from "@/hooks/use-preferences";
+import { recipeMatchesDiet } from "@/lib/recipe-safety";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,12 +55,13 @@ export const Route = createFileRoute("/recipes")({
 });
 
 function RecipesPage() {
+  const { preferences } = usePreferences();
   const { c, q } = Route.useSearch();
   const active = c ?? "All";
   const navigate = useNavigate();
   const { user } = useSession();
   const {
-    data: recipes,
+    data: unfilteredRecipes,
     isLoading,
     isError,
     refetch,
@@ -66,6 +69,7 @@ function RecipesPage() {
     ...recipesByCategoryQuery(active !== "All" ? active : undefined, q),
     enabled: !!user,
   });
+  const recipes = unfilteredRecipes?.filter((recipe) => recipeMatchesDiet(preferences, recipe));
   const [query, setQuery] = useState(q ?? "");
   useEffect(() => {
     setQuery(q ?? "");

@@ -34,7 +34,20 @@ service cloud.firestore {
         && validOptionalString(data, 'currency', 3)
         && validOptionalString(data, 'locale', 12)
         && validOptionalString(data, 'theme', 40)
-        && (!('onboarding_completed' in data) || data.onboarding_completed is bool);
+        && (!('onboarding_completed' in data) || data.onboarding_completed == false);
+    }
+
+    // Server-owned preferences, onboarding completion and access metadata may
+    // exist on this document; client updates must preserve all those fields.
+    function validProfileUpdate(uid, data) {
+      return data.id == uid && data.email is string
+        && data.email == resource.data.email
+        && validOptionalString(data, 'displayName', 100)
+        && validOptionalString(data, 'photoURL', 2048)
+        && validOptionalString(data, 'currency', 3)
+        && validOptionalString(data, 'locale', 12)
+        && validOptionalString(data, 'theme', 40)
+        && data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'currency', 'locale', 'theme']);
     }
 
     function validTimestampString(data, field) {
@@ -97,6 +110,9 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/restaurant_orders/$(orderId)).data.customer_id == request.auth.uid;
     }
 
+    // Grants/history, billing_customers, family_*, access_migrations,
+    // onboarding_experiences, onboarding_generation_usage and audit_logs are
+    // server-only. No client, including an admin UI, can write access directly.
     match /{document=**} {
       allow read, write: if false;
     }
@@ -106,9 +122,7 @@ service cloud.firestore {
       allow list: if false;
       allow create: if isOwner(uid) && validUserProfile(uid, request.resource.data);
       allow update: if isOwner(uid)
-        && validUserProfile(uid, request.resource.data)
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && validProfileUpdate(uid, request.resource.data);
       allow delete: if false;
 
       match /notifications/{notificationId} {
@@ -119,10 +133,11 @@ service cloud.firestore {
       match /{collectionName}/{itemId} {
         allow read: if isOwner(uid)
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs'];
+        // Premium writes go through authenticated server functions, which use the centralized entitlement service.
         allow create: if isOwner(uid)
-          && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs']
+          && collectionName == 'pantry'
           && validOwnedItem(collectionName, uid, itemId);
-        allow update: if isOwner(uid)
+        allow update: if false
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs']
           && validOwnedItem(collectionName, uid, itemId)
           && safeOwnedItemUpdate(collectionName)

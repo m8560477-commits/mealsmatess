@@ -1,3 +1,5 @@
+import { recipeMatchesDiet } from "@/lib/recipe-safety";
+import { PersonalizedHome } from "@/components/personalized-home";
 import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
 import { RecipeImage } from "@/components/recipe-image";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
@@ -101,9 +103,17 @@ function Index() {
     r.category == null ? null : String(r.category),
     Array.isArray(r.diet_tags) ? r.diet_tags.map(String) : [],
   ];
-  const trending = personalize(hasPreferences ? preferences : null, trendingRaw ?? [], recipeText);
+  const trending = personalize(
+    hasPreferences ? preferences : null,
+    (trendingRaw ?? []).filter((recipe) => recipeMatchesDiet(preferences, recipe)),
+    recipeText,
+  );
   const southAfrican = southAfricanRaw
-    ? personalize(hasPreferences ? preferences : null, southAfricanRaw, recipeText)
+    ? personalize(
+        hasPreferences ? preferences : null,
+        southAfricanRaw.filter((recipe) => recipeMatchesDiet(preferences, recipe)),
+        recipeText,
+      )
     : southAfricanRaw;
   const { data: favorites } = useQuery({ ...myFavoritesQuery(), enabled: !!user });
   const [query, setQuery] = useState("");
@@ -112,7 +122,11 @@ function Index() {
 
   const favoriteIds = new Set((favorites ?? []).map((f) => f.recipe_id));
 
-  const firstName = user?.displayName?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "there";
+  const firstName =
+    preferences.display_name.split(" ")[0] ||
+    user?.displayName?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "there";
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -331,10 +345,11 @@ function Index() {
 
       {/* Plan status + premium features */}
       <section className="px-4 pt-6">
+        <PersonalizedHome />
         <PlanStatusCard />
       </section>
 
-      {/* Sponsored (free plan only) */}
+      {/* Sponsored placement (hidden for Premium access) */}
       <section className="px-4 pt-6">
         <AdSlot slot="home_feed" />
       </section>

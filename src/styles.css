@@ -835,47 +835,125 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   background: color-mix(in oklab, var(--chart-5) 12%, var(--card));
 }
 
-/* Colorful setup stays readable in every selected app theme. */
+/* Shared monochrome setup and account management surfaces. */
 .onboarding-shell {
-  border-top: 6px solid var(--setup-mint);
+  width: 100%;
+  max-width: 48rem;
+  margin: auto;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem 3rem;
+  color: #111;
+  background: #fff;
+  outline: none;
+  min-height: 100%;
 }
-.onboarding-shell[data-tone="coral"] {
-  border-top-color: var(--setup-coral);
+.onboarding-progress {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin: 0.75rem 0 2rem;
+  border: 0;
+  background: #e5e5e5;
+  border-radius: 4px;
 }
-.onboarding-shell[data-tone="sky"] {
-  border-top-color: var(--setup-sky);
+.onboarding-progress::-webkit-progress-bar {
+  background: #e5e5e5;
+  border-radius: 4px;
 }
-.onboarding-shell[data-tone="yellow"] {
-  border-top-color: var(--setup-yellow);
+.onboarding-progress::-webkit-progress-value {
+  background: #111;
+  border-radius: 4px;
 }
-.onboarding-choice:nth-child(4n + 1) .choice-marker,
-.setup-item:nth-child(4n + 1) .choice-marker {
-  background: var(--setup-mint);
+.onboarding-progress::-moz-progress-bar {
+  background: #111;
+  border-radius: 4px;
 }
-.onboarding-choice:nth-child(4n + 2) .choice-marker,
-.setup-item:nth-child(4n + 2) .choice-marker {
-  background: var(--setup-coral);
+.onboarding-input {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 0.4rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #a3a3a3;
+  border-radius: 0.75rem;
+  color: inherit;
+  background: transparent;
 }
-.onboarding-choice:nth-child(4n + 3) .choice-marker,
-.setup-item:nth-child(4n + 3) .choice-marker {
-  background: var(--setup-sky);
+.onboarding-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
 }
-.onboarding-choice:nth-child(4n) .choice-marker,
-.setup-item:nth-child(4n) .choice-marker {
-  background: var(--setup-yellow);
+.onboarding-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 64px;
+  padding: 1rem;
+  text-align: left;
+  border: 1px solid #d4d4d4;
+  border-radius: 1rem;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 .onboarding-choice[aria-pressed="true"] {
-  border-color: var(--primary);
-  background: var(--accent);
-  color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--primary);
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
-.setup-progress {
-  background: linear-gradient(90deg, var(--setup-mint), var(--setup-sky), var(--setup-coral));
+.onboarding-choice:focus-visible,
+.onboarding-input:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
-.onboarding-heading {
-  text-wrap: balance;
+.onboarding-hero {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 1.5rem;
+}
+.onboarding-food-photo {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 1rem;
+}
+.onboarding-step {
+  animation: onboarding-arrive 0.2s ease-out;
+}
+@keyframes onboarding-arrive {
+  from {
+    opacity: 0.3;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-step {
+    animation: none;
+  }
+  .onboarding-choice {
+    transition: none;
+  }
+}
+@media (max-width: 360px) {
+  .onboarding-choices {
+    grid-template-columns: 1fr;
+  }
+}
+
+.onboarding-shell {
+  --primary: #111;
+  --primary-foreground: #fff;
+  --background: #fff;
+  --foreground: #111;
+  --border: #ddd;
+  --input: #ccc;
 }
 .onboarding-shell button {
-  letter-spacing: 0;
+  min-height: 44px;
 }

@@ -100,13 +100,14 @@ export const en = {
     tagline: "Cook without limits.",
     subtitle: "Unlimited AI chef, personalised recipes, and smarter meal plans.",
     trialCta: "Start 3-Day Free Trial",
-    trialFinePrint: "No charge for 3 days. Cancel anytime before the trial ends.",
+    trialFinePrint:
+      "Eligible plans may offer a 14-day trial. Confirm price and renewal terms at checkout.",
     plans: { monthly: "Monthly", annual: "Annual" },
     perMonth: "/month",
     perYear: "/year",
     bestValue: "Best value · Save {{pct}}%",
     justPerMonth: "Just {{price}}/mo",
-    threeDayTrial: "3-day free trial · cancel anytime",
+    threeDayTrial: "14-day trial where eligible · provider terms apply",
     youAreMember: "You're Premium",
     benefitsTitle: "What you get",
     benefits: {
@@ -138,7 +139,7 @@ export const en = {
     upgradeModal: {
       title: "Unlock MealMate Premium",
       message:
-        "You've reached your Free plan limit. Upgrade to MealMate Premium for unlimited recipes, AI meal generation, food scanning, meal planning, grocery lists, nutrition insights, and more.",
+        "Premium access is required. Upgrade to MealMate Premium for unlimited recipes, AI meal generation, food scanning, meal planning, grocery lists, nutrition insights, and more.",
       upgradeCta: "Upgrade to Premium",
       later: "Maybe later",
     },
@@ -168,7 +169,7 @@ export const en = {
     admin: "Admin dashboard",
     adminDesc: "Subscribers, promos, revenue (admin only)",
     premiumEntry: "MealMate Premium",
-    premiumEntryDesc: "Unlimited AI, recipes, meal plans · 3-day free trial",
+    premiumEntryDesc: "Subscriptions, family plans and complimentary access",
   },
   auth: {
     welcome: "Welcome to MealMate",
@@ -186,7 +187,7 @@ export const en = {
     generic: "Something went wrong. Please try again.",
     network: "Network error — check your connection.",
     unauthorized: "Please sign in to continue.",
-    limitReached: "You've reached your Free plan limit.",
+    limitReached: "Premium access is required.",
     required: "This field is required",
     invalidEmail: "Enter a valid email",
     passwordShort: "Password must be at least 6 characters",

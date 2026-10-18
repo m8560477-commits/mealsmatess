@@ -1,3 +1,4 @@
+import { useAdmin } from "@/hooks/use-admin";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -129,6 +130,7 @@ function detectCurrency(): string {
 }
 
 function SettingsPage() {
+  const isAdmin = useAdmin();
   const { user } = useSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -299,16 +301,20 @@ function SettingsPage() {
     },
     {
       label: "MealMate Premium",
-      description: "Unlimited AI, recipes, meal plans · 3-day free trial",
+      description: "Subscriptions, complimentary access and family membership",
       icon: Star,
       to: "/premium",
     },
-    {
-      label: "Admin dashboard",
-      description: "Subscribers, promos, revenue (admin only)",
-      icon: Shield,
-      to: "/admin",
-    },
+    ...(isAdmin
+      ? [
+          {
+            label: "Admin dashboard",
+            description: "Subscribers, promos, revenue (admin only)",
+            icon: Shield,
+            to: "/admin",
+          },
+        ]
+      : []),
   ];
 
   const accountItems: Item[] = [

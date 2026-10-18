@@ -24,7 +24,7 @@ let initialized:
     }
   | undefined;
 
-function getServices() {
+export function getFirebaseServerServices() {
   if (initialized) return initialized;
   const encoded = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"];
   if (!encoded) {
@@ -371,7 +371,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
 
   private async execute(): Promise<DbResult<any>> {
     try {
-      const { db } = getServices();
+      const { db } = getFirebaseServerServices();
       const collectionRef = collectionFor(db, this.table);
       if (this.action === "insert") return await this.insertRows(db);
       if (this.action === "upsert") return await this.upsertRows(collectionRef);
@@ -482,7 +482,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
   }
 
   private async upsertRows(collectionRef: Query<DocumentData>): Promise<DbResult<any>> {
-    const { db } = getServices();
+    const { db } = getFirebaseServerServices();
     const inputRows = (Array.isArray(this.values) ? this.values : [this.values]) as Record<
       string,
       unknown
@@ -519,24 +519,12 @@ function startOfUtcMonth(date = new Date()) {
 }
 
 async function premiumActive(userId: string) {
-  const { data } = await firebaseAdmin
-    .from("subscriptions")
-    .select("tier,status,period_end")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (
-    !!data &&
-    (data.tier === "lifetime" ||
-      !data.period_end ||
-      new Date(data.period_end).getTime() > Date.now())
-  );
+  const { resolveEntitlement } = await import("@/lib/entitlements.server");
+  return (await resolveEntitlement(userId)).isPremium;
 }
 
 async function runRpc(name: string, args: Record<string, unknown>): Promise<DbResult<any>> {
-  const { db } = getServices();
+  const { db } = getFirebaseServerServices();
   switch (name) {
     case "check_rate_limit": {
       const bucket = String(args["_bucket"] ?? "default");
@@ -573,37 +561,10 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
         };
       if (await premiumActive(userId))
         return { data: { allowed: true, premium: true }, error: null };
-      const feature = name === "consume_ai_credit" ? "ai_chat" : "recipe_image";
-      const limit = name === "consume_ai_credit" ? 10 : 3;
-      const start = startOfUtcDay();
-      const periodKey = start.toISOString().slice(0, 10);
-      const ref = db.collection("usage_limits").doc(`${userId}_${feature}_${periodKey}`);
-      const result = await db.runTransaction(async (transaction) => {
-        const snap = await transaction.get(ref);
-        const count = Number(snap.data()?.count ?? 0);
-        if (count >= limit)
-          return {
-            allowed: false,
-            max: limit,
-            reason: "daily",
-            resets_at: new Date(start.getTime() + 86_400_000).toISOString(),
-          };
-        transaction.set(
-          ref,
-          {
-            id: ref.id,
-            user_id: userId,
-            feature_key: feature,
-            feature,
-            period_key: periodKey,
-            period_start: start.toISOString(),
-            count: count + 1,
-          },
-          { merge: true },
-        );
-        return { allowed: true, max: limit, remaining: limit - count - 1, premium: false };
-      });
-      return { data: result, error: null };
+      return {
+        data: { allowed: false, reason: "subscription_required", premium: false },
+        error: null,
+      };
     }
     case "increment_dish_search": {
       const dish = String(args["_name"] ?? "")
@@ -699,11 +660,11 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
 }
 
 export function getFirebaseAdminFirestore() {
-  return getServices().db;
+  return getFirebaseServerServices().db;
 }
 
 export function getFirebaseAdminMessaging() {
-  return getMessaging(getServices().app);
+  return getMessaging(getFirebaseServerServices().app);
 }
 
 export function firebaseUserDb(userId: string) {
@@ -733,7 +694,7 @@ export const firebaseAdmin = {
           options?: { contentType?: string; upsert?: boolean },
         ) {
           try {
-            const { bucket } = getServices();
+            const { bucket } = getFirebaseServerServices();
             const file = bucket.file(`${bucketName}/${path}`);
             await file.save(body, {
               resumable: false,
@@ -748,7 +709,7 @@ export const firebaseAdmin = {
         // Token URLs persist with the object and avoid expiring cached recipe photos.
         async createDownloadUrl(path: string) {
           try {
-            const { bucket } = getServices();
+            const { bucket } = getFirebaseServerServices();
             const file = bucket.file(`${bucketName}/${path}`);
             await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: randomUUID() } });
             return { data: { downloadUrl: await getDownloadURL(file) }, error: null };
@@ -758,7 +719,7 @@ export const firebaseAdmin = {
         },
         async createSignedUrl(path: string, expiresInSeconds: number) {
           try {
-            const { bucket } = getServices();
+            const { bucket } = getFirebaseServerServices();
             const expires = Date.now() + expiresInSeconds * 1000;
             const [signedUrl] = await bucket
               .file(`${bucketName}/${path}`)
@@ -770,7 +731,7 @@ export const firebaseAdmin = {
         },
         async remove(paths: string[]) {
           try {
-            const { bucket } = getServices();
+            const { bucket } = getFirebaseServerServices();
             await Promise.all(paths.map((path) => bucket.file(`${bucketName}/${path}`).delete()));
             return { data: paths, error: null };
           } catch (error) {
@@ -783,7 +744,7 @@ export const firebaseAdmin = {
 };
 
 export async function getOrCreateFirebaseUser(email: string, displayName: string) {
-  const { auth } = getServices();
+  const { auth } = getFirebaseServerServices();
   let existingUser: Awaited<ReturnType<typeof auth.getUserByEmail>> | undefined;
   try {
     existingUser = await auth.getUserByEmail(email);
@@ -802,12 +763,12 @@ export async function getOrCreateFirebaseUser(email: string, displayName: string
 }
 
 export async function verifyFirebaseIdToken(token: string) {
-  return getServices().auth.verifyIdToken(token, true);
+  return getFirebaseServerServices().auth.verifyIdToken(token, true);
 }
 
 export async function firebaseAuthUserExists(uid: string) {
   try {
-    await getServices().auth.getUser(uid);
+    await getFirebaseServerServices().auth.getUser(uid);
     return true;
   } catch {
     return false;

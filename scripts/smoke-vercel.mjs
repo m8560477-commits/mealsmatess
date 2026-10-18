@@ -22,6 +22,25 @@ try {
     catalogSource.match(/id: "([a-f0-9]+)",\s*name: "getRecipeCatalogEntry"/)?.[1],
   ];
   if (catalogFunctionIds.some((id) => !id)) throw new Error("Catalog function IDs are missing.");
+  const authFunctions = [];
+  for (const [prefix, names] of [
+    ["premium-grants.functions-", ["getPremiumGrants", "getPremiumGrantHistory"]],
+    ["preferences.functions-", ["getMyPreferences"]],
+    ["onboarding.functions-", ["getOnboardingExperience"]],
+    ["family.functions-", ["getMyFamily"]],
+    ["premium.functions-", ["getMyEntitlement", "adminIsAdmin"]],
+  ]) {
+    const files = serverFiles.filter((name) => name.startsWith(prefix));
+    if (!files.length) throw new Error(prefix + " missing from artifact");
+    const source = (
+      await Promise.all(files.map((file) => readFile(join(artifact, "_ssr", file), "utf8")))
+    ).join("\n");
+    for (const name of names) {
+      const id = source.match(new RegExp('id: "([a-f0-9]+)",\\s*name: "' + name + '"'))?.[1];
+      if (!id) throw new Error(name + " missing function ID");
+      authFunctions.push(id);
+    }
+  }
   const result = spawnSync(
     process.execPath,
     [
@@ -44,8 +63,8 @@ try {
         }
         for (const id of JSON.parse(process.argv[2])) {
           const response = await app.fetch(new Request('https://mealmate.test/_serverFn/' + id));
-          assert.equal(response.status, 401, 'Recipe catalog must require authentication');
-          console.log('Recipe catalog function: 401');
+          assert.equal(response.status, 401, 'Server function must require authentication');
+          console.log('Authenticated server function: 401');
         }
         const page = await app.fetch(new Request('https://mealmate.test/', {
           headers: { accept: 'text/html' },
@@ -57,7 +76,7 @@ try {
         process.exit(0);
       `,
       join(artifact, "index.mjs"),
-      JSON.stringify(catalogFunctionIds),
+      JSON.stringify([...catalogFunctionIds, ...authFunctions]),
     ],
     {
       cwd: temporary,

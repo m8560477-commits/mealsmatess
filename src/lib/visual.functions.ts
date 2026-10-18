@@ -81,20 +81,8 @@ export const generateVisualExplanation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<VisualExplanation> => {
     await requireAiCredit(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: sub } = await firebaseAdmin
-      .from("subscriptions")
-      .select("tier,status,period_end")
-      .eq("user_id", context.userId)
-      .in("status", ["trialing", "active", "in_grace"])
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    const isPremium =
-      !!sub &&
-      (sub.tier === "lifetime" ||
-        !sub.period_end ||
-        new Date(sub.period_end).getTime() > Date.now());
-    if (!isPremium) throw new Error("Visual Mode is a Premium feature");
+    const { requirePremiumAccess } = await import("@/lib/entitlements.server");
+    await requirePremiumAccess(context.userId);
 
     await enforceRateLimit("ai_visual", context.userId, 15);
 

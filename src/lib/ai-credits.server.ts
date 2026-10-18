@@ -4,7 +4,7 @@
 
 export class AiLimitError extends Error {
   constructor(
-    public reason: "daily" | "monthly",
+    public reason: "daily" | "monthly" | "subscription_required",
     public resetsAt: string | null,
   ) {
     const when = resetsAt
@@ -15,9 +15,11 @@ export class AiLimitError extends Error {
         }) + " UTC"
       : "soon";
     super(
-      reason === "daily"
-        ? `MEALMATE_LIMIT_AI_DAILY: You've used today's Mia AI allowance. It resets ${when}. Upgrade to MealMate Premium for more.`
-        : `MEALMATE_LIMIT_AI_MONTHLY: You've used this month's Mia AI allowance. It resets ${when}. Upgrade to MealMate Premium for more.`,
+      reason === "subscription_required"
+        ? "An active MealMate subscription, trial, or complimentary access is required. Open Premium to choose a plan or restore purchases."
+        : reason === "daily"
+          ? `MEALMATE_LIMIT_AI_DAILY: You've used today's Mia AI allowance. It resets ${when}. Upgrade to MealMate Premium for more.`
+          : `MEALMATE_LIMIT_AI_MONTHLY: You've used this month's Mia AI allowance. It resets ${when}. Upgrade to MealMate Premium for more.`,
     );
   }
 }
@@ -26,6 +28,10 @@ export async function requireAiCredit(userId: string): Promise<void> {
   const { firebaseAdmin } = await import("@/server/firebase-admin");
   const { data, error } = await firebaseAdmin.rpc("consume_ai_credit", { _user_id: userId });
   if (error) throw new Error(`Could not check your Mia AI allowance: ${error.message}`);
-  const r = data as { allowed: boolean; reason?: "daily" | "monthly"; resets_at?: string } | null;
+  const r = data as {
+    allowed: boolean;
+    reason?: "daily" | "monthly" | "subscription_required";
+    resets_at?: string;
+  } | null;
   if (!r?.allowed) throw new AiLimitError(r?.reason ?? "daily", r?.resets_at ?? null);
 }

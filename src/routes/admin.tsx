@@ -1,3 +1,4 @@
+import { PremiumGrantsDashboard } from "@/components/admin/premium-grants";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,11 +24,9 @@ import { useSession } from "@/hooks/use-session";
 import { sendPasswordReset as sendFirebasePasswordReset } from "@/lib/firebase";
 import {
   adminDeletePromo,
-  adminGrantPremium,
   adminIsAdmin,
   adminListPromos,
   adminListSubscribers,
-  adminRevokePremium,
   adminSavePromo,
 } from "@/lib/premium.functions";
 import {
@@ -368,7 +367,7 @@ function AdminPage() {
           <PromosTab />
         </TabsContent>
         <TabsContent value="grant" className="mt-4">
-          <GrantTab />
+          <PremiumGrantsDashboard />
         </TabsContent>
         <TabsContent value="restaurants" className="mt-4">
           <ManagedRestaurantsTab />
@@ -1091,58 +1090,6 @@ function PromosTab() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function GrantTab() {
-  const [userId, setUserId] = useState("");
-  const [days, setDays] = useState(30);
-  const qc = useQueryClient();
-
-  async function grant() {
-    try {
-      await adminGrantPremium({ data: { userId, days } });
-      toast.success(`Granted ${days} days`);
-      qc.invalidateQueries({ queryKey: ["admin-subs"] });
-      qc.invalidateQueries({ queryKey: ["admin-analytics"] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Grant failed");
-    }
-  }
-  async function revoke() {
-    try {
-      await adminRevokePremium({ data: { userId } });
-      toast.success("Revoked Premium");
-      qc.invalidateQueries({ queryKey: ["admin-subs"] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Revoke failed");
-    }
-  }
-
-  return (
-    <div className="max-w-md space-y-3 rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
-      <h3 className="font-display text-lg">Manual grant / revoke</h3>
-      <Input
-        placeholder="User ID (uuid)"
-        value={userId}
-        onChange={(e) => setUserId(e.target.value)}
-      />
-      <Input
-        type="number"
-        placeholder="Days"
-        value={days}
-        onChange={(e) => setDays(Number(e.target.value))}
-      />
-      <div className="flex gap-2">
-        <Button onClick={grant} disabled={!userId}>
-          Grant Premium
-        </Button>
-        <Button variant="secondary" onClick={revoke} disabled={!userId}>
-          Revoke
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">Find user IDs in the Users tab.</p>
     </div>
   );
 }

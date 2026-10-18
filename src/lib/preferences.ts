@@ -1,70 +1,37 @@
 // MealMate personalization preferences.
 // Guests keep answers locally; signed-in users sync them to their profile.
 
-export type FoodPreferences = {
-  goal: string | null;
-  favorite_foods: string[];
-  allergies: string[];
-  dietary_restrictions: string[];
-  disliked_foods: string[];
-  meals_per_day: string | null;
-  cooking_level: string | null;
-  cooking_time: string | null;
-  food_budget: string | null;
-  preferred_features: string[];
-  onboarding_completed: boolean;
-  updated_at: string | null;
-};
-
-export const EMPTY_PREFERENCES: FoodPreferences = {
-  goal: null,
-  favorite_foods: [],
-  allergies: [],
-  dietary_restrictions: [],
-  disliked_foods: [],
-  meals_per_day: null,
-  cooking_level: null,
-  cooking_time: null,
-  food_budget: null,
-  preferred_features: [],
-  onboarding_completed: false,
-  updated_at: null,
-};
+import { conflictsWithText, prohibitedIngredients } from "@/lib/recipe-safety";
+import { PreferencesSchema, type PersonalPreferences } from "@/lib/onboarding-model";
+export type FoodPreferences = PersonalPreferences;
+export const EMPTY_PREFERENCES: FoodPreferences = PreferencesSchema.parse({});
 
 const KEY = "mealmate.preferences.v1";
 const SEEN_KEY = "mealmate.onboarding-seen.v1";
 export const PREFERENCES_EVENT = "mealmate:preferences";
 
-function asStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-}
-
-function asString(v: unknown): string | null {
-  return typeof v === "string" && v ? v : null;
-}
-
 export function normalizePreferences(raw: unknown): FoodPreferences {
-  const o = (raw ?? {}) as Record<string, unknown>;
-  return {
-    goal: asString(o["goal"]),
-    favorite_foods: asStringArray(o["favorite_foods"]),
-    allergies: asStringArray(o["allergies"]),
-    dietary_restrictions: asStringArray(o["dietary_restrictions"]),
-    disliked_foods: asStringArray(o["disliked_foods"]),
-    meals_per_day: asString(o["meals_per_day"]),
-    cooking_level: asString(o["cooking_level"]),
-    cooking_time: asString(o["cooking_time"]),
-    food_budget: asString(o["food_budget"]),
-    preferred_features: asStringArray(o["preferred_features"]),
-    onboarding_completed: o["onboarding_completed"] === true,
-    updated_at: asString(o["updated_at"]),
+  const o =
+    raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const merged = {
+    ...o,
+    goals: Array.isArray(o.goals) ? o.goals : typeof o.goal === "string" ? [o.goal] : [],
   };
+  const fields: Record<string, unknown> = {};
+  for (const [key, schema] of Object.entries(PreferencesSchema.shape)) {
+    const result = schema.safeParse(merged[key as keyof typeof merged]);
+    if (result.success) fields[key] = result.data;
+  }
+  return PreferencesSchema.parse(fields);
+}
+function scopedKey(userId?: string) {
+  return userId ? `${KEY}:${userId}` : KEY;
 }
 
-export function readLocalPreferences(): FoodPreferences | null {
+export function readLocalPreferences(userId?: string): FoodPreferences | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(scopedKey(userId));
     if (!raw) return null;
     return normalizePreferences(JSON.parse(raw));
   } catch {
@@ -72,17 +39,21 @@ export function readLocalPreferences(): FoodPreferences | null {
   }
 }
 
-export function writeLocalPreferences(prefs: FoodPreferences): void {
+export function writeLocalPreferences(prefs: FoodPreferences, userId?: string): void {
   if (typeof window === "undefined") return;
-  const next = { ...prefs, updated_at: new Date().toISOString() };
-  window.localStorage.setItem(KEY, JSON.stringify(next));
-  window.localStorage.setItem(SEEN_KEY, "1");
+  const next = prefs;
+  try {
+    window.localStorage.setItem(scopedKey(userId), JSON.stringify(next));
+    window.localStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    /* Remote persistence still works when browser storage is unavailable. */
+  }
   window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT));
 }
 
-export function clearLocalPreferences(): void {
+export function clearLocalPreferences(userId?: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
+  window.localStorage.removeItem(scopedKey(userId));
   window.localStorage.removeItem(SEEN_KEY);
   window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT));
 }
@@ -111,9 +82,7 @@ function haystack(...parts: (string | null | undefined | string[])[]): string {
 
 /** Anything the user must not be served: allergies, restrictions, dislikes. */
 export function avoidTerms(prefs: FoodPreferences): string[] {
-  return [...prefs.allergies, ...prefs.dietary_restrictions, ...prefs.disliked_foods]
-    .map((t) => t.trim().toLowerCase())
-    .filter((t) => t.length > 2);
+  return prohibitedIngredients(prefs);
 }
 
 export function isAvoided(
@@ -122,7 +91,7 @@ export function isAvoided(
 ): boolean {
   const hay = haystack(...text);
   if (!hay) return false;
-  return avoidTerms(prefs).some((term) => hay.includes(term));
+  return conflictsWithText(prefs, hay);
 }
 
 /** Higher is a better match for this user. */
@@ -137,13 +106,25 @@ export function preferenceScore(
   for (const like of prefs.favorite_foods) {
     if (hay.includes(like.toLowerCase())) score += 3;
   }
-  if (prefs.goal === "Eat healthier" || prefs.goal === "Lose weight") {
+  if (
+    prefs.goals.includes("Eat healthier") ||
+    prefs.goal === "Eat healthier" ||
+    prefs.goal === "Lose weight"
+  ) {
     if (/(healthy|salad|veg|grill|light|bowl)/.test(hay)) score += 2;
   }
-  if (prefs.goal === "Build muscle" || prefs.goal === "Gain weight") {
+  if (
+    prefs.goals.includes("Support my fitness goals") ||
+    prefs.goal === "Build muscle" ||
+    prefs.goal === "Gain weight"
+  ) {
     if (/(protein|chicken|beef|steak|egg|bean)/.test(hay)) score += 2;
   }
-  if (prefs.goal === "Save money" || prefs.food_budget === "Budget friendly") {
+  if (
+    prefs.goals.includes("Save money on groceries") ||
+    prefs.goal === "Save money" ||
+    prefs.food_budget === "Budget friendly"
+  ) {
     if (/(budget|value|affordable|simple|deal)/.test(hay)) score += 1;
   }
   return score;
@@ -155,9 +136,10 @@ export function personalize<T>(
   items: T[],
   textOf: (item: T) => (string | null | undefined | string[])[],
 ): T[] {
-  if (!prefs || !prefs.onboarding_completed) return items;
+  if (!prefs) return items;
   return items
     .map((item, i) => ({ item, i, score: preferenceScore(prefs, ...textOf(item)) }))
+    .filter((entry) => entry.score > -100)
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .map((x) => x.item);
 }
@@ -165,7 +147,15 @@ export function personalize<T>(
 /** A short line the AI and UI can use to explain the user's taste. */
 export function preferenceSummary(prefs: FoodPreferences): string {
   const bits: string[] = [];
-  if (prefs.goal) bits.push(`Goal: ${prefs.goal}`);
+  if (prefs.goals.length) bits.push(`Goals: ${prefs.goals.join(", ")}`);
+  else if (prefs.goal) bits.push(`Goal: ${prefs.goal}`);
+  if (prefs.country) bits.push(`Country: ${prefs.country}`);
+  bits.push(`Household: ${prefs.household_size}`, `Language: ${prefs.language}`);
+  if (prefs.diets.length) bits.push(`Diet preferences: ${prefs.diets.join(", ")}`);
+  if (prefs.budget_amount !== null)
+    bits.push(`Budget: ${prefs.budget_currency} ${prefs.budget_amount} per ${prefs.budget_period}`);
+  if (prefs.meal_types.length)
+    bits.push(`Meals: ${prefs.meal_types.join(", ")}; planning: ${prefs.planning_style}`);
   if (prefs.favorite_foods.length) bits.push(`Enjoys: ${prefs.favorite_foods.join(", ")}`);
   if (prefs.allergies.length) bits.push(`Must avoid: ${prefs.allergies.join(", ")}`);
   if (prefs.dietary_restrictions.length)

@@ -30,15 +30,8 @@ import type {
 
 /* ---------------- Authorization ---------------- */
 
-export async function isAdmin(userId: string): Promise<boolean> {
-  const { data } = await firebaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  return !!data;
-}
+export { isTrustedAdmin as isAdmin } from "@/lib/admin-access.server";
+import { isTrustedAdmin as isAdmin } from "@/lib/admin-access.server";
 
 /** Roles allowed to change what customers can see/buy. */
 const MANAGER_ROLES = ["owner", "general_manager", "manager"];
