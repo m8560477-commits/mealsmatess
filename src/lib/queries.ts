@@ -90,17 +90,39 @@ export const southAfricanFavoritesQuery = () => queryOptions({
   },
 });
 
-export const recipesByCategoryQuery = (category: string | undefined, search = "") => queryOptions({
-  queryKey: ["recipes", "category", category ?? "all", search.trim().toLowerCase()],
-  queryFn: async (): Promise<RecipeRecord[]> => {
-    const term = search.trim().toLowerCase();
-    const items = await list("recipes", [orderBy("created_at", "desc"), limit(100)]);
-    return items.filter((item) => {
-      const values = [item["name"], item["cuisine"], item["category"], item["country"], ...(Array.isArray(item["diet_tags"]) ? item["diet_tags"] : [])].map((value) => String(value ?? "").toLowerCase());
-      return (!category || values.includes(category.toLowerCase())) && (!term || values.some((value) => value.includes(term)));
-    }).slice(0, 60).map(recipeFields);
-  },
-});
+export const recipesByCategoryQuery = (category: string | undefined, search = "") =>
+  queryOptions({
+    queryKey: ["recipes", "category", category ?? "all", search.trim().toLowerCase()],
+    queryFn: async (): Promise<RecipeRecord[]> => {
+      const term = search.trim().toLowerCase();
+      const selectedCategory = category?.trim().toLowerCase();
+      const items = await list("recipes", [orderBy("created_at", "desc"), limit(100)]);
+      return items
+        .filter((item) => {
+          const values = [
+            item["name"],
+            item["cuisine"],
+            item["category"],
+            item["country"],
+            ...(Array.isArray(item["diet_tags"]) ? item["diet_tags"] : []),
+          ].map((value) => String(value ?? "").toLowerCase());
+          const isSouthAfrican = [item["cuisine"], item["country"], item["category"]].some(
+            (value) => {
+              const normalized = String(value ?? "").toLowerCase();
+              return normalized.includes("south african") || normalized.includes("south africa");
+            },
+          );
+          const matchesCategory =
+            !selectedCategory ||
+            (selectedCategory === "south african favorites"
+              ? isSouthAfrican
+              : values.includes(selectedCategory));
+          return matchesCategory && (!term || values.some((value) => value.includes(term)));
+        })
+        .slice(0, 60)
+        .map(recipeFields);
+    },
+  });
 
 export const recipeBySlugQuery = (slug: string) => queryOptions({
   queryKey: ["recipe", slug],
