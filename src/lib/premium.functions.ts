@@ -196,7 +196,7 @@ function generateCode(len = 8): string {
 
 export const applyReferralCode = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ code: z.string().min(4).max(16) }).parse(v))
+  .validator((v: unknown) => z.object({ code: z.string().min(4).max(16) }).parse(v))
   .handler(async ({ data, context }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();
     const code = data.code.trim().toUpperCase();
@@ -230,7 +230,7 @@ export const applyReferralCode = createServerFn({ method: "POST" })
 // ---------- Promo Codes ----------
 export const redeemPromoCode = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ code: z.string().min(2).max(40) }).parse(v))
+  .validator((v: unknown) => z.object({ code: z.string().min(2).max(40) }).parse(v))
   .handler(async ({ data, context }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();
     const code = data.code.trim().toUpperCase();
@@ -474,7 +474,7 @@ const PromoInput = z.object({
 });
 export const adminSavePromo = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => PromoInput.parse(v))
+  .validator((v: unknown) => PromoInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();
@@ -504,7 +504,7 @@ export const adminSavePromo = createServerFn({ method: "POST" })
 
 export const adminDeletePromo = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();
@@ -515,7 +515,7 @@ export const adminDeletePromo = createServerFn({ method: "POST" })
 
 export const adminGrantPremium = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z.object({ userId: z.string().uuid(), days: z.number().int().min(1).max(3650) }).parse(v),
   )
   .handler(async ({ data, context }) => {
@@ -567,7 +567,7 @@ export const adminGrantPremium = createServerFn({ method: "POST" })
 
 export const adminRevokePremium = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();

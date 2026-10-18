@@ -94,7 +94,7 @@ export const getMyUnreadNotificationCount = createServerFn({ method: "GET" })
 
 export const setMyNotificationReadStatus = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) =>
+  .validator((value: unknown) =>
     z.object({ id: z.string().uuid(), read: z.boolean() }).parse(value),
   )
   .handler(async ({ data, context }) =>
@@ -140,7 +140,7 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
 
 export const saveMyNotificationPreferences = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) =>
+  .validator((value: unknown) =>
     z.object({ productUpdatesEnabled: z.boolean(), pushEnabled: z.boolean() }).parse(value),
   )
   .handler(async ({ data, context }) => {
@@ -189,9 +189,7 @@ export const saveMyNotificationPreferences = createServerFn({ method: "POST" })
 
 export const registerMyPushToken = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) =>
-    z.object({ token: z.string().min(40).max(4096) }).parse(value),
-  )
+  .validator((value: unknown) => z.object({ token: z.string().min(40).max(4096) }).parse(value))
   .handler(async ({ data, context }) => {
     const { getFirebaseAdminFirestore } = await loadFirebaseAdmin();
     const db = getFirebaseAdminFirestore();
@@ -221,7 +219,7 @@ export const registerMyPushToken = createServerFn({ method: "POST" })
 
 export const previewAnnouncementAudience = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) =>
+  .validator((value: unknown) =>
     z.object({ audience: z.enum(["all_consumers", "healthy_interest"]) }).parse(value),
   )
   .handler(async ({ data, context }) => {
@@ -245,7 +243,7 @@ export const listAdminAnnouncements = createServerFn({ method: "GET" })
 
 export const saveAdminAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) => announcementInput.parse(value))
+  .validator((value: unknown) => announcementInput.parse(value))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { saveAnnouncement } = await import("@/server/notification-delivery");
@@ -254,7 +252,7 @@ export const saveAdminAnnouncement = createServerFn({ method: "POST" })
 
 export const publishAdminAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) => z.object({ id: z.string().uuid() }).parse(value))
+  .validator((value: unknown) => z.object({ id: z.string().uuid() }).parse(value))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { processAnnouncementBatch } = await import("@/server/notification-delivery");
@@ -263,7 +261,7 @@ export const publishAdminAnnouncement = createServerFn({ method: "POST" })
 
 export const cancelAdminAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) => z.object({ id: z.string().uuid() }).parse(value))
+  .validator((value: unknown) => z.object({ id: z.string().uuid() }).parse(value))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { cancelScheduledAnnouncement } = await import("@/server/notification-delivery");

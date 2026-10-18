@@ -13,7 +13,7 @@ import {
 
 export const submitRestaurantApplication = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => ApplicationSchema.parse(v))
+  .validator((v: unknown) => ApplicationSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { createApplication } = await import("@/lib/restaurants.server");
     return createApplication(context.userId, data);
@@ -28,7 +28,7 @@ export const getMyRestaurant = createServerFn({ method: "POST" })
 
 export const updateMyRestaurant = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => ProfileUpdateSchema.parse(v))
+  .validator((v: unknown) => ProfileUpdateSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { updateRestaurantProfile } = await import("@/lib/restaurants.server");
     return updateRestaurantProfile(context.userId, data);
@@ -36,7 +36,7 @@ export const updateMyRestaurant = createServerFn({ method: "POST" })
 
 export const uploadRestaurantMedia = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         restaurantId: z.string().uuid().optional(),
@@ -54,7 +54,7 @@ export const uploadRestaurantMedia = createServerFn({ method: "POST" })
 
 export const saveMenuItem = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => MenuItemSchema.parse(v))
+  .validator((v: unknown) => MenuItemSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { persistMenuItem } = await import("@/lib/restaurants.server");
     return persistMenuItem(context.userId, data);
@@ -62,7 +62,7 @@ export const saveMenuItem = createServerFn({ method: "POST" })
 
 export const deleteMenuItem = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { removeMenuItem } = await import("@/lib/restaurants.server");
     return removeMenuItem(context.userId, data.id);
@@ -70,7 +70,7 @@ export const deleteMenuItem = createServerFn({ method: "POST" })
 
 export const listRestaurantOrders = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z.object({ restaurantId: z.string().uuid(), scope: z.enum(["active", "completed"]) }).parse(v),
   )
   .handler(async ({ data, context }) => {
@@ -80,7 +80,7 @@ export const listRestaurantOrders = createServerFn({ method: "POST" })
 
 export const updateOrderStatus = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         orderId: z.string().uuid(),
@@ -96,7 +96,7 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
 
 export const listRestaurantReviews = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
   .handler(async ({ data }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: reviews, error } = await firebaseAdmin
@@ -111,7 +111,7 @@ export const listRestaurantReviews = createServerFn({ method: "POST" })
 
 export const getRestaurantStats = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ restaurantId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { fetchRestaurantStats } = await import("@/lib/restaurants.server");
     return fetchRestaurantStats(context.userId, data.restaurantId);
@@ -119,7 +119,7 @@ export const getRestaurantStats = createServerFn({ method: "POST" })
 
 export const placeOrder = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => OrderInputSchema.parse(v))
+  .validator((v: unknown) => OrderInputSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { persistOrder } = await import("@/lib/restaurants.server");
     return persistOrder(context.userId, data);
@@ -127,7 +127,7 @@ export const placeOrder = createServerFn({ method: "POST" })
 
 export const adminListRestaurantApplications = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         status: z
@@ -143,7 +143,7 @@ export const adminListRestaurantApplications = createServerFn({ method: "POST" }
 
 export const adminReviewRestaurantApplication = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         applicationId: z.string().uuid(),

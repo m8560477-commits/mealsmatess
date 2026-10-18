@@ -43,7 +43,7 @@ function useLoadedImages(urls: (string | null)[]) {
     return () => {
       cancelled = true;
     };
-  }, [urls.join("|")]);
+  }, [urls]);
   return images;
 }
 

@@ -181,7 +181,11 @@ function CookbookPage() {
     if (!user) return;
     setBusyId(recipeId);
     try {
-      await firebaseData.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
+      await firebaseData
+        .from("favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("recipe_id", recipeId);
       await queryClient.invalidateQueries({ queryKey: ["favorites"] });
       toast.success("Removed from Cookbook");
     } finally {

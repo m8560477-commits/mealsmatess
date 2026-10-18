@@ -19,7 +19,7 @@ import {
 
 /** Server-trusted price preview. Safe for guests: read-only, no writes. */
 export const quoteCart = createServerFn({ method: "POST" })
-  .inputValidator((v: unknown) => QuoteSchema.parse(v))
+  .validator((v: unknown) => QuoteSchema.parse(v))
   .handler(async ({ data }) => {
     const { quoteOrder } = await import("@/lib/marketplace.server");
     return quoteOrder(null, data);
@@ -27,7 +27,7 @@ export const quoteCart = createServerFn({ method: "POST" })
 
 export const submitOrder = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => OrderV2Schema.parse(v))
+  .validator((v: unknown) => OrderV2Schema.parse(v))
   .handler(async ({ data, context }) => {
     const { createOrder } = await import("@/lib/marketplace.server");
     return createOrder(context.userId, data);
@@ -35,7 +35,7 @@ export const submitOrder = createServerFn({ method: "POST" })
 
 export const cancelMyOrder = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z.object({ orderId: z.string().uuid(), reason: z.string().max(300).optional() }).parse(v),
   )
   .handler(async ({ data, context }) => {
@@ -44,7 +44,7 @@ export const cancelMyOrder = createServerFn({ method: "POST" })
   });
 
 export const trackMarketplaceEvent = createServerFn({ method: "POST" })
-  .inputValidator((v: unknown) => AnalyticsEventSchema.parse(v))
+  .validator((v: unknown) => AnalyticsEventSchema.parse(v))
   .handler(async ({ data }) => {
     const { recordEvent } = await import("@/lib/marketplace.server");
     return recordEvent(null, data);
@@ -52,7 +52,7 @@ export const trackMarketplaceEvent = createServerFn({ method: "POST" })
 
 export const trackMyMarketplaceEvent = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => AnalyticsEventSchema.parse(v))
+  .validator((v: unknown) => AnalyticsEventSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { recordEvent } = await import("@/lib/marketplace.server");
     return recordEvent(context.userId, data);
@@ -69,7 +69,7 @@ const RestaurantIdSchema = z.object({ restaurantId: z.string().uuid() });
 
 export const partnerListPromotions = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => RestaurantIdSchema.parse(v))
+  .validator((v: unknown) => RestaurantIdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { listPromotionsForPartner } = await import("@/lib/marketplace.server");
     return listPromotionsForPartner(context.userId, data.restaurantId);
@@ -77,7 +77,7 @@ export const partnerListPromotions = createServerFn({ method: "POST" })
 
 export const partnerSavePromotion = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => PromotionSchema.parse(v))
+  .validator((v: unknown) => PromotionSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { savePromotion } = await import("@/lib/marketplace.server");
     return savePromotion(context.userId, data);
@@ -85,7 +85,7 @@ export const partnerSavePromotion = createServerFn({ method: "POST" })
 
 export const partnerDeletePromotion = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { deletePromotion } = await import("@/lib/marketplace.server");
     return deletePromotion(context.userId, data.id);
@@ -93,7 +93,7 @@ export const partnerDeletePromotion = createServerFn({ method: "POST" })
 
 export const partnerListBranches = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => RestaurantIdSchema.parse(v))
+  .validator((v: unknown) => RestaurantIdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { listBranches } = await import("@/lib/marketplace.server");
     return listBranches(context.userId, data.restaurantId);
@@ -101,7 +101,7 @@ export const partnerListBranches = createServerFn({ method: "POST" })
 
 export const partnerSaveBranch = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => BranchSchema.parse(v))
+  .validator((v: unknown) => BranchSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { saveBranch } = await import("@/lib/marketplace.server");
     return saveBranch(context.userId, data);
@@ -109,7 +109,7 @@ export const partnerSaveBranch = createServerFn({ method: "POST" })
 
 export const partnerDeleteBranch = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { deleteBranch } = await import("@/lib/marketplace.server");
     return deleteBranch(context.userId, data.id);
@@ -117,7 +117,7 @@ export const partnerDeleteBranch = createServerFn({ method: "POST" })
 
 export const partnerSetPause = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => PauseSchema.parse(v))
+  .validator((v: unknown) => PauseSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { setOrderingPause } = await import("@/lib/marketplace.server");
     return setOrderingPause(context.userId, {
@@ -130,7 +130,7 @@ export const partnerSetPause = createServerFn({ method: "POST" })
 
 export const partnerAnalyticsSummary = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     RestaurantIdSchema.extend({ days: z.number().int().min(1).max(365).default(30) }).parse(v),
   )
   .handler(async ({ data, context }) => {

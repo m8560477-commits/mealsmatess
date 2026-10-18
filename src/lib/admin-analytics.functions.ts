@@ -39,7 +39,7 @@ function daysBetween(from: Date, to: Date): string[] {
 // ---------- Unified analytics ----------
 export const getAdminAnalytics = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => RangeInput.parse(v))
+  .validator((v: unknown) => RangeInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();
@@ -312,7 +312,7 @@ export const adminListAuditLogs = createServerFn({ method: "GET" })
 // ---------- Users list ----------
 export const adminListUsers = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ search: z.string().optional() }).parse(v))
+  .validator((v: unknown) => z.object({ search: z.string().optional() }).parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();
@@ -348,7 +348,7 @@ export const adminListUsers = createServerFn({ method: "POST" })
 // ---------- Telemetry (AI / Scan / Nutrition events) ----------
 export const getAdminTelemetry = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => RangeInput.parse(v))
+  .validator((v: unknown) => RangeInput.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { firebaseAdmin } = await loadFirebaseAdmin();

@@ -39,7 +39,7 @@ export const listManagedRestaurants = createServerFn({ method: "GET" })
 
 export const launchManagedRestaurant = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) => RestaurantIdSchema.parse(value))
+  .validator((value: unknown) => RestaurantIdSchema.parse(value))
   .handler(async ({ data, context }) => {
     await assertManagedAdmin(context);
     const { firebaseAdmin } = await loadFirebaseAdmin();
@@ -53,7 +53,7 @@ export const launchManagedRestaurant = createServerFn({ method: "POST" })
 
 export const createManagedRestaurant = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) => CreateManagedRestaurantSchema.parse(value))
+  .validator((value: unknown) => CreateManagedRestaurantSchema.parse(value))
   .handler(async ({ data, context }) => {
     await assertManagedAdmin(context);
     const { firebaseAdmin } = await loadFirebaseAdmin();

@@ -114,7 +114,7 @@ async function checkStorage(userId: string) {
 
 export const runAiDiagnostics = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((value: unknown) => DiagnosticSchema.parse(value))
+  .validator((value: unknown) => DiagnosticSchema.parse(value))
   .handler(async ({ data, context }) => {
     const { isAdmin } = await import("@/lib/marketplace.server");
     if (!(await isAdmin(context.userId))) throw new Error("Admin access required.");

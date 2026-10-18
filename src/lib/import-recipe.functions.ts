@@ -114,14 +114,17 @@ function imageUrlFor(name: string) {
 
 export const importRecipeFromUrl = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         url: z
           .string()
           .url()
           .max(1000)
-          .refine(isAllowedVideoUrl, "Use an HTTPS video URL from TikTok, Instagram, YouTube, or Facebook."),
+          .refine(
+            isAllowedVideoUrl,
+            "Use an HTTPS video URL from TikTok, Instagram, YouTube, or Facebook.",
+          ),
       })
       .parse(v),
   )
@@ -196,7 +199,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
 
 export const updateRecipeBasics = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -225,7 +228,7 @@ export const updateRecipeBasics = createServerFn({ method: "POST" })
 
 export const deleteImportedRecipe = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();
     await firebaseAdmin

@@ -32,7 +32,7 @@ export const getMyPreferences = createServerFn({ method: "GET" })
 
 export const saveMyPreferences = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => prefsSchema.parse(v))
+  .validator((v: unknown) => prefsSchema.parse(v))
   .handler(async ({ data, context }) => {
     const payload = { ...data, updated_at: new Date().toISOString() };
     const { error } = await context.firebase.from("profiles").upsert(

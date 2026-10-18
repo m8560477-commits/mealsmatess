@@ -6,7 +6,7 @@ import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 // Track a recipe view (upsert recently_viewed)
 export const trackRecipeView = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const firebase = context.firebase;
     const { error } = await firebase
@@ -47,7 +47,7 @@ export const listRecentlyViewed = createServerFn({ method: "GET" })
 // Ratings
 export const rateRecipe = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
+  .validator((v: unknown) =>
     z
       .object({
         recipeId: z.string().uuid(),
@@ -74,7 +74,7 @@ export const rateRecipe = createServerFn({ method: "POST" })
 
 export const listRecipeRatings = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();
     const { data: rows, error } = await firebaseAdmin
