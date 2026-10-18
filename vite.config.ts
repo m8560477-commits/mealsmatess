@@ -15,6 +15,7 @@ export default defineConfig(({ command }) => ({
     "VITE_FIREBASE_STORAGE_BUCKET",
     "VITE_FIREBASE_FIRESTORE_DATABASE_ID",
     "VITE_FIREBASE_VAPID_KEY",
+    "FIREBASE_MEASUREMENT_ID",
   ],
   server: {
     host: "0.0.0.0",
