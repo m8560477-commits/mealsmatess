@@ -53,7 +53,10 @@ export default defineConfig(({ command }) => ({
       ? [
           nitro({
             preset: process.env["NITRO_PRESET"] || "vercel",
-            rollupConfig: { external: ["firebase-admin", "@google-cloud/firestore"] },
+            traceDeps: ["firebase-admin*", "@google-cloud/firestore*"],
+            rollupConfig: {
+              external: [/^firebase-admin(?:\/|$)/, /^@google-cloud\/firestore(?:\/|$)/],
+            },
           }),
         ]
       : []),

@@ -1,15 +1,16 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import {
-  getFirestore,
-  Timestamp,
-  type DocumentData,
-  type Firestore,
-  type Query,
-} from "firebase-admin/firestore";
+import type { DocumentData, Firestore, Query } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { getMessaging } from "firebase-admin/messaging";
 import { randomBytes, randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
+
+// Preserve the Admin Firestore package's CommonJS runtime; its Vercel ESM bundle expects __dirname.
+const runtimeRequire = createRequire(import.meta.url);
+const { getFirestore, Timestamp } = runtimeRequire(
+  "firebase-admin/firestore",
+) as typeof import("firebase-admin/firestore");
 
 type Filter = { field: string; operator: string; value: unknown };
 type DbResult<T = unknown> = { data: T; error: Error | null; count?: number | null };
