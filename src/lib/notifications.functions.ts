@@ -109,11 +109,16 @@ export const markAllMyNotificationsRead = createServerFn({ method: "POST" })
       .collection("users")
       .doc(context.userId)
       .collection("notifications");
-    const unread = await collection.where("readAt", "==", null).limit(100).get();
-    for (const notification of unread.docs) {
-      await setNotificationReadStatus(context.userId, notification.id, true);
+    let updated = 0;
+    while (true) {
+      const unread = await collection.where("readAt", "==", null).limit(100).get();
+      if (unread.empty) break;
+      for (const notification of unread.docs) {
+        await setNotificationReadStatus(context.userId, notification.id, true);
+        updated += 1;
+      }
     }
-    return { updated: unread.size };
+    return { updated };
   });
 
 export const getMyNotificationPreferences = createServerFn({ method: "GET" })

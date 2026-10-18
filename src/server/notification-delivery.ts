@@ -400,7 +400,7 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
     pushFailedTokens: FieldValue.increment(push.failed),
     status: complete ? "published" : "processing",
     ...(complete ? { publishedAt: new Date().toISOString() } : {}),
-    leaseUntil: null,
+    leaseUntil: complete ? null : Date.now(),
     updatedAt: new Date().toISOString(),
   });
   return { complete, recipientCount: fresh.length, push };
