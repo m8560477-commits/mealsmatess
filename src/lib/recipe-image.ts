@@ -109,6 +109,7 @@ const DISH_PHOTOS: Record<string, string> = {
   "ackee-and-saltfish": ackeeImg,
   "mediterranean-quinoa-bowl-with-harissa-chicken": quinoaImg,
   "pizza-napoletana-margherita": pizzaImg,
+  "pizza-napoletana": pizzaImg,
   "pizza-margherita": pizzaImg,
 };
 

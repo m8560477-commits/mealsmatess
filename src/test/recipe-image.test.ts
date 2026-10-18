@@ -18,6 +18,15 @@ describe("Recipe image safety", () => {
     expect(urls.every((url) => typeof url === "string" && !url.includes("/__l5e/"))).toBe(true);
   });
 
+  it("matches the audited Neapolitan margherita photo across generated slug suffixes", () => {
+    const photo = recipeImageUrl({ name: "Pizza Napoletana", slug: "pizza-napoletana-4sjpv" });
+    expect(photo).toContain("pizza-margherita");
+    expect(photo).not.toBe(NEUTRAL_RECIPE_PLACEHOLDER);
+    expect(recipeImageUrl({ name: "Pepperoni Pizza", slug: "pepperoni-pizza-abc12" })).toBe(
+      NEUTRAL_RECIPE_PLACEHOLDER,
+    );
+  });
+
   it("uses the persisted verified image", () => {
     expect(
       recipeImageUrl({
