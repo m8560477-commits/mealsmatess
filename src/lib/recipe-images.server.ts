@@ -557,7 +557,8 @@ export function needsSearch(
 }
 
 // ---------- AI-generated dish photo (cached per recipe) ----------
-const IMAGE_MODEL = "openai/gpt-image-2.5-sunburst";
+// Keep this model aligned with the image-generation model used elsewhere in the app.
+const IMAGE_MODEL = "openai/gpt-image-2";
 const IMAGE_BUCKET = "recipe-images";
 
 function stepText(steps: unknown, max = 6): string {
@@ -601,28 +602,35 @@ export async function generateAndSaveAiImage(
     `Method:\n${stepText((r as any).steps)}\n` +
     `Show only the plated final dish so its key ingredients are visible. Natural light, shallow depth of field, real crockery, 3/4 angle. ` +
     `No text, no labels, no people, no hands, not an illustration.`;
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+  // Use the shared server-only gateway wrapper for consistent URL and credential handling.
+  const res = await lovableFetch("/images/generations", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-      "Lovable-API-Key": key,
-      "X-Lovable-AIG-SDK": "fetch",
-    },
     body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium" }),
   });
-  if (!res.ok) {
-    console.error("recipe image generation failed", res.status);
-    return null;
+  const result = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
+  const image = result.data?.[0];
+  let bytes: Uint8Array;
+  let contentType = "image/png";
+  if (image?.b64_json) {
+    bytes = Buffer.from(image.b64_json, "base64");
+  } else if (image?.url) {
+    const imageResponse = await fetch(image.url, { redirect: "error" });
+    if (!imageResponse.ok) {
+      throw new Error(`Generated image download failed (${imageResponse.status}).`);
+    }
+    contentType = imageResponse.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) {
+      throw new Error("Image gateway returned a non-image URL.");
+    }
+    bytes = new Uint8Array(await imageResponse.arrayBuffer());
+  } else {
+    throw new Error("Image gateway returned no image data.");
   }
-  const j = (await res.json()) as { data?: { b64_json?: string }[] };
-  const b64 = j.data?.[0]?.b64_json;
-  if (!b64) return null;
-  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  if (bytes.length === 0) throw new Error("Image gateway returned an empty image.");
   const path = `${r.id}/${signature}.png`;
   const { error: upErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)
-    .upload(path, bytes, { contentType: "image/png", upsert: true });
+    .upload(path, bytes, { contentType, upsert: true });
   if (upErr) throw upErr;
   const { data: signed, error: signErr } = await firebaseAdmin.storage
     .from(IMAGE_BUCKET)

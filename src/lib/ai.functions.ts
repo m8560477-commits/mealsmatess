@@ -491,21 +491,37 @@ export const regenerateRecipeImage = createServerFn({ method: "POST" })
       const res = await lovableFetch("/images/generations", {
         method: "POST",
         body: JSON.stringify({
-          model: "google/gemini-3-pro-image",
-          messages: [{ role: "user", content: prompt }],
-          modalities: ["image", "text"],
+          model: "openai/gpt-image-2",
+          prompt,
+          size: "1024x1024",
+          quality: "medium",
         }),
       });
-      if (!res.ok) throw new Error(`Image gateway ${res.status}: ${await res.text()}`);
-      const j = (await res.json()) as { data?: { b64_json?: string }[] };
-      const b64 = j.data?.[0]?.b64_json;
-      if (!b64) throw new Error("No image returned");
+      const result = (await res.json()) as { data?: { b64_json?: string; url?: string }[] };
+      const image = result.data?.[0];
+      let bytes: Uint8Array;
+      let contentType = "image/png";
+      if (image?.b64_json) {
+        bytes = Buffer.from(image.b64_json, "base64");
+      } else if (image?.url) {
+        const imageResponse = await fetch(image.url, { redirect: "error" });
+        if (!imageResponse.ok) {
+          throw new Error(`Generated image download failed (${imageResponse.status}).`);
+        }
+        contentType = imageResponse.headers.get("content-type") ?? "";
+        if (!contentType.startsWith("image/")) {
+          throw new Error("Image gateway returned a non-image URL.");
+        }
+        bytes = new Uint8Array(await imageResponse.arrayBuffer());
+      } else {
+        throw new Error("Image gateway returned no image data.");
+      }
+      if (bytes.length === 0) throw new Error("Image gateway returned an empty image.");
 
-      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const path = `recipes/${recipe.slug}-${Date.now()}.png`;
       const { error: upErr } = await firebaseAdmin.storage
         .from("community-media")
-        .upload(path, bytes, { contentType: "image/png", upsert: true });
+        .upload(path, bytes, { contentType, upsert: true });
       if (upErr) throw new Error(upErr.message);
       const { data: signed, error: signErr } = await firebaseAdmin.storage
         .from("community-media")
