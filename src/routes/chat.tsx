@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Crown, Loader2, Send, Sparkles, Wand2 } from "lucide-react";
 import { ChefMascot } from "@/components/chef-mascot";
 import { CookingInput } from "@/components/cooking-input";
-import { askFoodQuestion } from "@/lib/ai.functions";
+import { postAuthenticatedAi } from "@/lib/ai-api";
 import { generateVisualExplanation, type VisualExplanation } from "@/lib/visual.functions";
 // Heavy media player (images + audio narration) — only loaded when a visual answer exists.
 const VisualExplainer = lazy(() =>
@@ -12,7 +12,6 @@ const VisualExplainer = lazy(() =>
 );
 import { usePremium } from "@/hooks/use-premium";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/chat")({
   component: ChatPage,
@@ -48,6 +47,7 @@ type Turn = {
   question: string;
   answer: string;
   visual?: VisualExplanation;
+  error?: string;
   visualLoading?: boolean;
   visualError?: string;
 };
@@ -68,6 +68,12 @@ function ChatPage() {
     setTurns((t) => t.map((turn, idx) => (idx === i ? { ...turn, ...next } : turn)));
   }
 
+  async function getAnswer(text: string) {
+    const { reply } = await postAuthenticatedAi<{ reply: string }>("/api/mia", { message: text });
+    if (!reply?.trim()) throw new Error("Mia returned an empty response. Please try again.");
+    return reply;
+  }
+
   async function ask(q: string) {
     const text = q.trim();
     if (!text || busy) return;
@@ -77,7 +83,6 @@ function ChatPage() {
     const index = turns.length;
     setTurns((t) => [...t, { question: text, answer: "", visualLoading: wantsVisual }]);
 
-    // Kick off the visual explanation in parallel with the text answer.
     const visualPromise = wantsVisual
       ? generateVisualExplanation({ data: { prompt: text, scenes: 4, narration: true } })
           .then((visual) => patch(index, { visual, visualLoading: false }))
@@ -90,16 +95,30 @@ function ChatPage() {
       : Promise.resolve();
 
     try {
-      const { answer } = await askFoodQuestion({ data: { question: text } });
-      patch(index, { answer });
+      patch(index, { answer: await getAnswer(text) });
     } catch (err) {
-      patch(index, { answer: "" });
-      toast.error("Couldn't answer that", {
-        description: err instanceof Error ? err.message : undefined,
-      });
+      const message = err instanceof Error ? err.message : "Mia is unavailable. Please try again.";
+      patch(index, { answer: "", error: message });
+      toast.error("Couldn't answer that", { description: message });
     } finally {
       setBusy(false);
       void visualPromise;
+    }
+  }
+
+  async function retryAnswer(index: number) {
+    const turn = turns[index];
+    if (!turn || busy) return;
+    setBusy(true);
+    patch(index, { answer: "", error: undefined });
+    try {
+      patch(index, { answer: await getAnswer(turn.question) });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Mia is unavailable. Please try again.";
+      patch(index, { error: message });
+      toast.error("Couldn't answer that", { description: message });
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -160,6 +179,22 @@ function ChatPage() {
               <p className="mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-card px-4 py-2.5 text-sm">
                 {t.answer}
               </p>
+            )}
+            {t.error && (
+              <div
+                role="alert"
+                className="flex flex-wrap items-center gap-3 text-sm text-destructive"
+              >
+                <p>{t.error}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void retryAnswer(i)}
+                  disabled={busy}
+                >
+                  Try again
+                </Button>
+              </div>
             )}
             {t.visualLoading && (
               <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">

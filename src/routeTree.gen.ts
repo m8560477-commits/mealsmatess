@@ -34,6 +34,8 @@ import { Route as ScanRouteImport } from './routes/scan'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as ApiMiaRouteImport } from './routes/api/mia'
+import { Route as ApiRecipeImageRouteImport } from './routes/api/recipe-image'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
@@ -170,6 +172,16 @@ const WelcomeRoute = WelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMiaRoute = ApiMiaRouteImport.update({
+  id: '/api/mia',
+  path: '/api/mia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRecipeImageRoute = ApiRecipeImageRouteImport.update({
+  id: '/api/recipe-image',
+  path: '/api/recipe-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -250,6 +262,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
+  '/api/mia': typeof ApiMiaRoute
+  '/api/recipe-image': typeof ApiRecipeImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -287,6 +301,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
+  '/api/mia': typeof ApiMiaRoute
+  '/api/recipe-image': typeof ApiRecipeImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -325,6 +341,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
+  '/api/mia': typeof ApiMiaRoute
+  '/api/recipe-image': typeof ApiRecipeImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -364,6 +382,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/support'
     | '/welcome'
+    | '/api/mia'
+    | '/api/recipe-image'
     | '/auth/callback'
     | '/legal/privacy'
     | '/legal/terms'
@@ -401,6 +421,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/support'
     | '/welcome'
+    | '/api/mia'
+    | '/api/recipe-image'
     | '/auth/callback'
     | '/legal/privacy'
     | '/legal/terms'
@@ -438,6 +460,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/support'
     | '/welcome'
+    | '/api/mia'
+    | '/api/recipe-image'
     | '/auth/callback'
     | '/legal/privacy'
     | '/legal/terms'
@@ -476,6 +500,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SupportRoute: typeof SupportRoute
   WelcomeRoute: typeof WelcomeRoute
+  ApiMiaRoute: typeof ApiMiaRoute
+  ApiRecipeImageRoute: typeof ApiRecipeImageRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
   OrderIdRoute: typeof OrderIdRoute
@@ -663,6 +689,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mia': {
+      id: '/api/mia'
+      path: '/api/mia'
+      fullPath: '/api/mia'
+      preLoaderRoute: typeof ApiMiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/recipe-image': {
+      id: '/api/recipe-image'
+      path: '/api/recipe-image'
+      fullPath: '/api/recipe-image'
+      preLoaderRoute: typeof ApiRecipeImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -783,6 +823,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SupportRoute: SupportRoute,
   WelcomeRoute: WelcomeRoute,
+  ApiMiaRoute: ApiMiaRoute,
+  ApiRecipeImageRoute: ApiRecipeImageRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
   OrderIdRoute: OrderIdRoute,

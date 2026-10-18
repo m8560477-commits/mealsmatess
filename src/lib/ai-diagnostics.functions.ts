@@ -5,7 +5,6 @@ import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit } from "@/lib/security.server";
 import {
-  generateAiImage,
   generateAiObject,
   generateAiText,
   getAiProviderConfiguration,
@@ -177,9 +176,9 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
           };
         }
         case "image": {
-          const image = await generateAiImage(
+          const imageService = await import("@/server/openai-image");
+          const image = await imageService.generateOpenAIImage(
             "Photorealistic tomato and herb omelet with golden toast, natural light, no text or people.",
-            { feature: "diagnostics.image", size: "1024x1024" },
           );
           return {
             test: data.test,

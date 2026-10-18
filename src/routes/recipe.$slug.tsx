@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   Clock,
   Users,
@@ -20,7 +20,7 @@ import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import { usePremium } from "@/hooks/use-premium";
 import { regenerateRecipeImage } from "@/lib/ai.functions";
-import { ensureRecipeImage } from "@/lib/recipe-images.functions";
+import { postAuthenticatedAi } from "@/lib/ai-api";
 import { trackRecipeView } from "@/lib/engagement.functions";
 import { setContinueCooking } from "@/lib/continue-cooking";
 // Full-screen step-by-step mode — split out of the initial recipe page bundle.
@@ -94,25 +94,43 @@ function RecipePage() {
   const [cookingOpen, setCookingOpen] = useState(false);
   const cookingModeEnabled = useFeatureFlag("cooking_mode", true);
   const [makingImage, setMakingImage] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const imageAsked = useRef<string | null>(null);
 
-  // Create this recipe's own photo once (in the background); afterwards it's reused for everyone.
-  useEffect(() => {
-    if (!r || !user || !r.id || r.image_source || imageAsked.current === r.id) return;
-    imageAsked.current = r.id;
+  const requestRecipeImage = useCallback(async () => {
+    if (!r?.id || !user) return;
     setMakingImage(true);
-    ensureRecipeImage({ data: { recipeId: r.id } })
-      .then(async (res) => {
-        if (res.imageUrl) await queryClient.invalidateQueries({ queryKey: ["recipe", r.slug] });
-        else if (res.reason === "limit")
-          toast.message("Daily photo allowance reached", {
-            description:
-              "This recipe's photo will be created when your allowance resets. Premium includes more.",
-          });
-      })
-      .catch(() => undefined)
-      .finally(() => setMakingImage(false));
-  }, [user, r, queryClient]);
+    setImageError(false);
+    try {
+      const result = await postAuthenticatedAi<{
+        imageUrl: string | null;
+        reason?: string;
+        limit?: number | null;
+        resetsAt?: string | null;
+      }>("/api/recipe-image", { recipeId: r.id }, { timeoutMs: 120_000 });
+      if (result.imageUrl) {
+        await queryClient.invalidateQueries({ queryKey: ["recipe", r.slug] });
+      } else if (result.reason === "limit") {
+        toast.message("Daily photo allowance reached", {
+          description:
+            "This recipe's photo will be created when your allowance resets. Premium includes more.",
+        });
+      }
+    } catch (error) {
+      setImageError(true);
+      toast.error("Couldn't create a recipe photo", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setMakingImage(false);
+    }
+  }, [queryClient, r?.id, r?.slug, user]);
+
+  useEffect(() => {
+    if (!r?.id || !user || r.image_source || imageAsked.current === r.id) return;
+    imageAsked.current = r.id;
+    void requestRecipeImage();
+  }, [requestRecipeImage, r?.id, r?.image_source, user]);
 
   async function regenerateImage() {
     if (!user || !r) {
@@ -233,6 +251,17 @@ function RecipePage() {
             </div>
             <div>
               <ImageCredit source={r.image_source} attribution={r.image_attribution} />
+              {imageError && !r.image_source && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={makingImage}
+                  onClick={() => void requestRecipeImage()}
+                >
+                  Try photo again
+                </Button>
+              )}
               {r.id && (
                 <ChangeImageButton
                   recipe={{ id: r.id, slug: r.slug, created_by: r.created_by }}
