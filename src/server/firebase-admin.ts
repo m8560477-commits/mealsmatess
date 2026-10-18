@@ -8,6 +8,7 @@ import {
   type Query,
 } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { getMessaging } from "firebase-admin/messaging";
 import { randomBytes, randomUUID } from "node:crypto";
 
 type Filter = { field: string; operator: string; value: unknown };
@@ -25,12 +26,10 @@ let initialized:
 
 function getServices() {
   if (initialized) return initialized;
-  const encoded =
-    process.env["FIREBASE_SERVICE_ACCOUNT_JSON"] ||
-    process.env["VITE_FIREBASE_SERVICE_ACCOUNT_JSON"];
+  const encoded = process.env["FIREBASE_SERVICE_ACCOUNT_JSON"];
   if (!encoded) {
     throw new Error(
-      "Firebase Admin is not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON as a server-only encrypted Vercel environment variable; do not use a VITE_ prefix.",
+      "Firebase Admin is not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON as a server-only encrypted Vercel environment variable; never use a VITE_ prefix for service-account credentials.",
     );
   }
 

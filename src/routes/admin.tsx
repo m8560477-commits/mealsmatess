@@ -7,7 +7,6 @@ import {
   DollarSign,
   Download,
   Loader2,
-  Megaphone,
   Plus,
   Search,
   Sparkles,
@@ -39,7 +38,6 @@ import {
 import {
   adminListAuditLogs,
   adminListUsers,
-  adminSendAnnouncement,
   getAdminAnalytics,
 } from "@/lib/admin-analytics.functions";
 import { Button } from "@/components/ui/button";
@@ -54,7 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { AnnouncementsTab } from "@/components/admin/announcements-tab";
 import { TelemetryTab } from "@/components/admin/telemetry-tab";
 import { FlagsTab } from "@/components/admin/flags-tab";
 import { RecipeImage } from "@/components/recipe-image";
@@ -371,7 +369,7 @@ function AdminPage() {
           <ManagedRestaurantsTab />
         </TabsContent>
         <TabsContent value="announce" className="mt-4">
-          <AnnounceTab />
+          <AnnouncementsTab />
         </TabsContent>
         <TabsContent value="audit" className="mt-4">
           <AuditTab />
@@ -1140,44 +1138,6 @@ function GrantTab() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">Find user IDs in the Users tab.</p>
-    </div>
-  );
-}
-
-function AnnounceTab() {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
-  async function send() {
-    setSending(true);
-    try {
-      await adminSendAnnouncement({ data: { title, body } });
-      toast.success("Announcement published");
-      setTitle("");
-      setBody("");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Send failed");
-    } finally {
-      setSending(false);
-    }
-  }
-  return (
-    <div className="max-w-xl space-y-3 rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-2">
-        <Megaphone className="h-5 w-5 text-primary" />
-        <h3 className="font-display text-lg">New announcement</h3>
-      </div>
-      <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <Textarea
-        placeholder="Message body"
-        rows={4}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-      />
-      <Button onClick={send} disabled={!title || !body || sending}>
-        {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Publish
-      </Button>
     </div>
   );
 }

@@ -1,5 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
-import { FieldPath, FieldValue, type Firestore } from "firebase-admin/firestore";
+import {
+  FieldPath,
+  FieldValue,
+  type DocumentReference,
+  type Firestore,
+} from "firebase-admin/firestore";
 import { getFirebaseAdminFirestore, getFirebaseAdminMessaging } from "@/server/firebase-admin";
 import { isHealthyInterest } from "@/lib/notification-segments";
 import type { AnnouncementAudience, AnnouncementInput } from "@/lib/notifications.types";
@@ -28,23 +33,18 @@ function profileMatchesAudience(audience: AnnouncementAudience, profile: Record<
 }
 
 function consumerRoleExclusions(db: Firestore) {
-  return db.collection("user_roles").get().then((snapshot) => {
-    const excluded = new Set<string>();
-    for (const document of snapshot.docs) {
-      const role = String(document.get("role") ?? "").toLowerCase();
-      const userId = String(document.get("user_id") ?? "");
-      if (userId && EXCLUDED_ROLES.has(role)) excluded.add(userId);
-    }
-    return excluded;
-  });
-}
-
-function appBaseUrl() {
-  const configured = process.env["MEALMATE_APP_URL"]?.trim();
-  if (configured) return configured.replace(/\/$/, "");
-  const vercelUrl = process.env["VERCEL_URL"]?.trim();
-  if (vercelUrl) return `https://${vercelUrl}`;
-  return "http://localhost:3000";
+  return db
+    .collection("user_roles")
+    .get()
+    .then((snapshot) => {
+      const excluded = new Set<string>();
+      for (const document of snapshot.docs) {
+        const role = String(document.get("role") ?? "").toLowerCase();
+        const userId = String(document.get("user_id") ?? "");
+        if (userId && EXCLUDED_ROLES.has(role)) excluded.add(userId);
+      }
+      return excluded;
+    });
 }
 
 export async function previewAudience(audience: AnnouncementAudience) {
@@ -53,12 +53,12 @@ export async function previewAudience(audience: AnnouncementAudience) {
     db.collection("users").get(),
     consumerRoleExclusions(db),
   ]);
-  const settings = profiles.empty
-    ? []
-    : await db.getAll(...profiles.docs.map((profile) => settingsRef(db, profile.id)));
-  const settingsByUser = new Map(
-    settings.map((snapshot) => [snapshot.ref.parent.parent?.id ?? "", snapshot.data() ?? {}]),
-  );
+  const settingsByUser = new Map<string, Record<string, unknown>>();
+  for (let offset = 0; offset < profiles.docs.length; offset += PAGE_SIZE) {
+    const page = profiles.docs.slice(offset, offset + PAGE_SIZE);
+    const settings = await db.getAll(...page.map((profile) => settingsRef(db, profile.id)));
+    page.forEach((profile, index) => settingsByUser.set(profile.id, settings[index]?.data() ?? {}));
+  }
   let count = 0;
   for (const profileDoc of profiles.docs) {
     const profile = profileDoc.data() as Record<string, unknown>;
@@ -68,7 +68,8 @@ export async function previewAudience(audience: AnnouncementAudience) {
       !profileIsIneligible(profile) &&
       preferences["productUpdatesEnabled"] !== false &&
       profileMatchesAudience(audience, profile)
-    ) count += 1;
+    )
+      count += 1;
   }
   return { count, audience };
 }
@@ -150,7 +151,7 @@ async function claimAnnouncement(id: string, allowImmediate: boolean) {
 
 async function sendPushBatch(
   db: Firestore,
-  tokens: { token: string; ref: FirebaseFirestore.DocumentReference; userId: string }[],
+  tokens: { token: string; ref: DocumentReference; userId: string }[],
   announcement: Record<string, unknown>,
 ) {
   if (tokens.length === 0) return { attempted: 0, accepted: 0, failed: 0 };
@@ -159,7 +160,8 @@ async function sendPushBatch(
   const tokenResults: { token: (typeof tokens)[number]; accepted: boolean; stale: boolean }[] = [];
   const destination = String(announcement["destination"] ?? "/");
   const vercelUrl = process.env["VERCEL_URL"]?.trim();
-  const appUrl = process.env["MEALMATE_APP_URL"]?.trim()?.replace(/\/$/, "") ??
+  const appUrl =
+    process.env["MEALMATE_APP_URL"]?.trim()?.replace(/\/$/, "") ??
     (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000");
 
   for (let offset = 0; offset < tokens.length; offset += 500) {
@@ -182,7 +184,9 @@ async function sendPushBatch(
       const token = chunk[index];
       if (!token) return;
       const code = result.error?.code ?? "";
-      const stale = code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token";
+      const stale =
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-registration-token";
       tokenResults.push({ token, accepted: result.success, stale });
       const counts = perUser.get(token.userId) ?? { accepted: 0, failed: 0 };
       if (result.success) counts.accepted += 1;
@@ -193,16 +197,29 @@ async function sendPushBatch(
 
   const batch = db.batch();
   for (const result of tokenResults) {
-    if (result.accepted) batch.set(result.token.ref, { lastAcceptedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true });
+    if (result.accepted)
+      batch.set(
+        result.token.ref,
+        { lastAcceptedAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { merge: true },
+      );
     else if (result.stale) batch.delete(result.token.ref);
   }
   for (const [userId, counts] of perUser) {
-    const notificationRef = db.collection("users").doc(userId).collection("notifications").doc(String(announcement["id"]));
-    batch.set(notificationRef, {
-      pushStatus: counts.accepted > 0 ? "accepted" : "failed",
-      pushAcceptedTokens: counts.accepted,
-      pushFailedTokens: counts.failed,
-    }, { merge: true });
+    const notificationRef = db
+      .collection("users")
+      .doc(userId)
+      .collection("notifications")
+      .doc(String(announcement["id"]));
+    batch.set(
+      notificationRef,
+      {
+        pushStatus: counts.accepted > 0 ? "accepted" : "failed",
+        pushAcceptedTokens: counts.accepted,
+        pushFailedTokens: counts.failed,
+      },
+      { merge: true },
+    );
   }
   await batch.commit();
   const accepted = tokenResults.filter((result) => result.accepted).length;
@@ -213,26 +230,46 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
   const db = getFirebaseAdminFirestore();
   const audience = String(announcement["audience"] ?? "all_consumers") as AnnouncementAudience;
   let query = db.collection("users").orderBy(FieldPath.documentId()).limit(PAGE_SIZE);
-  const lastRecipientId = typeof announcement["lastRecipientId"] === "string" ? announcement["lastRecipientId"] : null;
+  const lastRecipientId =
+    typeof announcement["lastRecipientId"] === "string" ? announcement["lastRecipientId"] : null;
   if (lastRecipientId) query = query.startAfter(lastRecipientId);
   const [profiles, excludedRoles] = await Promise.all([query.get(), consumerRoleExclusions(db)]);
   const announcementRef = db.collection("admin_announcements").doc(String(announcement["id"]));
   if (profiles.empty) {
-    await announcementRef.update({ status: "published", publishedAt: new Date().toISOString(), leaseUntil: null, updatedAt: new Date().toISOString() });
+    await announcementRef.update({
+      status: "published",
+      publishedAt: new Date().toISOString(),
+      leaseUntil: null,
+      updatedAt: new Date().toISOString(),
+    });
     return { complete: true, recipientCount: 0, push: { attempted: 0, accepted: 0, failed: 0 } };
   }
 
   const pageDocs = profiles.docs;
-  const settingsSnapshots = await db.getAll(...pageDocs.map((profile) => settingsRef(db, profile.id)));
-  const settingsByUser = new Map(pageDocs.map((profile, index) => [profile.id, settingsSnapshots[index]?.data() ?? {}]));
+  const settingsSnapshots = await db.getAll(
+    ...pageDocs.map((profile) => settingsRef(db, profile.id)),
+  );
+  const settingsByUser = new Map(
+    pageDocs.map((profile, index) => [profile.id, settingsSnapshots[index]?.data() ?? {}]),
+  );
   const eligible = pageDocs.filter((profile) => {
     const data = profile.data() as Record<string, unknown>;
     const settings = settingsByUser.get(profile.id) ?? {};
-    return !excludedRoles.has(profile.id) && !profileIsIneligible(data) &&
-      settings["productUpdatesEnabled"] !== false && profileMatchesAudience(audience, data);
+    return (
+      !excludedRoles.has(profile.id) &&
+      !profileIsIneligible(data) &&
+      settings["productUpdatesEnabled"] !== false &&
+      profileMatchesAudience(audience, data)
+    );
   });
 
-  const notificationRefs = eligible.map((profile) => db.collection("users").doc(profile.id).collection("notifications").doc(String(announcement["id"])));
+  const notificationRefs = eligible.map((profile) =>
+    db
+      .collection("users")
+      .doc(profile.id)
+      .collection("notifications")
+      .doc(String(announcement["id"])),
+  );
   const existing = notificationRefs.length ? await db.getAll(...notificationRefs) : [];
   const fresh = eligible.filter((_, index) => !existing[index]?.exists);
   const createdAt = new Date().toISOString();
@@ -241,7 +278,11 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
     const settings = settingsByUser.get(profile.id) ?? {};
     const optedIn = settings["pushEnabled"] === true;
     writeBatch.create(
-      db.collection("users").doc(profile.id).collection("notifications").doc(String(announcement["id"])),
+      db
+        .collection("users")
+        .doc(profile.id)
+        .collection("notifications")
+        .doc(String(announcement["id"])),
       {
         id: String(announcement["id"]),
         announcementId: String(announcement["id"]),
@@ -258,32 +299,63 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
   });
   if (fresh.length) await writeBatch.commit();
 
-  const pushUsers = fresh.filter((profile) => settingsByUser.get(profile.id)?.["pushEnabled"] === true);
-  const tokenSnapshots = await Promise.all(pushUsers.map((profile) =>
-    db.collection("users").doc(profile.id).collection("push_tokens").limit(5).get(),
-  ));
-  const tokens = tokenSnapshots.flatMap((snapshot, index) => snapshot.docs.map((tokenDoc) => ({
-    userId: pushUsers[index]!.id,
-    token: String(tokenDoc.get("token") ?? ""),
-    ref: tokenDoc.ref,
-  })).filter((item) => item.token.length > 0));
+  const pushUsers = eligible.filter(
+    (profile, index) =>
+      settingsByUser.get(profile.id)?.["pushEnabled"] === true &&
+      (!existing[index]?.exists || existing[index]?.get("pushStatus") === "pending"),
+  );
+  const tokenSnapshots = await Promise.all(
+    pushUsers.map((profile) =>
+      db
+        .collection("users")
+        .doc(profile.id)
+        .collection("push_tokens")
+        .where("enabled", "==", true)
+        .limit(5)
+        .get(),
+    ),
+  );
+  const tokens = tokenSnapshots.flatMap((snapshot, index) =>
+    snapshot.docs
+      .map((tokenDoc) => ({
+        userId: pushUsers[index]!.id,
+        token: String(tokenDoc.get("token") ?? ""),
+        ref: tokenDoc.ref,
+      }))
+      .filter((item) => item.token.length > 0),
+  );
 
   if (pushUsers.length) {
-    const noDevice = pushUsers.filter((user, index) => tokenSnapshots[index]?.empty);
+    const usersWithTokens = new Set(tokens.map((token) => token.userId));
+    const noDevice = pushUsers.filter((user) => !usersWithTokens.has(user.id));
     const noDeviceBatch = db.batch();
-    noDevice.forEach((user) => noDeviceBatch.set(
-      db.collection("users").doc(user.id).collection("notifications").doc(String(announcement["id"])),
-      { pushStatus: "no_active_device" }, { merge: true },
-    ));
+    noDevice.forEach((user) =>
+      noDeviceBatch.set(
+        db
+          .collection("users")
+          .doc(user.id)
+          .collection("notifications")
+          .doc(String(announcement["id"])),
+        { pushStatus: "no_active_device" },
+        { merge: true },
+      ),
+    );
     if (noDevice.length) await noDeviceBatch.commit();
   }
 
   if (tokens.length) {
     const attemptBatch = db.batch();
-    [...new Set(tokens.map((item) => item.userId))].forEach((userId) => attemptBatch.set(
-      db.collection("users").doc(userId).collection("notifications").doc(String(announcement["id"])),
-      { pushStatus: "attempted", pushAttemptedAt: createdAt }, { merge: true },
-    ));
+    [...new Set(tokens.map((item) => item.userId))].forEach((userId) =>
+      attemptBatch.set(
+        db
+          .collection("users")
+          .doc(userId)
+          .collection("notifications")
+          .doc(String(announcement["id"])),
+        { pushStatus: "attempted", pushAttemptedAt: createdAt },
+        { merge: true },
+      ),
+    );
     await attemptBatch.commit();
   }
 
@@ -293,11 +365,21 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
       push = await sendPushBatch(db, tokens, announcement);
     } catch {
       const failedBatch = db.batch();
-      [...new Set(tokens.map((item) => item.userId))].forEach((userId) => failedBatch.set(
-        db.collection("users").doc(userId).collection("notifications").doc(String(announcement["id"])),
-        { pushStatus: "failed", pushAttemptedAt: createdAt, pushFailedTokens: tokens.filter((item) => item.userId === userId).length },
-        { merge: true },
-      ));
+      [...new Set(tokens.map((item) => item.userId))].forEach((userId) =>
+        failedBatch.set(
+          db
+            .collection("users")
+            .doc(userId)
+            .collection("notifications")
+            .doc(String(announcement["id"])),
+          {
+            pushStatus: "failed",
+            pushAttemptedAt: createdAt,
+            pushFailedTokens: tokens.filter((item) => item.userId === userId).length,
+          },
+          { merge: true },
+        ),
+      );
       await failedBatch.commit();
       push = { attempted: tokens.length, accepted: 0, failed: tokens.length };
     }
@@ -305,9 +387,14 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
 
   const lastProfileId = pageDocs[pageDocs.length - 1]?.id ?? null;
   const complete = pageDocs.length < PAGE_SIZE;
+  const storedNotificationCount = await db
+    .collectionGroup("notifications")
+    .where("announcementId", "==", String(announcement["id"]))
+    .count()
+    .get();
   await announcementRef.update({
     lastRecipientId: lastProfileId,
-    recipientCount: FieldValue.increment(fresh.length),
+    recipientCount: storedNotificationCount.data().count,
     pushAttemptedTokens: FieldValue.increment(push.attempted),
     pushAcceptedTokens: FieldValue.increment(push.accepted),
     pushFailedTokens: FieldValue.increment(push.failed),
@@ -325,7 +412,11 @@ export async function processAnnouncementBatch(id: string, options: { allowImmed
   if (!announcement) return { claimed: false, status: "unchanged" as const };
   try {
     const result = await processRecipientPage(announcement);
-    return { claimed: true, status: result.complete ? "published" as const : "processing" as const, ...result };
+    return {
+      claimed: true,
+      status: result.complete ? ("published" as const) : ("processing" as const),
+      ...result,
+    };
   } catch (error) {
     await db.collection("admin_announcements").doc(id).update({
       status: "failed",
@@ -339,16 +430,24 @@ export async function processAnnouncementBatch(id: string, options: { allowImmed
 
 export async function processDueAnnouncements() {
   const db = getFirebaseAdminFirestore();
-  const snapshot = await db.collection("admin_announcements").where("status", "in", ["scheduled", "processing"]).limit(40).get();
   const now = Date.now();
-  const candidates = snapshot.docs.filter((document) => {
-    const record = document.data();
-    if (record["status"] === "scheduled") {
-      const scheduleAt = Date.parse(String(record["scheduleAt"] ?? ""));
-      return Number.isFinite(scheduleAt) && scheduleAt <= now;
-    }
-    return Number(record["leaseUntil"] ?? 0) <= now;
-  }).slice(0, 4);
+  const [scheduled, continuing] = await Promise.all([
+    db
+      .collection("admin_announcements")
+      .where("status", "==", "scheduled")
+      .where("scheduleAt", "<=", new Date(now).toISOString())
+      .orderBy("scheduleAt", "asc")
+      .limit(4)
+      .get(),
+    db
+      .collection("admin_announcements")
+      .where("status", "==", "processing")
+      .where("leaseUntil", "<=", now)
+      .orderBy("leaseUntil", "asc")
+      .limit(4)
+      .get(),
+  ]);
+  const candidates = [...scheduled.docs, ...continuing.docs].slice(0, 4);
   const results = [];
   for (const announcement of candidates) {
     try {
@@ -366,7 +465,12 @@ export async function cancelScheduledAnnouncement(id: string) {
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists || snapshot.get("status") !== "scheduled") return { cancelled: false };
-    transaction.update(ref, { status: "cancelled", cancelledAt: new Date().toISOString(), leaseUntil: null, updatedAt: new Date().toISOString() });
+    transaction.update(ref, {
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+      leaseUntil: null,
+      updatedAt: new Date().toISOString(),
+    });
     return { cancelled: true };
   });
 }

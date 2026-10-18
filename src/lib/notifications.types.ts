@@ -1,7 +1,10 @@
 export type AnnouncementAudience = "all_consumers" | "healthy_interest";
-export type AnnouncementCategory = "recipes" | "healthy_eating" | "dining" | "mia" | "features" | "general";
-export type AnnouncementDestination = "/" | "/recipes" | "/restaurants" | "/chat" | "/planner" | "/profile";
-export type AnnouncementStatus = "draft" | "scheduled" | "processing" | "published" | "cancelled" | "failed";
+export type AnnouncementCategory =
+  "recipes" | "healthy_eating" | "dining" | "mia" | "features" | "general";
+export type AnnouncementDestination =
+  "/" | "/recipes" | "/restaurants" | "/chat" | "/planner" | "/profile";
+export type AnnouncementStatus =
+  "draft" | "scheduled" | "processing" | "published" | "cancelled" | "failed";
 
 export type AnnouncementInput = {
   id?: string;
@@ -25,5 +28,6 @@ export type UserNotification = {
   destination: AnnouncementDestination;
   createdAt: string;
   readAt: string | null;
-  pushStatus?: "pending" | "not_opted_in" | "no_active_device" | "attempted" | "accepted" | "failed";
+  pushStatus?:
+    "pending" | "not_opted_in" | "no_active_device" | "attempted" | "accepted" | "failed";
 };

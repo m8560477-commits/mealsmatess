@@ -345,29 +345,6 @@ export const adminListUsers = createServerFn({ method: "POST" })
     return rows ?? [];
   });
 
-// ---------- Send announcement ----------
-export const adminSendAnnouncement = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) =>
-    z
-      .object({
-        title: z.string().min(2).max(120),
-        body: z.string().min(2).max(2000),
-      })
-      .parse(v),
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { error } = await firebaseAdmin.from("announcements").insert({
-      title: data.title,
-      body: data.body,
-      created_by: context.userId,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
 // ---------- Telemetry (AI / Scan / Nutrition events) ----------
 export const getAdminTelemetry = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])

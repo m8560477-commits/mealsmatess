@@ -44,6 +44,22 @@
         { "fieldPath": "checked", "order": "ASCENDING" },
         { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "admin_announcements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "scheduleAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "admin_announcements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseUntil", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
