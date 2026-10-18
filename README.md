@@ -24,3 +24,14 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Vercel deployment
+
+The production app is https://mealsmates-khaki.vercel.app. The Vite build uses
+Nitro's Vercel preset.
+
+The announcement processor runs once daily at midnight UTC (`0 0 * * *`),
+compatible with Vercel Hobby. Scheduled announcements are delivered on the next
+daily run, with Vercel's hourly timing window. For more frequent delivery, use a
+Vercel plan that supports it before changing the cron schedule in `vercel.json`.
+See [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
