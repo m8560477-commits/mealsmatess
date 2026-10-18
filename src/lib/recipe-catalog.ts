@@ -14,6 +14,17 @@ function ingredient(value: unknown): { name: string; quantity: string }[] {
   return name ? [{ name, quantity: text(row["quantity"]) ?? "" }] : [];
 }
 
+function photoAttribution(value: unknown) {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  return {
+    photographer: text(data["photographer"]),
+    photographerUrl: text(data["photographerUrl"]),
+    pageUrl: text(data["pageUrl"]),
+  };
+}
+
 /** Only public, serializable catalog fields used by recipe cards and cooking. */
 export function recipeCatalogRecord(row: Record<string, unknown>) {
   const { id, slug, name } = row;
@@ -59,7 +70,7 @@ export function recipeCatalogRecord(row: Record<string, unknown>) {
     created_by: text(row["created_by"]),
     image_url: text(row["image_url"]),
     image_source: text(row["image_source"]),
-    image_attribution: text(row["image_attribution"]),
+    image_attribution: photoAttribution(row["image_attribution"]),
   };
 }
 

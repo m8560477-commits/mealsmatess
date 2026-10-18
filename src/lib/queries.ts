@@ -15,7 +15,10 @@ export type FirestoreRecord = Record<string, any> & {
   recipe_id?: string;
   image_url?: string | null;
   image_source?: string | null;
-  image_attribution?: string | null;
+  image_attribution?:
+    | string
+    | { photographer: string | null; photographerUrl: string | null; pageUrl: string | null }
+    | null;
   cooking_time_minutes?: number | null;
   servings?: number | null;
   calories?: number | null;

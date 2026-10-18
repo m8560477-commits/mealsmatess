@@ -54,6 +54,23 @@ describe("recipe catalog search", () => {
     ).toEqual([]);
   });
 
+  it("preserves photographer credit for stored provider photos", () => {
+    expect(
+      recipe({
+        image_attribution: {
+          photographer: "Example photographer",
+          photographerUrl: "https://example.test/author",
+          pageUrl: "https://example.test/photo",
+          internal: "omit",
+        },
+      }).image_attribution,
+    ).toEqual({
+      photographer: "Example photographer",
+      photographerUrl: "https://example.test/author",
+      pageUrl: "https://example.test/photo",
+    });
+  });
+
   it("retains recipe details and stored image metadata but omits internal fields", () => {
     const row = recipeCatalogRecord({
       id: "r",
