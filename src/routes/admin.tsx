@@ -54,6 +54,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { AnnouncementsTab } from "@/components/admin/announcements-tab";
 import { TelemetryTab } from "@/components/admin/telemetry-tab";
+import { AiDiagnosticsTab } from "@/components/admin/ai-diagnostics";
 import { FlagsTab } from "@/components/admin/flags-tab";
 import { RecipeImage } from "@/components/recipe-image";
 
@@ -314,6 +315,7 @@ function AdminPage() {
             Recipes
           </TabsTrigger>
           <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
+          <TabsTrigger value="ai">AI checks</TabsTrigger>
           <TabsTrigger value="flags">Flags</TabsTrigger>
           <TabsTrigger value="subs">Subscribers</TabsTrigger>
           <TabsTrigger value="promos">Promos</TabsTrigger>
@@ -352,6 +354,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="telemetry" className="mt-4">
           <TelemetryTab range={range} />
+        </TabsContent>
+        <TabsContent value="ai" className="mt-4">
+          <AiDiagnosticsTab />
         </TabsContent>
         <TabsContent value="flags" className="mt-4">
           <FlagsTab />

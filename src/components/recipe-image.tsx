@@ -62,20 +62,30 @@ export function RecipeImage({
       </div>
     );
 
+  const isGenerated = !!stored && recipe.image_source === "AI";
+  const isCuratedFallback = !stored && !!curated && src === curated;
+
   return (
-    <img
-      src={src}
-      alt={alt ?? recipe.name}
-      width={IMAGE_DIMENSIONS[size].width}
-      height={IMAGE_DIMENSIONS[size].height}
-      loading={priority ? "eager" : "lazy"}
-      fetchPriority={priority ? "high" : "auto"}
-      decoding="async"
-      onError={() => {
-        if (curated && src !== curated) setSrc(curated);
-        else setFailed(true);
-      }}
-      className={className}
-    />
+    <div className={`relative overflow-hidden ${className ?? ""}`}>
+      <img
+        src={src}
+        alt={alt ?? recipe.name}
+        width={IMAGE_DIMENSIONS[size].width}
+        height={IMAGE_DIMENSIONS[size].height}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        decoding="async"
+        onError={() => {
+          if (curated && src !== curated) setSrc(curated);
+          else setFailed(true);
+        }}
+        className="h-full w-full object-cover"
+      />
+      {(isGenerated || isCuratedFallback) && (
+        <span className="absolute bottom-2 left-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold text-foreground">
+          {isGenerated ? "AI-generated" : "Curated photo"}
+        </span>
+      )}
+    </div>
   );
 }

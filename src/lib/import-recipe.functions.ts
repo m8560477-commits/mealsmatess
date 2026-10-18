@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
-import { lovableFetch } from "@/lib/lovable-ai.server";
+import { generateAiObject } from "@/lib/ai-engine.server";
+import { curatedRecipeImageUrl } from "@/lib/recipe-image";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
+import { enforceRateLimit } from "@/lib/security.server";
 
 const RecipeSchema = z.object({
   not_recipe: z.boolean().optional(),
@@ -54,15 +56,29 @@ Return ONLY valid JSON (no code fences) matching:
   "image_prompt": string
 }`;
 
-function extractJson(text: string): unknown {
-  const cleaned = text
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/i, "")
-    .trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("No JSON in response");
-  return JSON.parse(cleaned.slice(start, end + 1));
+const ALLOWED_VIDEO_DOMAINS = [
+  "tiktok.com",
+  "instagram.com",
+  "youtube.com",
+  "youtu.be",
+  "facebook.com",
+  "fb.watch",
+];
+
+function isAllowedVideoUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      ALLOWED_VIDEO_DOMAINS.some(
+        (domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+      )
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function scrapeMeta(url: string): Promise<string> {
@@ -72,9 +88,10 @@ async function scrapeMeta(url: string): Promise<string> {
         "User-Agent": "Mozilla/5.0 (compatible; MealMateBot/1.0; +https://mealmate.app)",
         Accept: "text/html,application/xhtml+xml",
       },
-      redirect: "follow",
+      redirect: "manual",
+      signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return "";
+    if (!res.ok || (res.status >= 300 && res.status < 400)) return "";
     const html = await res.text();
     const pick = (re: RegExp) => html.match(re)?.[1]?.trim() ?? "";
     const parts = [
@@ -91,40 +108,43 @@ async function scrapeMeta(url: string): Promise<string> {
   }
 }
 
-function imageUrlFor(name: string, imagePrompt: string | null | undefined) {
-  return null;
+function imageUrlFor(name: string) {
+  return curatedRecipeImageUrl({ slug: slugify(name), name }, "hero") ?? null;
 }
 
 export const importRecipeFromUrl = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .inputValidator((v: unknown) => z.object({ url: z.string().url().max(1000) }).parse(v))
+  .inputValidator((v: unknown) =>
+    z
+      .object({
+        url: z
+          .string()
+          .url()
+          .max(1000)
+          .refine(isAllowedVideoUrl, "Use an HTTPS video URL from TikTok, Instagram, YouTube, or Facebook."),
+      })
+      .parse(v),
+  )
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
+    await enforceRateLimit("ai_recipe_import", context.userId, 10);
 
     const meta = await scrapeMeta(data.url);
     const userMsg = `URL: ${data.url}\n\nScraped page metadata (may be empty or blocked by the platform):\n${meta || "(none)"}\n\nInfer the recipe if this is cooking content, otherwise return {"not_recipe": true}.`;
 
-    const res = await lovableFetch("/chat/completions", {
-      method: "POST",
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userMsg },
-        ],
-      }),
+    const parsed = await generateAiObject({
+      feature: "recipe.import",
+      instructions: SYSTEM,
+      prompt: userMsg,
+      schema: RecipeSchema,
     });
-    if (!res.ok) {
-      const body = await res.text();
-      if (res.status === 429) throw new Error("Too many requests. Please try again in a minute.");
-      if (res.status === 402) throw new Error("AI credits exhausted. Please add credits.");
-      throw new Error(`AI gateway ${res.status}: ${body}`);
-    }
-    const j = (await res.json()) as { choices: { message: { content: string } }[] };
-    const text = j.choices?.[0]?.message?.content ?? "{}";
-    const parsed = RecipeSchema.parse(extractJson(text));
 
-    if (parsed.not_recipe || !parsed.name || parsed.ingredients.length === 0) {
+    if (
+      parsed.not_recipe ||
+      !parsed.name ||
+      parsed.ingredients.length === 0 ||
+      parsed.steps.length < 4
+    ) {
       throw new Error("No recipe could be detected from this video.");
     }
 
@@ -136,7 +156,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
       slug,
       name: parsed.name,
       description: parsed.description ?? null,
-      image_url: imageUrlFor(parsed.name, parsed.image_prompt),
+      image_url: imageUrlFor(parsed.name),
       cuisine: parsed.cuisine ?? null,
       category: parsed.category ?? null,
       country: parsed.country ?? null,

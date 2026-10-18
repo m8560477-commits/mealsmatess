@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
-import { lovableFetch } from "@/lib/lovable-ai.server";
+import { generateAiText } from "@/lib/ai-engine.server";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
@@ -61,17 +61,18 @@ RULES:
 - Keep answers scannable — short paragraphs and bullet lists. No medical claims. No "consult a doctor" disclaimers unless the topic is truly medical (medication, disease, pregnancy).
 - Plain markdown only. No headings above H3.`;
 
-async function callChat(messages: { role: string; content: string }[]): Promise<string> {
-  const res = await lovableFetch("/chat/completions", {
-    method: "POST",
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages,
-    }),
+async function callChat(
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+): Promise<string> {
+  const [systemMessage, ...conversation] = messages;
+  return generateAiText({
+    feature: "nutrition.coach",
+    ...(systemMessage?.role === "system" ? { instructions: systemMessage.content } : {}),
+    messages: conversation.map((message) => ({
+      role: message.role as "user" | "assistant",
+      content: message.content,
+    })),
   });
-  if (!res.ok) throw new Error(`AI gateway request failed with status ${res.status}.`);
-  const j = (await res.json()) as { choices: { message: { content: string } }[] };
-  return j.choices?.[0]?.message?.content ?? "";
 }
 
 export const nutritionCoach = createServerFn({ method: "POST" })

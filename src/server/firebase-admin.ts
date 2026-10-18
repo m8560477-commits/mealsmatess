@@ -755,6 +755,15 @@ export const firebaseAdmin = {
             return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
           }
         },
+        async remove(paths: string[]) {
+          try {
+            const { bucket } = getServices();
+            await Promise.all(paths.map((path) => bucket.file(`${bucketName}/${path}`).delete()));
+            return { data: paths, error: null };
+          } catch (error) {
+            return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+          }
+        },
       };
     },
   },
