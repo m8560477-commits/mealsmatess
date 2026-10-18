@@ -1,23 +1,17 @@
 import { createHash } from "node:crypto";
-import { createGroq } from "@ai-sdk/groq";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output, type ModelMessage } from "ai";
-import { generateImage, generateSpeech } from "@tanstack/ai";
 import {
-  createLovableImage,
-  createLovableSpeech,
-  lovableGatewayHeaders,
-  type LovableImageModel,
-  type LovableTTSModel,
-} from "@tanstack/ai-lovable";
+  generateImage,
+  generateSpeech,
+  generateText,
+  gateway,
+  Output,
+  type ModelMessage,
+} from "ai";
 import { z } from "zod";
 
-export const DEFAULT_AI_TEXT_MODEL = "openai/gpt-oss-20b";
-export const DEFAULT_LOVABLE_TEXT_MODEL = "google/gemini-3.7-flash";
-export const DEFAULT_AI_IMAGE_MODEL: LovableImageModel = "openai/gpt-image-2";
-export const DEFAULT_AI_SPEECH_MODEL: LovableTTSModel = "google/gemini-3.1-flash-tts-preview";
-
-const LOVABLE_GATEWAY_BASE_URL = "https://ai.gateway.lovable.dev/v1";
+export const DEFAULT_AI_TEXT_MODEL = "google/gemini-3.7-flash";
+export const DEFAULT_AI_IMAGE_MODEL = "openai/gpt-image-2";
+export const DEFAULT_AI_SPEECH_MODEL = "google/gemini-3.8-flash-tts";
 
 const DEFAULT_TEXT_TIMEOUT_MS = 30_000;
 const DEFAULT_IMAGE_TIMEOUT_MS = 90_000;
@@ -31,7 +25,6 @@ type PromptInput =
 
 type AiRequestOptions = {
   feature: string;
-  provider?: "groq" | "lovable";
   model?: string;
   timeoutMs?: number;
   maxRetries?: number;
@@ -41,15 +34,13 @@ type AiRequestOptions = {
 
 export function getAiProviderConfiguration() {
   return {
-    textProvider: "Groq" as const,
+    textProvider: "Vercel AI Gateway" as const,
     textModel: DEFAULT_AI_TEXT_MODEL,
-    lovableTextProvider: "Lovable AI Gateway" as const,
-    lovableTextModel: DEFAULT_LOVABLE_TEXT_MODEL,
-    imageProvider: "Lovable AI Gateway" as const,
+    imageProvider: "Vercel AI Gateway" as const,
     imageModel: DEFAULT_AI_IMAGE_MODEL,
-    speechProvider: "Lovable AI Gateway" as const,
+    speechProvider: "Vercel AI Gateway" as const,
     speechModel: DEFAULT_AI_SPEECH_MODEL,
-    authentication: "Provider credentials are read server-side" as const,
+    authentication: "Vercel-managed OIDC; credentials stay server-side" as const,
   };
 }
 
@@ -64,7 +55,7 @@ function errorCategory(error: unknown): string {
   const name = error instanceof Error ? error.name : "UnknownError";
   const message = error instanceof Error ? error.message : "";
   const status = errorStatus(error);
-  if (/not configured|is required/i.test(message)) return "configuration_missing";
+  if (/not configured|authentication.*unavailable/i.test(message)) return "configuration_missing";
   if (/timeout|abort/i.test(name)) return "timeout";
   if (/credit|billing|payment/i.test(message) || status === 402) return "credits_unavailable";
   if (status === 401 || status === 403 || /authentication/i.test(name)) return "authentication";
@@ -73,49 +64,26 @@ function errorCategory(error: unknown): string {
   return "request_failed";
 }
 
-function publicError(category: string, provider: "Groq" | "Lovable AI Gateway"): Error {
+function publicError(category: string): Error {
   const messages: Record<string, string> = {
-    configuration_missing: `${provider} is not configured. Add its server-side API key in Vercel project settings.`,
-    timeout: `${provider} took too long to respond. Please try again.`,
-    credits_unavailable: `${provider} has no available credits or active billing for this request.`,
-    authentication: `${provider} rejected its configured API key. Update the key in Vercel project settings.`,
-    rate_limited: `${provider} is busy right now. Please try again shortly.`,
-    provider_unavailable: `${provider} is temporarily unavailable. Please try again shortly.`,
-    request_failed: `${provider} could not complete that request. Please try again.`,
-    empty_response: `${provider} returned an empty response. Please try again.`,
-    invalid_response: `${provider} returned a result that did not match the expected format.`,
+    configuration_missing:
+      "Vercel AI Gateway authentication is unavailable in this runtime. Deploy through Vercel with the AI Gateway connected.",
+    timeout: "Vercel AI Gateway took too long to respond. Please try again.",
+    credits_unavailable: "Vercel AI Gateway has no available credits for this request.",
+    authentication:
+      "Vercel AI Gateway rejected this request. Check the project Gateway connection.",
+    rate_limited: "Vercel AI Gateway is busy right now. Please try again shortly.",
+    provider_unavailable: "Vercel AI Gateway is temporarily unavailable. Please try again shortly.",
+    request_failed: "Vercel AI Gateway could not complete that request. Please try again.",
+    empty_response: "Vercel AI Gateway returned an empty response. Please try again.",
+    invalid_response: "Vercel AI Gateway returned a result that did not match the expected format.",
   };
   return new Error(messages[category] ?? messages.request_failed);
 }
 
-function requireApiKey(name: "GROQ_API_KEY" | "LOVABLE_API_KEY"): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is not configured.`);
-  return value;
-}
-
-function lovableLanguageModel(modelId: string): TextModel {
-  const apiKey = requireApiKey("LOVABLE_API_KEY");
-  return createOpenAICompatible({
-    name: "lovable",
-    baseURL: LOVABLE_GATEWAY_BASE_URL,
-    headers: {
-      ...lovableGatewayHeaders(apiKey),
-      Authorization: `Bearer ${apiKey}`,
-    },
-    supportsStructuredOutputs: true,
-  }).languageModel(modelId);
-}
-
-function logFailure(
-  feature: string,
-  provider: "Groq" | "Lovable AI Gateway",
-  model: string,
-  error: unknown,
-  durationMs: number,
-) {
+function logFailure(feature: string, model: string, error: unknown, durationMs: number) {
   console.error("[MealMate AI] request failed", {
-    provider,
+    provider: "Vercel AI Gateway",
     feature,
     model,
     durationMs,
@@ -129,23 +97,16 @@ async function runTextRequest<T>(
   options: AiRequestOptions,
   generate: (model: TextModel, settings: { maxRetries: number; timeout: number }) => Promise<T>,
 ): Promise<T> {
-  const aiProvider = options.provider ?? "groq";
-  const provider = aiProvider === "groq" ? "Groq" : "Lovable AI Gateway";
-  const modelId =
-    options.model ?? (aiProvider === "groq" ? DEFAULT_AI_TEXT_MODEL : DEFAULT_LOVABLE_TEXT_MODEL);
+  const modelId = options.model ?? DEFAULT_AI_TEXT_MODEL;
   const startedAt = Date.now();
   try {
-    const model =
-      options.modelOverride ??
-      (aiProvider === "groq"
-        ? createGroq({ apiKey: requireApiKey("GROQ_API_KEY") })(modelId)
-        : lovableLanguageModel(modelId));
+    const model = options.modelOverride ?? gateway(modelId);
     const result = await generate(model, {
       maxRetries: options.maxRetries ?? 1,
       timeout: options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS,
     });
     console.info("[MealMate AI] request completed", {
-      provider,
+      provider: "Vercel AI Gateway",
       feature: options.feature,
       model: modelId,
       durationMs: Date.now() - startedAt,
@@ -153,8 +114,8 @@ async function runTextRequest<T>(
     return result;
   } catch (error) {
     const category = errorCategory(error);
-    logFailure(options.feature, provider, modelId, error, Date.now() - startedAt);
-    throw publicError(category, provider);
+    logFailure(options.feature, modelId, error, Date.now() - startedAt);
+    throw publicError(category);
   }
 }
 
@@ -170,11 +131,7 @@ export async function generateAiText(options: AiRequestOptions): Promise<string>
     generateText({ model, ...promptFields(options), ...settings }),
   );
   const text = result.text.trim();
-  if (!text)
-    throw publicError(
-      "empty_response",
-      options.provider === "lovable" ? "Lovable AI Gateway" : "Groq",
-    );
+  if (!text) throw publicError("empty_response");
   return text;
 }
 
@@ -192,10 +149,7 @@ export async function generateAiObject<TSchema extends z.ZodTypeAny>(
   try {
     return options.schema.parse(result.output) as z.output<TSchema>;
   } catch {
-    throw publicError(
-      "invalid_response",
-      options.provider === "lovable" ? "Lovable AI Gateway" : "Groq",
-    );
+    throw publicError("invalid_response");
   }
 }
 
@@ -218,48 +172,33 @@ export async function generateAiImage(
   },
 ) {
   const model = DEFAULT_AI_IMAGE_MODEL;
-  const provider = "Lovable AI Gateway" as const;
   const startedAt = Date.now();
   try {
     const result = await generateImage({
-      adapter: createLovableImage(model, requireApiKey("LOVABLE_API_KEY")),
+      model: gateway.imageModel(model),
       prompt,
       size: options.size ?? "1536x1024",
-      modelOptions: { quality: "high", output_format: "png" },
-      timeout: options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS,
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS),
     });
-    const image = result.images[0];
-    if (!image) throw new Error("Lovable AI returned no image.");
-
-    let bytes: Uint8Array;
-    let mediaType = "image/png";
-    if (image.b64Json) {
-      bytes = new Uint8Array(Buffer.from(image.b64Json, "base64"));
-    } else {
-      if (!image.url) throw new Error("Lovable AI returned no image data.");
-      const imageUrl = new URL(image.url);
-      if (imageUrl.protocol !== "https:") throw new Error("Generated image URL must use HTTPS.");
-      const response = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
-      if (!response.ok) throw new Error("Generated image could not be downloaded.");
-      mediaType = response.headers.get("content-type")?.split(";")[0] ?? "image/png";
-      if (!mediaType.startsWith("image/")) throw new Error("Generated asset was not an image.");
-      bytes = new Uint8Array(await response.arrayBuffer());
-    }
+    const bytes = new Uint8Array(result.image.uint8Array);
+    const mediaType = result.image.mediaType;
     if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) {
       throw new Error("Generated image was empty or exceeded the storage size limit.");
     }
+    if (!mediaType.startsWith("image/")) throw new Error("Gateway returned a non-image response.");
 
     console.info("[MealMate AI] image completed", {
-      provider,
+      provider: "Vercel AI Gateway",
       feature: options.feature,
-      model: result.model,
+      model,
       durationMs: Date.now() - startedAt,
       byteLength: bytes.byteLength,
     });
-    return { bytes, mediaType, model: result.model };
+    return { bytes, mediaType, model };
   } catch (error) {
-    logFailure(options.feature, provider, model, error, Date.now() - startedAt);
-    throw publicError(errorCategory(error), provider);
+    logFailure(options.feature, model, error, Date.now() - startedAt);
+    throw publicError(errorCategory(error));
   }
 }
 
@@ -268,28 +207,29 @@ export async function generateAiSpeech(
   options: { feature: string; voice?: string; timeoutMs?: number },
 ) {
   const model = DEFAULT_AI_SPEECH_MODEL;
-  const provider = "Lovable AI Gateway" as const;
   const startedAt = Date.now();
   try {
     const result = await generateSpeech({
-      adapter: createLovableSpeech(model, requireApiKey("LOVABLE_API_KEY")),
+      model: gateway.speechModel(model),
       text,
       voice: options.voice ?? "Kore",
-      format: "mp3",
-      timeout: options.timeoutMs ?? DEFAULT_SPEECH_TIMEOUT_MS,
+      abortSignal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_SPEECH_TIMEOUT_MS),
     });
-    const bytes = new Uint8Array(Buffer.from(result.audio, "base64"));
+    const bytes = new Uint8Array(result.audio.uint8Array);
+    if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) {
+      throw new Error("Generated audio was empty or exceeded the storage size limit.");
+    }
     console.info("[MealMate AI] speech completed", {
-      provider,
+      provider: "Vercel AI Gateway",
       feature: options.feature,
-      model: result.model,
+      model,
       durationMs: Date.now() - startedAt,
       byteLength: bytes.byteLength,
     });
-    return { bytes, mediaType: result.contentType ?? "audio/mpeg", model: result.model };
+    return { bytes, mediaType: result.audio.mediaType, model };
   } catch (error) {
-    logFailure(options.feature, provider, model, error, Date.now() - startedAt);
-    throw publicError(errorCategory(error), provider);
+    logFailure(options.feature, model, error, Date.now() - startedAt);
+    throw publicError(errorCategory(error));
   }
 }
 

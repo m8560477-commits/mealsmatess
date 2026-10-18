@@ -42,13 +42,6 @@ export const Route = createFileRoute("/api/recipe-image")({
           return Response.json({ error: "Provide a valid recipe." }, { status: 400 });
         }
 
-        if (!process.env["OPENAI_API_KEY"]?.trim()) {
-          return Response.json(
-            { error: "Recipe image generation is not configured." },
-            { status: 503 },
-          );
-        }
-
         try {
           const { firebaseAdmin } = await import("@/server/firebase-admin");
           const { data: accessible, error: accessError } = await auth.user.firebase

@@ -1,11 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
-import OpenAI from "openai";
 import { z } from "zod";
 import { AiLimitError, requireAiCredit } from "@/lib/ai-credits.server";
+import { generateAiText } from "@/lib/ai-engine.server";
 import { enforceAiRateLimit } from "@/server/ai-rate-limit";
 import { authenticateApiRequest } from "@/server/authenticated-api";
 
-const InputSchema = z.object({ message: z.string().trim().min(1).max(4000) });
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().trim().min(1).max(4_000),
+});
+
+const InputSchema = z
+  .object({
+    message: z.string().trim().min(1).max(4_000).optional(),
+    messages: z.array(MessageSchema).min(1).max(24).optional(),
+  })
+  .superRefine((input, context) => {
+    const messages =
+      input.messages ?? (input.message ? [{ role: "user" as const, content: input.message }] : []);
+    if (messages.length === 0 || messages.at(-1)?.role !== "user") {
+      context.addIssue({
+        code: "custom",
+        message: "The conversation must end with a user message.",
+      });
+    }
+    if (messages.reduce((total, message) => total + message.content.length, 0) > 20_000) {
+      context.addIssue({ code: "custom", message: "Conversation history is too long." });
+    }
+  });
+
+const MIA_INSTRUCTIONS =
+  "You are Mia, the friendly AI assistant inside MealMate. Help users discover recipes, plan meals, understand nutrition, build shopping lists, and make practical food choices. Be warm, clear, and concise. Use the provided conversation history to answer follow-up questions. Treat nutrition as an estimate, never invent facts, ask about allergies when relevant, and do not diagnose illnesses.";
 
 function errorResponse(error: unknown) {
   if (error instanceof Response && error.status === 429) {
@@ -22,10 +47,12 @@ function errorResponse(error: unknown) {
     name: error instanceof Error ? error.name : "UnknownError",
     status,
   });
-  return Response.json(
-    { error: "Mia couldn't respond right now. Please try again." },
-    { status: status === 429 ? 503 : 502 },
-  );
+  const safeMessage =
+    error instanceof Error && error.message.startsWith("Vercel AI Gateway ")
+      ? error.message
+      : "Mia couldn't respond right now. Please try again.";
+  const responseStatus = status === 429 || safeMessage.startsWith("Vercel AI Gateway ") ? 503 : 502;
+  return Response.json({ error: safeMessage }, { status: responseStatus });
 }
 
 export const Route = createFileRoute("/api/mia")({
@@ -35,20 +62,16 @@ export const Route = createFileRoute("/api/mia")({
         const auth = await authenticateApiRequest(request);
         if ("response" in auth) return auth.response;
 
-        if (!process.env["OPENAI_API_KEY"]?.trim()) {
-          return Response.json({ error: "Mia is not configured yet." }, { status: 503 });
-        }
-
         let input: z.infer<typeof InputSchema>;
         try {
           const raw = await request.text();
-          if (raw.length > 16_000) {
+          if (raw.length > 64_000) {
             return Response.json({ error: "Request is too large." }, { status: 413 });
           }
           input = InputSchema.parse(JSON.parse(raw));
         } catch {
           return Response.json(
-            { error: "Enter a message under 4000 characters." },
+            { error: "Send a valid conversation with a user message under 4000 characters." },
             { status: 400 },
           );
         }
@@ -56,26 +79,16 @@ export const Route = createFileRoute("/api/mia")({
         try {
           await requireAiCredit(auth.user.userId);
           await enforceAiRateLimit("ai_chat", auth.user.userId, 20);
-
-          const client = new OpenAI({
-            apiKey: process.env["OPENAI_API_KEY"],
-            timeout: 45_000,
-            maxRetries: 2,
+          const messages =
+            input.messages ??
+            (input.message ? [{ role: "user" as const, content: input.message }] : []);
+          const reply = await generateAiText({
+            feature: "chat.mia",
+            instructions: MIA_INSTRUCTIONS,
+            messages,
+            timeoutMs: 35_000,
+            maxRetries: 0,
           });
-          const result = await client.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are Mia, the friendly AI assistant inside MealMate. Help users discover recipes, plan meals, understand nutrition, build shopping lists, and make practical food choices. Be warm, clear, and concise. Treat nutrition as an estimate, never invent facts, ask about allergies when relevant, and do not diagnose illnesses.",
-              },
-              { role: "user", content: input.message },
-            ],
-            max_completion_tokens: 800,
-          });
-          const reply = result.choices[0]?.message?.content?.trim();
-          if (!reply) throw new Error("Empty response from OpenAI");
           return Response.json({ reply });
         } catch (error) {
           return errorResponse(error);

@@ -68,8 +68,22 @@ function ChatPage() {
     setTurns((t) => t.map((turn, idx) => (idx === i ? { ...turn, ...next } : turn)));
   }
 
-  async function getAnswer(text: string) {
-    const { reply } = await postAuthenticatedAi<{ reply: string }>("/api/mia", { message: text });
+  async function getAnswer(text: string, previousTurns: Turn[]) {
+    const messages = previousTurns
+      .filter((turn) => turn.answer.trim() && !turn.error)
+      .slice(-10)
+      .flatMap((turn) => [
+        { role: "user" as const, content: turn.question.slice(0, 4_000) },
+        { role: "assistant" as const, content: turn.answer.slice(0, 4_000) },
+      ]);
+    messages.push({ role: "user", content: text });
+    while (
+      messages.length > 1 &&
+      messages.reduce((total, item) => total + item.content.length, 0) > 16_000
+    ) {
+      messages.splice(0, 2);
+    }
+    const { reply } = await postAuthenticatedAi<{ reply: string }>("/api/mia", { messages });
     if (!reply?.trim()) throw new Error("Mia returned an empty response. Please try again.");
     return reply;
   }
@@ -95,7 +109,7 @@ function ChatPage() {
       : Promise.resolve();
 
     try {
-      patch(index, { answer: await getAnswer(text) });
+      patch(index, { answer: await getAnswer(text, turns) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Mia is unavailable. Please try again.";
       patch(index, { answer: "", error: message });
@@ -112,7 +126,7 @@ function ChatPage() {
     setBusy(true);
     patch(index, { answer: "", error: undefined });
     try {
-      patch(index, { answer: await getAnswer(turn.question) });
+      patch(index, { answer: await getAnswer(turn.question, turns.slice(0, index)) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Mia is unavailable. Please try again.";
       patch(index, { error: message });

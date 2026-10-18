@@ -4,13 +4,13 @@ import { enforceRateLimit } from "@/lib/security.server";
 
 const limiters = new Map<string, Ratelimit>();
 
-function getLimiter(bucket: string, limit: number) {
+function getLimiter(bucket: string, limit: number, url: string, token: string) {
   const key = `${bucket}:${limit}`;
   const cached = limiters.get(key);
   if (cached) return cached;
 
   const limiter = new Ratelimit({
-    redis: Redis.fromEnv(),
+    redis: new Redis({ url, token }),
     limiter: Ratelimit.slidingWindow(limit, "60s"),
     analytics: false,
     prefix: "mealmate:ai",
@@ -24,15 +24,19 @@ export async function enforceAiRateLimit(
   userId: string,
   maxPerMinute: number,
 ): Promise<void> {
-  const url = process.env["UPSTASH_REDIS_REST_URL"]?.trim();
-  const token = process.env["UPSTASH_REDIS_REST_TOKEN"]?.trim();
+  const url =
+    process.env["UPSTASH_REDIS_REST_URL"]?.trim() || process.env["KV_REST_API_URL"]?.trim();
+  const token =
+    process.env["UPSTASH_REDIS_REST_TOKEN"]?.trim() || process.env["KV_REST_API_TOKEN"]?.trim();
   if (!url || !token) {
     await enforceRateLimit(bucket, userId, maxPerMinute);
     return;
   }
 
   try {
-    const { success } = await getLimiter(bucket, maxPerMinute).limit(`${bucket}:${userId}`);
+    const { success } = await getLimiter(bucket, maxPerMinute, url, token).limit(
+      `${bucket}:${userId}`,
+    );
     if (!success) {
       throw new Response("Too many requests. Please slow down.", { status: 429 });
     }

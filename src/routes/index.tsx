@@ -17,7 +17,12 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { toast } from "sonner";
-import { trendingRecipesQuery, southAfricanFavoritesQuery, myFavoritesQuery, type RecipeRecord } from "@/lib/queries";
+import {
+  trendingRecipesQuery,
+  southAfricanFavoritesQuery,
+  myFavoritesQuery,
+  type RecipeRecord,
+} from "@/lib/queries";
 import { surpriseMe, generateRecipe } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
 import { firebaseData } from "@/lib/firebase-data";
@@ -119,7 +124,7 @@ function Index() {
       const authError = /AUTH_REQUIRED|Unauthorized|Invalid user session|No authorization/i.test(
         message,
       );
-      const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|Groq|gateway/i.test(message);
+      const aiError = /AI_NOT_CONFIGURED|AI_REQUEST_FAILED|Vercel AI Gateway/i.test(message);
       toast.error(authError ? "Your session expired" : "Couldn't cook that up", {
         description: authError
           ? "Please sign in again to cook a recipe."
@@ -159,7 +164,11 @@ function Index() {
       return;
     }
     if (favoriteIds.has(recipeId)) {
-      await firebaseData.from("favorites").delete().eq("user_id", user.id).eq("recipe_id", recipeId);
+      await firebaseData
+        .from("favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("recipe_id", recipeId);
     } else {
       await firebaseData.from("favorites").insert({ user_id: user.id, recipe_id: recipeId });
     }

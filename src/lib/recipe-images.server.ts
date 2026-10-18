@@ -3,8 +3,7 @@
 //   Unsplash (UNSPLASH_ACCESS_KEY) -> Pexels (PEXELS_API_KEY) -> Bing (BING_IMAGE_SEARCH_KEY)
 // Candidates are ranked by metadata, then verified visually by Lovable AI.
 import { firebaseAdmin } from "@/server/firebase-admin";
-import { generateAiObject } from "@/lib/ai-engine.server";
-import { generateOpenAIImage } from "@/server/openai-image";
+import { generateAiImage, generateAiObject } from "@/lib/ai-engine.server";
 import { z } from "zod";
 
 export type ProviderName = "Unsplash" | "Pexels" | "Bing";
@@ -352,7 +351,6 @@ export async function aiScore(
     ];
     const result = await generateAiObject({
       feature: "image.relevance",
-      provider: "lovable",
       messages: [{ role: "user", content }],
       schema: z.object({
         scores: z.array(z.number().int().min(0).max(100)).length(cands.length),
@@ -548,7 +546,10 @@ export async function generateAndSaveAiImage(
     `Method:\n${stepText(r.steps)}\n` +
     `Show only the plated final dish so its key ingredients are visible. Natural light, shallow depth of field, real crockery, 3/4 angle. ` +
     `No text, no labels, no people, no hands, not an illustration.`;
-  const image = await generateOpenAIImage(prompt);
+  const image = await generateAiImage(prompt, {
+    feature: "recipe.image",
+    size: "1536x1024",
+  });
   if (image.bytes.byteLength === 0 || image.bytes.byteLength > 20 * 1024 * 1024) {
     throw new Error("Generated image was empty or exceeded the storage size limit.");
   }
