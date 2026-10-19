@@ -15,43 +15,9 @@ import {
   signInWithEmail as signInWithFirebaseEmail,
   signUpWithEmail as signUpWithFirebaseEmail,
   sendPasswordReset as sendFirebasePasswordReset,
-  db,
 } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ensureUserProfile } from "@/lib/user-profile";
 import { sendEmailVerification } from "firebase/auth";
-
-async function ensureUserProfile(user: {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
-}) {
-  const userRef = doc(db, "users", user.uid);
-  const snap = await getDoc(userRef);
-  const profile = {
-    id: user.uid,
-    email: user.email ?? "",
-    displayName: user.displayName || user.email?.split("@")[0] || "Chef",
-    photoURL: user.photoURL ?? "",
-    goal: "healthy_cooking",
-  };
-
-  await setDoc(
-    userRef,
-    snap.exists()
-      ? profile
-      : {
-          ...profile,
-          id: user.uid,
-          email: user.email ?? "",
-          displayName: user.displayName || user.email?.split("@")[0] || "Chef",
-          photoURL: user.photoURL ?? "",
-          goal: "healthy_cooking",
-          createdAt: new Date().toISOString(),
-        },
-    { merge: true },
-  );
-}
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -298,7 +264,7 @@ function AuthPage() {
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••���•••"
+                placeholder="••••••••"
                 className="pr-10"
               />
               <button

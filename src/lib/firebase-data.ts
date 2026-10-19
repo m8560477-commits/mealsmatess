@@ -11,6 +11,7 @@ import {
   updateDoc,
   where,
   type QueryConstraint,
+  type WhereFilterOp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -246,11 +247,18 @@ class BrowserFirestoreQuery implements PromiseLike<Result<any>> {
         if (!ownerFilter) queryFilters.push({ field: ownerField, op: "eq", value: uid });
       }
       const queryConstraints: QueryConstraint[] = [];
+      const operators: Record<string, WhereFilterOp> = {
+        eq: "==",
+        gt: ">",
+        gte: ">=",
+        lt: "<",
+        lte: "<=",
+        in: "in",
+        is: "==",
+      };
       for (const filter of queryFilters) {
-        if (["eq", "gt", "gte", "lt", "lte", "in", "is"].includes(filter.op)) {
-          const operator = filter.op === "is" ? "==" : filter.op;
-          queryConstraints.push(where(filter.field, operator as "==", filter.value as any));
-        }
+        const operator = operators[filter.op];
+        if (operator) queryConstraints.push(where(filter.field, operator, filter.value));
       }
       for (const item of this.orders)
         queryConstraints.push(orderBy(item.field, item.ascending ? "asc" : "desc"));

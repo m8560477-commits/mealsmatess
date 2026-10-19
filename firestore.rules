@@ -20,12 +20,15 @@ service cloud.firestore {
       return !(field in data) || (data[field] is string && data[field].size() <= maxLength);
     }
 
+    function validOptionalNullableString(data, field, maxLength) {
+      return !(field in data) || data[field] == null
+        || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    // Validate browser-editable fields on both create and update. Server-managed
+    // fields may already exist, but the update allowlist below keeps them immutable.
     function validUserProfile(uid, data) {
-      return data.keys().hasOnly([
-          'id', 'email', 'displayName', 'photoURL', 'goal', 'createdAt',
-          'onboarding_completed', 'currency', 'locale', 'theme'
-        ])
-        && data.id == uid
+      return data.id == uid
         && data.email is string && data.email.size() <= 254
         && validOptionalString(data, 'displayName', 100)
         && validOptionalString(data, 'photoURL', 2048)
@@ -54,23 +57,23 @@ service cloud.firestore {
             && data.keys().hasOnly(['id', 'user_id', 'name', 'checked', 'category', 'quantity', 'created_at'])
             && data.name is string && data.name.size() > 0 && data.name.size() <= 160
             && data.checked is bool
-            && validOptionalString(data, 'category', 80)
-            && validOptionalString(data, 'quantity', 80)
+            && validOptionalNullableString(data, 'category', 80)
+            && validOptionalNullableString(data, 'quantity', 80)
             && validTimestampString(data, 'created_at'))
           || (collectionName == 'pantry'
             && data.keys().hasOnly(['id', 'user_id', 'name', 'quantity', 'category', 'expires_at', 'source', 'created_at'])
             && data.name is string && data.name.size() > 0 && data.name.size() <= 160
-            && validOptionalString(data, 'quantity', 80)
-            && validOptionalString(data, 'category', 80)
-            && validOptionalString(data, 'expires_at', 40)
+            && validOptionalNullableString(data, 'quantity', 80)
+            && validOptionalNullableString(data, 'category', 80)
+            && validOptionalNullableString(data, 'expires_at', 40)
             && validOptionalString(data, 'source', 40)
             && validTimestampString(data, 'created_at'))
           || (collectionName == 'mealPlans'
             && data.keys().hasOnly(['id', 'user_id', 'plan_date', 'meal_type', 'recipe_id', 'custom_name', 'created_at'])
             && data.plan_date is string && data.plan_date.size() == 10
             && data.meal_type is string && data.meal_type.size() <= 40
-            && validOptionalString(data, 'recipe_id', 128)
-            && validOptionalString(data, 'custom_name', 160)
+            && validOptionalNullableString(data, 'recipe_id', 128)
+            && validOptionalNullableString(data, 'custom_name', 160)
             && validTimestampString(data, 'created_at'))
           || (collectionName == 'nutritionLogs'
             && data.keys().hasOnly(['id', 'user_id', 'name', 'meal_type', 'logged_at', 'calories', 'protein_g', 'carbs_g', 'fat_g', 'servings', 'created_at'])
@@ -104,11 +107,19 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if isOwner(uid);
       allow list: if false;
-      allow create: if isOwner(uid) && validUserProfile(uid, request.resource.data);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'id', 'email', 'displayName', 'photoURL', 'goal', 'createdAt',
+          'onboarding_completed', 'currency', 'locale', 'theme'
+        ])
+        && (!('onboarding_completed' in request.resource.data)
+          || request.resource.data.onboarding_completed == false)
+        && validUserProfile(uid, request.resource.data);
       allow update: if isOwner(uid)
         && validUserProfile(uid, request.resource.data)
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email', 'displayName', 'photoURL', 'goal', 'currency', 'locale', 'theme'
+        ]);
       allow delete: if false;
 
       match /notifications/{notificationId} {
