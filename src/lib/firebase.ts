@@ -39,11 +39,12 @@ if (requiredFirebaseEnv.projectId !== "mealmate-d2e53") {
   );
 }
 
+const measurementId =
+  import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || import.meta.env.FIREBASE_MEASUREMENT_ID;
+
 const firebaseConfig = {
   ...requiredFirebaseEnv,
-  ...(import.meta.env.FIREBASE_MEASUREMENT_ID
-    ? { measurementId: import.meta.env.FIREBASE_MEASUREMENT_ID }
-    : {}),
+  ...(measurementId ? { measurementId } : {}),
 } as {
   apiKey: string;
   authDomain: string;

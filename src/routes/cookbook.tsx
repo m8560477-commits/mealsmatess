@@ -106,7 +106,7 @@ function CookbookPage() {
     if (!favorites) return [];
     return favorites
       .map((f) => f.recipes as unknown as CookbookItem | null)
-      .filter((r): r is CookbookItem => r !== null);
+      .filter((r): r is CookbookItem => r != null);
   }, [favorites]);
 
   // Also pull user's own imports even if unfavorited

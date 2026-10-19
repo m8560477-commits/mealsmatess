@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,9 @@ export const Route = createFileRoute("/reset-password")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { oobCode?: string } => ({
+    oobCode: typeof search.oobCode === "string" ? search.oobCode.trim() || undefined : undefined,
+  }),
   component: ResetPasswordPage,
 });
 
@@ -27,23 +30,34 @@ function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [oobCode, setOobCode] = useState("");
+  const { oobCode } = Route.useSearch();
+  const [status, setStatus] = useState<"checking" | "ready" | "missing" | "invalid">("checking");
+  const ready = status === "ready";
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("oobCode");
-    if (!code) return;
-    void verifyPasswordResetCode(auth, code)
+    let active = true;
+    setPassword("");
+    setConfirm("");
+    if (!oobCode) {
+      setStatus("missing");
+      return;
+    }
+    setStatus("checking");
+    void verifyPasswordResetCode(auth, oobCode)
       .then(() => {
-        setOobCode(code);
-        setReady(true);
+        if (active) setStatus("ready");
       })
-      .catch(() => toast.error("This password reset link is invalid or has expired."));
-  }, []);
+      .catch(() => {
+        if (active) setStatus("invalid");
+      });
+    return () => {
+      active = false;
+    };
+  }, [oobCode]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !ready || !oobCode) return;
     if (password.length < 8) {
       toast.error("Password must be at least 8 characters.");
       return;
@@ -75,41 +89,53 @@ function ResetPasswordPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             {ready
               ? "Choose a strong password of at least 8 characters."
-              : "Waiting for your reset link… open this page from the email link."}
+              : status === "checking"
+                ? "Checking your reset link…"
+                : status === "missing"
+                  ? "Open the password reset link from your email. To request one, return to sign in and choose Forgot password."
+                  : "This password reset link is invalid or has expired. Return to sign in and choose Forgot password to request a new one."}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="password">New password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              disabled={!ready}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="confirm">Confirm password</Label>
-            <Input
-              id="confirm"
-              type="password"
-              required
-              minLength={8}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-              disabled={!ready}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={busy || !ready}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}
+        {status === "missing" || status === "invalid" ? (
+          <Button asChild className="mt-6 w-full">
+            <Link to="/auth" search={{ mode: "signin" }}>
+              Back to sign in
+            </Link>
           </Button>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="password">New password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={!ready}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input
+                id="confirm"
+                type="password"
+                required
+                minLength={8}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="••••••••"
+                disabled={!ready}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy || !ready}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}
+            </Button>
+          </form>
+        )}
       </div>
     </main>
   );
