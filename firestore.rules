@@ -54,11 +54,12 @@ service cloud.firestore {
             && data.recipe_id is string && data.recipe_id.size() > 0 && data.recipe_id.size() <= 128
             && validTimestampString(data, 'created_at'))
           || (collectionName == 'grocery'
-            && data.keys().hasOnly(['id', 'user_id', 'name', 'checked', 'category', 'quantity', 'created_at'])
+            && data.keys().hasOnly(['id', 'user_id', 'name', 'checked', 'category', 'quantity', 'recipe_id', 'created_at'])
             && data.name is string && data.name.size() > 0 && data.name.size() <= 160
             && data.checked is bool
             && validOptionalNullableString(data, 'category', 80)
             && validOptionalNullableString(data, 'quantity', 80)
+            && validOptionalNullableString(data, 'recipe_id', 128)
             && validTimestampString(data, 'created_at'))
           || (collectionName == 'pantry'
             && data.keys().hasOnly(['id', 'user_id', 'name', 'quantity', 'category', 'expires_at', 'source', 'created_at'])

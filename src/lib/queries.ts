@@ -3,6 +3,7 @@ import { collection, getDocs, getDoc, doc, limit, orderBy, query, where } from "
 import { auth, db, handleFirestoreError, OperationType } from "@/lib/firebase";
 
 import { listRecipeCatalog, getRecipeCatalogEntry } from "@/lib/recipe-catalog.functions";
+import { recipeCatalogRecord } from "@/lib/recipe-catalog";
 export type FirestoreRecord = Record<string, any> & {
   id: string;
   name?: string;
@@ -116,15 +117,37 @@ export const recipeBySlugQuery = (slug: string) =>
     queryFn: () => getRecipeCatalogEntry({ data: { slug } }),
   });
 
+async function withRecipes<T extends FirestoreRecord>(rows: T[]): Promise<T[]> {
+  const recipes = new Map<string, Promise<RecipeRecord | null>>();
+  for (const row of rows) {
+    if (row.recipe_id && !recipes.has(row.recipe_id)) {
+      recipes.set(
+        row.recipe_id,
+        getDoc(doc(db, "recipes", row.recipe_id)).then((snapshot) =>
+          snapshot.exists() ? recipeCatalogRecord({ id: snapshot.id, ...snapshot.data() }) : null,
+        ),
+      );
+    }
+  }
+  return Promise.all(
+    rows.map(async (row) => ({
+      ...row,
+      recipes: row.recipe_id ? await recipes.get(row.recipe_id)! : null,
+    })),
+  );
+}
+
 export const myFavoritesQuery = () =>
   queryOptions({
     queryKey: ["favorites"],
     queryFn: async (): Promise<FavoriteRecord[]> => {
       const user = auth.currentUser;
       if (!user) return [];
-      return (await list(`users/${user.uid}/favorites`, [
-        orderBy("created_at", "desc"),
-      ])) as FavoriteRecord[];
+      return withRecipes(
+        (await list(`users/${user.uid}/favorites`, [
+          orderBy("created_at", "desc"),
+        ])) as FavoriteRecord[],
+      );
     },
   });
 
@@ -156,11 +179,13 @@ export const myPlannerQuery = (fromISO: string, toISO: string) =>
     queryKey: ["planner", fromISO, toISO],
     queryFn: async (): Promise<MealPlanRecord[]> =>
       auth.currentUser
-        ? ((await list(`users/${auth.currentUser.uid}/mealPlans`, [
-            where("plan_date", ">=", fromISO),
-            where("plan_date", "<=", toISO),
-            orderBy("plan_date"),
-          ])) as MealPlanRecord[])
+        ? withRecipes(
+            (await list(`users/${auth.currentUser.uid}/mealPlans`, [
+              where("plan_date", ">=", fromISO),
+              where("plan_date", "<=", toISO),
+              orderBy("plan_date"),
+            ])) as MealPlanRecord[],
+          )
         : [],
   });
 

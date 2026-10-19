@@ -170,7 +170,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user } = useSession();
+  const { user, loading } = useSession();
   const isMarketplace = pathname === "/restaurants" || pathname.startsWith("/restaurant/");
   const isFlow =
     pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
@@ -179,9 +179,9 @@ function RootComponent() {
 
   // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
   useEffect(() => {
-    if (user || pathname !== "/") return;
+    if (loading || user || pathname !== "/") return;
     if (!hasSeenTour()) void router.navigate({ to: "/welcome", replace: true });
-  }, [pathname, router, user]);
+  }, [loading, pathname, router, user]);
 
   useEffect(() => {
     if (
