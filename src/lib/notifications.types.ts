@@ -1,8 +1,30 @@
-export type AnnouncementAudience = "all_consumers" | "healthy_interest";
+export type AnnouncementAudience =
+  "all_consumers" | "healthy_interest" | "premium" | "trial" | "selected";
 export type AnnouncementCategory =
-  "recipes" | "healthy_eating" | "dining" | "mia" | "features" | "general";
+  | "recipes"
+  | "healthy_eating"
+  | "dining"
+  | "mia"
+  | "features"
+  | "general"
+  | "meal_planning"
+  | "pantry_shopping"
+  | "account"
+  | "promotions";
 export type AnnouncementDestination =
-  "/" | "/recipes" | "/restaurants" | "/chat" | "/planner" | "/profile";
+  | "/"
+  | "/recipes"
+  | "/restaurants"
+  | "/chat"
+  | "/planner"
+  | "/profile"
+  | "/pantry"
+  | "/list"
+  | "/coach"
+  | "/cookbook"
+  | "/notifications"
+  | "/premium"
+  | `/recipe/${string}`;
 export type AnnouncementStatus =
   "draft" | "scheduled" | "processing" | "published" | "cancelled" | "failed";
 
@@ -13,6 +35,7 @@ export type AnnouncementInput = {
   imageUrl: string | null;
   category: AnnouncementCategory;
   audience: AnnouncementAudience;
+  selectedUsers?: string[];
   destination: AnnouncementDestination;
   scheduledAt: string | null;
   status: "draft" | "scheduled";
@@ -20,7 +43,7 @@ export type AnnouncementInput = {
 
 export type UserNotification = {
   id: string;
-  announcementId: string;
+  announcementId: string | null;
   title: string;
   body: string;
   imageUrl: string | null;

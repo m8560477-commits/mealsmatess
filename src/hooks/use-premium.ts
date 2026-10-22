@@ -9,6 +9,8 @@ export function usePremium() {
     queryFn: () => getMyEntitlement(),
     enabled: !!user,
     staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: "always",
   });
   return {
     isPremium: query.data?.isPremium ?? false,

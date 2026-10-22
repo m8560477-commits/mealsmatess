@@ -1,3 +1,4 @@
+import { NotificationBell } from "@/components/notification-bell";
 import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
 import { RecipeImage } from "@/components/recipe-image";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
@@ -167,7 +168,7 @@ function Index() {
   return (
     <main className="flex-1">
       {/* Greeting header */}
-      <div className="flex items-center justify-between px-4 pt-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-6">
         <div>
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             {greeting()}
@@ -177,6 +178,7 @@ function Index() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <XpChip />
           <ThemeToggle />
           <Link

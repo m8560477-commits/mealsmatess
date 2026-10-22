@@ -879,3 +879,95 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
 .onboarding-shell button {
   letter-spacing: 0;
 }
+
+/* Scanner surfaces stay scoped to the camera flow; the surrounding app keeps its theme. */
+.scanner-shell {
+  --background: #080d17;
+  --foreground: #f1f5f9;
+  --primary: #dbeafe;
+  --primary-foreground: #0b1220;
+  --secondary: #182334;
+  --secondary-foreground: #f1f5f9;
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --input: #334155;
+  --border: #253247;
+  --ring: #93c5fd;
+  color-scheme: dark;
+  color: var(--foreground);
+  background: var(--background);
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow-wrap: anywhere;
+}
+.scanner-panel {
+  border: 1px solid #ffffff14;
+  border-radius: 24px;
+  background: #101827;
+}
+.scanner-field {
+  min-height: 44px;
+  min-width: 0;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #0b1220;
+  color: #f1f5f9;
+  font-size: 16px;
+}
+.scanner-field:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+.scanner-viewfinder {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 55svh;
+  min-height: 240px;
+  border: 1px solid #334155;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at top, #17273e, #080d17 70%);
+}
+.scanner-frame {
+  position: absolute;
+  inset: 12% 10% 20%;
+  pointer-events: none;
+  overflow: hidden;
+  border: 1px solid #dbeafeaa;
+  border-radius: 20px;
+  box-shadow: 0 0 0 100vmax #00000022;
+}
+.scanner-sweep {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: #bfdbfe;
+  box-shadow: 0 0 12px 2px #60a5fa33;
+  animation: scanner-sweep 3s ease-in-out infinite alternate;
+}
+@keyframes scanner-sweep {
+  to {
+    top: calc(100% - 1px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-shell *,
+  .scanner-shell *::before,
+  .scanner-shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .scanner-sweep {
+    top: 50%;
+  }
+}
+
+.notification-centre { --background: #090f1a; --foreground: #f8fafc; --card: #111a2a; --card-foreground: #f8fafc; --muted: #1e293b; --muted-foreground: #a8b5c9; --border: #263247; --secondary: #1e293b; --secondary-foreground: #f8fafc; --accent: #24334a; --accent-foreground: #f8fafc; --primary: #93c5fd; --primary-foreground: #09111e; --input: #263247; color-scheme: dark; color: #f8fafc; background: #090f1a; border-radius: 1.5rem; padding-bottom: calc(7rem + env(safe-area-inset-bottom)); }
+.notification-centre article { background: #111a2a; border-color: #263247; }
+.notification-centre .text-muted-foreground { color: #a8b5c9; }
+.notification-centre button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
+.notification-settings input { min-width: 0; color-scheme: dark; }

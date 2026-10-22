@@ -24,32 +24,8 @@ function periodKey(period: "day" | "month"): string {
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: sub } = await firebaseAdmin
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", context.userId)
-      .in("status", ["trialing", "active", "in_grace"])
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-
-    const now = Date.now();
-    const active =
-      !!sub &&
-      (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-
-    return {
-      isPremium: active,
-      tier: (sub?.tier ?? "free") as string,
-      status: (sub?.status ?? "expired") as string,
-      trialActive: active && sub?.status === "trialing",
-      periodEnd: sub?.period_end ?? null,
-      trialEnd: sub?.trial_end ?? null,
-      store: sub?.store ?? null,
-      autoRenew: sub?.auto_renew ?? false,
-      isManual: sub?.is_manual ?? false,
-    };
+    const { resolveEntitlement } = await import("@/server/entitlements");
+    return resolveEntitlement(context.userId);
   });
 
 // ---------- Usage ----------
@@ -117,21 +93,8 @@ export async function enforceAndIncrement(
   feature: FeatureKey,
 ): Promise<{ allowed: boolean; remaining: number; premium: boolean }> {
   const { firebaseAdmin } = await loadFirebaseAdmin();
-  // Premium check
-  const { data: sub } = await firebaseAdmin
-    .from("subscriptions")
-    .select("status,tier,period_end")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  const now = Date.now();
-  const isPremium =
-    !!sub &&
-    (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-  if (isPremium) return { allowed: true, remaining: Infinity, premium: true };
+  const { premiumForUsage } = await import("@/server/entitlements");
+  if (await premiumForUsage(userId)) return { allowed: true, remaining: Infinity, premium: true };
 
   const cfg = FREE_LIMITS[feature];
   const pk = periodKey(cfg.period);
@@ -285,6 +248,8 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
         .from("subscriptions")
         .select("*")
         .eq("user_id", context.userId)
+        .eq("is_manual", true)
+        .eq("store", "promo")
         .order("period_end", { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();
@@ -513,77 +478,52 @@ export const adminDeletePromo = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const grantTarget = z.object({ userId: z.string().trim().min(1).max(254) });
+async function grantReference(target: string) {
+  const { getFirebaseAdminFirestore, getFirebaseAdminAuth } =
+    await import("@/server/firebase-admin");
+  const { emailGrantId } = await import("@/server/entitlements");
+  const db = getFirebaseAdminFirestore();
+  if (target.includes("@")) {
+    const email = z.string().email().parse(target.trim().toLowerCase());
+    return db.collection("premium_email_grants").doc(emailGrantId(email));
+  }
+  await getFirebaseAdminAuth().getUser(target);
+  return db.collection("premium_grants").doc(target);
+}
 export const adminGrantPremium = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
   .validator((v: unknown) =>
-    z.object({ userId: z.string().uuid(), days: z.number().int().min(1).max(3650) }).parse(v),
+    grantTarget.extend({ days: z.number().int().min(1).max(3650) }).parse(v),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: current } = await firebaseAdmin
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", data.userId)
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-    const baseline =
-      current?.period_end && new Date(current.period_end).getTime() > Date.now()
-        ? new Date(current.period_end).getTime()
-        : Date.now();
-    const newEnd = new Date(baseline + data.days * 86400000).toISOString();
-    if (current) {
-      await firebaseAdmin
-        .from("subscriptions")
-        .update({
-          status: "active",
-          tier: current.tier === "free" ? "promo" : current.tier,
-          period_end: newEnd,
-          store: "admin",
-          is_manual: true,
-        })
-        .eq("id", current.id);
-    } else {
-      await firebaseAdmin.from("subscriptions").insert({
-        user_id: data.userId,
-        tier: "promo",
-        status: "active",
-        store: "admin",
-        period_start: new Date().toISOString(),
-        period_end: newEnd,
-        is_manual: true,
-      });
-    }
-    await firebaseAdmin.from("subscription_events").insert({
-      user_id: data.userId,
-      event_type: "admin:grant",
-      source: "admin",
-      actor_id: context.userId,
-      payload: { days: data.days },
+    const ref = await grantReference(data.userId);
+    await ref.set({
+      expiresAt: new Date(Date.now() + data.days * 86400000).toISOString(),
+      revoked: false,
+      actorId: context.userId,
+      updatedAt: new Date().toISOString(),
     });
     return { ok: true };
   });
-
 export const adminRevokePremium = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
-  .validator((v: unknown) => z.object({ userId: z.string().uuid() }).parse(v))
+  .validator((v: unknown) => grantTarget.parse(v))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    await firebaseAdmin
-      .from("subscriptions")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("user_id", data.userId)
-      .in("status", ["trialing", "active", "in_grace"]);
-    await firebaseAdmin.from("subscription_events").insert({
-      user_id: data.userId,
-      event_type: "admin:revoke",
-      source: "admin",
-      actor_id: context.userId,
-      payload: {},
-    });
+    const ref = await grantReference(data.userId);
+    await ref.set(
+      { revoked: true, actorId: context.userId, updatedAt: new Date().toISOString() },
+      { merge: true },
+    );
     return { ok: true };
+  });
+export const refreshMyEntitlement = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const { resolveEntitlement } = await import("@/server/entitlements");
+    return resolveEntitlement(context.userId, true);
   });
 
 export const adminIsAdmin = createServerFn({ method: "GET" })

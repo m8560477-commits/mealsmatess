@@ -3,6 +3,7 @@ import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Crown, Loader2, Send, Sparkles, Wand2 } from "lucide-react";
 import { ChefMascot } from "@/components/chef-mascot";
+import { MiaReply } from "@/components/mia-reply";
 import { CookingInput } from "@/components/cooking-input";
 import { postAuthenticatedAi } from "@/lib/ai-api";
 import { generateVisualExplanation, type VisualExplanation } from "@/lib/visual.functions";
@@ -190,9 +191,9 @@ function ChatPage() {
               {t.question}
             </p>
             {t.answer && (
-              <p className="mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-card px-4 py-2.5 text-sm">
-                {t.answer}
-              </p>
+              <div className="mr-auto max-w-[92%] rounded-2xl rounded-bl-sm bg-card px-4 py-3 sm:max-w-[85%]">
+                <MiaReply>{t.answer}</MiaReply>
+              </div>
             )}
             {t.error && (
               <div
@@ -238,7 +239,7 @@ function ChatPage() {
       </div>
 
       <div ref={endRef} />
-      <div className="chat-composer sticky bottom-3 mt-6 bg-background pb-2 pt-2">
+      <div className="chat-composer sticky bottom-8 mt-6">
         <CookingInput
           value={question}
           onChange={setQuestion}

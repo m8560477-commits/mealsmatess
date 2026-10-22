@@ -60,7 +60,7 @@ RULES:
 - If they ask for calorie/macro targets and their weight/height/age/activity are known, estimate TDEE using Mifflin-St Jeor and adjust for their goal (-500 kcal for fat loss, +250-500 for muscle gain, maintenance otherwise). Show your math briefly.
 - If profile data is missing for a specific calculation, ask ONE targeted question first.
 - Be concrete: give foods, portion sizes, timing, budget-friendly swaps. Prefer whole foods.
-- Keep answers scannable — short paragraphs and bullet lists. No medical claims. No "consult a doctor" disclaimers unless the topic is truly medical (medication, disease, pregnancy).
+- Keep answers easy to read in short, well-spaced paragraphs. Do not use dash bullets, em dashes, decorative dividers, or large headings. Use numbered steps only for instructions. No medical claims. No "consult a doctor" disclaimers unless the topic is truly medical (medication, disease, pregnancy).
 - Plain markdown only. No headings above H3.`;
 
 async function callChat(

@@ -36,6 +36,7 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ApiMiaRouteImport } from './routes/api/mia'
 import { Route as ApiRecipeImageRouteImport } from './routes/api/recipe-image'
+import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
@@ -182,6 +183,11 @@ const ApiRecipeImageRoute = ApiRecipeImageRouteImport.update({
   path: '/api/recipe-image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiScanRoute = ApiScanRouteImport.update({
+  id: '/api/scan',
+  path: '/api/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/api/mia': typeof ApiMiaRoute
   '/api/recipe-image': typeof ApiRecipeImageRoute
+  '/api/scan': typeof ApiScanRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -303,6 +310,7 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/api/mia': typeof ApiMiaRoute
   '/api/recipe-image': typeof ApiRecipeImageRoute
+  '/api/scan': typeof ApiScanRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/api/mia': typeof ApiMiaRoute
   '/api/recipe-image': typeof ApiRecipeImageRoute
+  '/api/scan': typeof ApiScanRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/api/mia'
     | '/api/recipe-image'
+    | '/api/scan'
     | '/auth/callback'
     | '/legal/privacy'
     | '/legal/terms'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/api/mia'
     | '/api/recipe-image'
+    | '/api/scan'
     | '/auth/callback'
     | '/legal/privacy'
     | '/legal/terms'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/api/mia'
     | '/api/recipe-image'
+    | '/api/scan'
     | '/auth/callback'
     | '/legal/privacy'
     | '/legal/terms'
@@ -502,6 +514,7 @@ export interface RootRouteChildren {
   WelcomeRoute: typeof WelcomeRoute
   ApiMiaRoute: typeof ApiMiaRoute
   ApiRecipeImageRoute: typeof ApiRecipeImageRoute
+  ApiScanRoute: typeof ApiScanRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
   OrderIdRoute: typeof OrderIdRoute
@@ -703,6 +716,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRecipeImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/scan': {
+      id: '/api/scan'
+      path: '/api/scan'
+      fullPath: '/api/scan'
+      preLoaderRoute: typeof ApiScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -825,6 +845,7 @@ const rootRouteChildren: RootRouteChildren = {
   WelcomeRoute: WelcomeRoute,
   ApiMiaRoute: ApiMiaRoute,
   ApiRecipeImageRoute: ApiRecipeImageRoute,
+  ApiScanRoute: ApiScanRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
   OrderIdRoute: OrderIdRoute,

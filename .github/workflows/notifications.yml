@@ -1,0 +1,26 @@
+name: MealMate notification scheduler
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: mealmate-notification-scheduler
+  cancel-in-progress: false
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Process scheduled campaigns and reminders
+        env:
+          CRON_SECRET: ${{ secrets.MEALMATE_CRON_SECRET }}
+        shell: bash
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::Configure MEALMATE_CRON_SECRET to match the production CRON_SECRET."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 180 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            'https://mealsmates.site/api/public/announcements-cron'

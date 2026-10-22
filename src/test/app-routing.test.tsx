@@ -40,6 +40,7 @@ const ROUTE_SMOKE_PATHS = [
   "/legal/privacy",
   "/legal/terms",
   "/api/mia",
+  "/api/scan",
   "/api/recipe-image",
   "/api/public/announcements-cron",
   "/api/public/firebase-messaging-config",

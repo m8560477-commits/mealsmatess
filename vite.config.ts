@@ -1,22 +1,14 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import { publicEnvDefinitions } from "./build/public-env";
 import tailwindcss from "@tailwindcss/vite";
 import viteReact from "@vitejs/plugin-react";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 
-export default defineConfig(({ command }) => ({
-  // Expose only explicitly allowlisted public Firebase Web App settings.
-  envPrefix: [
-    "VITE_FIREBASE_API_KEY",
-    "VITE_FIREBASE_APP_ID",
-    "VITE_FIREBASE_AUTH_DOMAIN",
-    "VITE_FIREBASE_MESSAGING_SENDER_ID",
-    "VITE_FIREBASE_PROJECT_ID",
-    "VITE_FIREBASE_STORAGE_BUCKET",
-    "VITE_FIREBASE_FIRESTORE_DATABASE_ID",
-    "VITE_FIREBASE_VAPID_KEY",
-    "FIREBASE_MEASUREMENT_ID",
-  ],
+export default defineConfig(({ command, mode }) => ({
+  // Explicit definitions prevent a similarly prefixed secret from entering the browser build.
+  envPrefix: [],
+  define: publicEnvDefinitions(loadEnv(mode, process.cwd(), "")),
   server: {
     host: "0.0.0.0",
     port: 3000,

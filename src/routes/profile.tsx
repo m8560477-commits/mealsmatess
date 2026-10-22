@@ -23,12 +23,6 @@ import {
 import { toast } from "sonner";
 import { firebaseData } from "@/lib/firebase-data";
 import { sendPasswordReset } from "@/lib/firebase";
-import {
-  getMyNotificationPreferences,
-  registerMyPushToken,
-  saveMyNotificationPreferences,
-} from "@/lib/notifications.functions";
-import { requestBrowserPushToken, revokeBrowserPushToken } from "@/lib/push-client";
 import { useSession, signOutUnified } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -134,58 +128,6 @@ function SettingsPage() {
   const queryClient = useQueryClient();
 
   const { resolved, setMode } = useTheme();
-
-  const notificationPreferences = useQuery({
-    queryKey: ["notification-preferences", user?.id],
-    queryFn: () => getMyNotificationPreferences(),
-    enabled: !!user,
-    staleTime: 30_000,
-  });
-  const productUpdatesEnabled = notificationPreferences.data?.productUpdatesEnabled ?? true;
-  const pushEnabled = notificationPreferences.data?.pushEnabled ?? false;
-  const [notificationBusy, setNotificationBusy] = useState(false);
-
-  async function updateNotificationPreferences(
-    change: Partial<{ productUpdatesEnabled: boolean; pushEnabled: boolean }>,
-  ) {
-    if (!user) {
-      toast.error("Sign in to manage notification preferences.");
-      return;
-    }
-    const current = {
-      productUpdatesEnabled: notificationPreferences.data?.productUpdatesEnabled ?? true,
-      pushEnabled: notificationPreferences.data?.pushEnabled ?? false,
-    };
-    const next = { ...current, ...change };
-    if (!next.productUpdatesEnabled) next.pushEnabled = false;
-    setNotificationBusy(true);
-    let consentSaved = false;
-    try {
-      const token =
-        next.pushEnabled && !current.pushEnabled ? await requestBrowserPushToken() : null;
-      await saveMyNotificationPreferences({ data: next });
-      consentSaved = next.pushEnabled;
-      if (token) {
-        await registerMyPushToken({ data: { token } });
-      }
-      if (!next.pushEnabled) await revokeBrowserPushToken().catch(() => undefined);
-      await queryClient.invalidateQueries({ queryKey: ["notification-preferences", user.id] });
-      toast.success(
-        next.pushEnabled
-          ? "Push notifications enabled for this account."
-          : "Notification preferences saved.",
-      );
-    } catch (error) {
-      if (consentSaved) {
-        await saveMyNotificationPreferences({ data: current }).catch(() => undefined);
-      }
-      toast.error(
-        error instanceof Error ? error.message : "Could not update notification preferences.",
-      );
-    } finally {
-      setNotificationBusy(false);
-    }
-  }
 
   // Profile preferences sync to Firestore for signed-in users.
   const { data: prefs } = useQuery({
@@ -398,43 +340,8 @@ function SettingsPage() {
         title="Notifications"
         items={[
           {
-            label: "MealMate updates",
-            description: "Show product announcements in your notification history",
-            icon: Bell,
-            trailing: (
-              <Switch
-                checked={productUpdatesEnabled}
-                disabled={!user || notificationPreferences.isLoading || notificationBusy}
-                onCheckedChange={(checked) =>
-                  void updateNotificationPreferences({ productUpdatesEnabled: checked })
-                }
-                aria-label="MealMate product updates"
-              />
-            ),
-          },
-          {
-            label: "Push notifications",
-            description: "Allow browser notifications on this device",
-            icon: Bell,
-            trailing: (
-              <Switch
-                checked={pushEnabled}
-                disabled={
-                  !user ||
-                  !productUpdatesEnabled ||
-                  notificationPreferences.isLoading ||
-                  notificationBusy
-                }
-                onCheckedChange={(checked) =>
-                  void updateNotificationPreferences({ pushEnabled: checked })
-                }
-                aria-label="Push notifications"
-              />
-            ),
-          },
-          {
-            label: "Notification history",
-            description: "View unread and past MealMate updates",
+            label: "Notifications & settings",
+            description: "Manage reminders, push permission and quiet hours",
             icon: Bell,
             to: "/notifications",
           },
