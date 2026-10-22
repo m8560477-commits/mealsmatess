@@ -16,6 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   cancelAdminAnnouncement,
+  retryAdminAnnouncement,
   listAdminAnnouncements,
   previewAnnouncementAudience,
   publishAdminAnnouncement,
@@ -36,6 +37,9 @@ const categories: { value: AnnouncementCategory; label: string }[] = [
   { value: "mia", label: "Mia AI" },
   { value: "features", label: "New features" },
   { value: "general", label: "General update" },
+  { value: "meal_planning", label: "Meal Planning" },
+  { value: "promotions", label: "Promotions" },
+  { value: "account", label: "Account" },
 ];
 
 const destinations: { value: AnnouncementDestination; label: string }[] = [
@@ -45,11 +49,17 @@ const destinations: { value: AnnouncementDestination; label: string }[] = [
   { value: "/chat", label: "Mia AI" },
   { value: "/planner", label: "Meal planner" },
   { value: "/profile", label: "Profile" },
+  { value: "/list", label: "Shopping list" },
+  { value: "/premium", label: "Subscription" },
+  { value: "/notifications", label: "In-app announcements" },
 ];
 
 const audienceOptions: { value: AnnouncementAudience; label: string }[] = [
   { value: "all_consumers", label: "All eligible Consumer users" },
   { value: "healthy_interest", label: "Healthy recipe interest" },
+  { value: "premium", label: "Verified paid Premium subscribers" },
+  { value: "trial", label: "Active trials" },
+  { value: "selected", label: "Selected accounts" },
 ];
 
 const emptyDraft: AnnouncementInput = {
@@ -83,6 +93,7 @@ function dateTimeLocal(value: string) {
 }
 
 type AdminAnnouncementRecord = {
+  pendingCount?: number;
   id: string;
   status?: AnnouncementStatus;
   title?: string;
@@ -101,6 +112,12 @@ type AdminAnnouncementRecord = {
 export function AnnouncementsTab() {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<AnnouncementInput>(emptyDraft);
+  const [selectedText, setSelectedText] = useState("");
+  const recipients = () =>
+    selectedText
+      .split("\n")
+      .map((value) => value.trim())
+      .filter(Boolean);
   const [scheduleLocal, setScheduleLocal] = useState("");
   const [saving, setSaving] = useState(false);
   const announcements = useQuery<AdminAnnouncementRecord[]>({
@@ -110,8 +127,15 @@ export function AnnouncementsTab() {
       query.state.data?.some((item) => item.status === "processing") ? 15_000 : false,
   });
   const audience = useQuery({
-    queryKey: ["announcement-audience", draft.audience],
-    queryFn: () => previewAnnouncementAudience({ data: { audience: draft.audience } }),
+    queryKey: ["announcement-audience", draft.audience, draft.category, draft.selectedUsers],
+    queryFn: () =>
+      previewAnnouncementAudience({
+        data: {
+          audience: draft.audience,
+          category: draft.category,
+          selectedUsers: draft.selectedUsers,
+        },
+      }),
     staleTime: 30_000,
   });
   const selectedCategory = useMemo(
@@ -124,6 +148,7 @@ export function AnnouncementsTab() {
   }
 
   function edit(item: Record<string, unknown>) {
+    setSelectedText(Array.isArray(item.selectedUsers) ? item.selectedUsers.join("\n") : "");
     setDraft({
       id: String(item.id),
       title: String(item.title ?? ""),
@@ -131,6 +156,7 @@ export function AnnouncementsTab() {
       imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : null,
       category: (item.category as AnnouncementCategory) ?? "general",
       audience: (item.audience as AnnouncementAudience) ?? "all_consumers",
+      selectedUsers: Array.isArray(item.selectedUsers) ? (item.selectedUsers as string[]) : [],
       destination: (item.destination as AnnouncementDestination) ?? "/",
       scheduledAt: typeof item.scheduleAt === "string" ? item.scheduleAt : null,
       status: item.status === "scheduled" ? "scheduled" : "draft",
@@ -153,12 +179,14 @@ export function AnnouncementsTab() {
       const result = await saveAdminAnnouncement({
         data: {
           ...draft,
+          selectedUsers: recipients(),
           status,
           scheduledAt: status === "scheduled" ? new Date(scheduleLocal).toISOString() : null,
           imageUrl: draft.imageUrl || null,
         },
       });
       setDraft({ ...emptyDraft });
+      setSelectedText("");
       setScheduleLocal("");
       await queryClient.invalidateQueries({ queryKey: ["admin-announcements"] });
       toast.success(status === "scheduled" ? "Announcement scheduled." : "Draft saved.");
@@ -172,23 +200,38 @@ export function AnnouncementsTab() {
   }
 
   async function publishNow(id?: string) {
+    if (
+      !window.confirm(
+        "Send this campaign to its eligible audience? Category preferences, quiet hours and push limits apply. FCM acceptance does not confirm device display.",
+      )
+    )
+      return;
     setSaving(true);
     try {
       let announcementId = id;
       if (!announcementId) {
         const saved = await saveAdminAnnouncement({
-          data: { ...draft, status: "draft", scheduledAt: null, imageUrl: draft.imageUrl || null },
+          data: {
+            ...draft,
+            selectedUsers: recipients(),
+            status: "draft",
+            scheduledAt: null,
+            imageUrl: draft.imageUrl || null,
+          },
         });
         announcementId = saved.id;
       }
       const result = await publishAdminAnnouncement({ data: { id: announcementId } });
       setDraft({ ...emptyDraft });
+      setSelectedText("");
       setScheduleLocal("");
       await queryClient.invalidateQueries({ queryKey: ["admin-announcements"] });
       toast.success(
         result.status === "processing"
           ? "Announcement is being sent in batches."
-          : "Announcement published to eligible users.",
+          : result.status === "published"
+            ? "Campaign processed. Check recorded recipient and FCM counts below."
+            : "Campaign state unchanged.",
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not publish announcement.");
@@ -214,13 +257,32 @@ export function AnnouncementsTab() {
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
       <section className="flex flex-col gap-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ["In-app notifications", rows.reduce((n, r) => n + Number(r.recipientCount ?? 0), 0)],
+            ["FCM accepted", rows.reduce((n, r) => n + Number(r.pushAcceptedTokens ?? 0), 0)],
+            ["FCM failures", rows.reduce((n, r) => n + Number(r.pushFailedTokens ?? 0), 0)],
+            [
+              "Scheduled / Drafts",
+              `${rows.filter((r) => r.status === "scheduled").length} / ${rows.filter((r) => r.status === "draft").length}`,
+            ],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="mt-2 text-2xl font-semibold">{value}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Metrics cover the latest 100 campaigns. Device display is not measured.
+        </p>
         <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="mb-5 flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Megaphone aria-hidden="true" />
             </span>
             <div>
-              <h2 className="font-display text-xl">Announcement studio</h2>
+              <h2 className="font-display text-xl">Create Notification</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Draft, preview, schedule, or publish product updates to eligible recipients.
               </p>
@@ -263,8 +325,8 @@ export function AnnouncementsTab() {
                 placeholder="https://…"
               />
               <span className="text-xs font-normal text-muted-foreground">
-                Use an HTTPS image URL. The image appears in the preview and supported push
-                notifications.
+                Use an HTTPS image URL. The image appears inside MealMate. Lock-screen previews keep
+                details private.
               </span>
             </label>
 
@@ -311,6 +373,19 @@ export function AnnouncementsTab() {
               </label>
             </div>
 
+            <label className="grid gap-2 text-sm">
+              Specific recipe (optional slug)
+              <Input
+                placeholder="e.g. roasted-vegetable-pasta"
+                value={draft.destination.startsWith("/recipe/") ? draft.destination.slice(8) : ""}
+                onChange={(event) =>
+                  update(
+                    "destination",
+                    event.target.value ? `/recipe/${event.target.value}` : "/recipes",
+                  )
+                }
+              />
+            </label>
             <label className="grid gap-2 text-sm font-medium" htmlFor="announcement-audience">
               Recipients
               <Select
@@ -339,6 +414,16 @@ export function AnnouncementsTab() {
               </span>
             </label>
 
+            {draft.audience === "selected" && (
+              <label className="grid gap-2 text-sm">
+                Selected emails or user IDs (one per line, up to 100)
+                <Textarea
+                  value={selectedText}
+                  onChange={(event) => setSelectedText(event.target.value)}
+                  onBlur={() => update("selectedUsers", recipients())}
+                />
+              </label>
+            )}
             <label className="grid gap-2 text-sm font-medium" htmlFor="announcement-schedule">
               Schedule for later (optional)
               <Input
@@ -370,7 +455,7 @@ export function AnnouncementsTab() {
               </Button>
               <Button type="button" onClick={() => void publishNow()} disabled={!canSubmit}>
                 <Send data-icon="inline-start" />
-                Publish now
+                Send Notification
               </Button>
               {draft.id && (
                 <Button
@@ -378,6 +463,7 @@ export function AnnouncementsTab() {
                   variant="ghost"
                   onClick={() => {
                     setDraft({ ...emptyDraft });
+                    setSelectedText("");
                     setScheduleLocal("");
                   }}
                 >
@@ -395,7 +481,7 @@ export function AnnouncementsTab() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2 id="announcement-history-heading" className="font-display text-lg">
-                Announcement history
+                Campaign history
               </h2>
               <p className="text-sm text-muted-foreground">
                 Current delivery attempts and recorded activity; push acceptance is not a device
@@ -462,6 +548,7 @@ export function AnnouncementsTab() {
                             {Number(item.recipientCount ?? 0).toLocaleString()} in-app notifications
                             stored
                           </span>
+                          <span>{Number(item.pendingCount ?? 0)} awaiting permitted delivery</span>
                           <span>{Number(item.readCount ?? 0).toLocaleString()} read</span>
                           <span>
                             {Number(item.pushAcceptedTokens ?? 0).toLocaleString()} push tokens
@@ -482,6 +569,29 @@ export function AnnouncementsTab() {
                       )}
                     </div>
                     <div className="flex flex-wrap items-start gap-2 sm:justify-end">
+                      {Number(item.pushFailedTokens ?? 0) > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={saving}
+                          onClick={() => {
+                            setSaving(true);
+                            void retryAdminAnnouncement({ data: { id: item.id } })
+                              .then(async (result) => {
+                                toast.info(
+                                  `${result.queued} eligible deliveries queued. Quiet hours and rate limits still apply.`,
+                                );
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["admin-announcements"],
+                                });
+                              })
+                              .catch(() => toast.error("Could not retry campaign."))
+                              .finally(() => setSaving(false));
+                          }}
+                        >
+                          Retry eligible failures
+                        </Button>
+                      )}
                       {editable && (
                         <Button size="sm" variant="outline" onClick={() => edit(item)}>
                           <Pencil data-icon="inline-start" />
@@ -491,7 +601,7 @@ export function AnnouncementsTab() {
                       {(editable || status === "failed") && (
                         <Button size="sm" onClick={() => void publishNow(String(item.id))}>
                           <Send data-icon="inline-start" />
-                          Publish now
+                          Send Notification
                         </Button>
                       )}
                       {status === "scheduled" && (
@@ -518,7 +628,7 @@ export function AnnouncementsTab() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Eye aria-hidden="true" />
-              <h2 className="font-display text-lg">Live preview</h2>
+              <h2 className="font-display text-lg">In-app preview</h2>
             </div>
             <Badge variant="outline">{selectedCategory}</Badge>
           </div>
@@ -553,6 +663,16 @@ export function AnnouncementsTab() {
             This preview reflects the current message and destination. Nothing is sent until you
             publish or schedule it.
           </div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="font-semibold">Android lock-screen preview</h3>
+          <p className="mt-3 font-medium">MealMate</p>
+          <p className="text-sm text-muted-foreground">
+            You have a new update. Open MealMate to view it.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Private details and images appear inside MealMate after sign-in.
+          </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
           <h3 className="font-semibold">Delivery notes</h3>

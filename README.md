@@ -27,14 +27,14 @@ npm run dev
 
 ## Vercel deployment
 
-The production app is https://mealsmates-khaki.vercel.app. The Vite build uses
+The production app is https://mealsmates.site. The Vite build uses
 Nitro's Vercel preset.
 
-The announcement processor runs once daily at midnight UTC (`0 0 * * *`),
-compatible with Vercel Hobby. Scheduled announcements are delivered on the next
-daily run, with Vercel's hourly timing window. For more frequent delivery, use a
-Vercel plan that supports it before changing the cron schedule in `vercel.json`.
-See [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+The daily Vercel cron remains compatible with Hobby deployments. Timed notifications
+use the added GitHub Actions scheduler every five minutes once `MEALMATE_CRON_SECRET`
+is configured to match the production `CRON_SECRET` and the workflow reaches the
+default branch. GitHub may delay scheduled runs. For tighter timing or larger volumes,
+use a dedicated authenticated scheduler. See [notification deployment](docs/notifications.md).
 
 After building with the public Firebase web settings, run
 `node scripts/smoke-vercel.mjs` to check the packaged function in isolation.

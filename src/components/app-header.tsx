@@ -1,5 +1,4 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { MealMateLogo } from "@/components/mealmate-logo";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
@@ -13,10 +12,8 @@ import {
 import { signOutUnified } from "@/hooks/use-session";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 import { getMyUnreadNotificationCount } from "@/lib/notifications.functions";
-import { listenForForegroundPush } from "@/lib/push-client";
-import { toast } from "sonner";
 
 /**
  * Compact top bar used on every page except the home screen (which renders
@@ -28,7 +25,6 @@ export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const userId = user?.id;
   const unread = useQuery({
     queryKey: ["notification-count", user?.id],
     queryFn: () => getMyUnreadNotificationCount(),
@@ -36,24 +32,6 @@ export function AppHeader() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
-
-  useEffect(() => {
-    if (!userId) return;
-    let active = true;
-    let unsubscribe: () => void = () => undefined;
-    void listenForForegroundPush(({ title, body }) => {
-      toast(title, { description: body });
-    })
-      .then((stop) => {
-        if (active) unsubscribe = stop;
-        else stop();
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [userId]);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -88,20 +66,7 @@ export function AppHeader() {
 
         {user ? (
           <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative size-10 rounded-full"
-              aria-label={`Notifications${(unread.data?.unreadCount ?? 0) > 0 ? `, ${unread.data?.unreadCount} unread` : ""}`}
-              onClick={() => navigate({ to: "/notifications" })}
-            >
-              <Bell aria-hidden="true" />
-              {(unread.data?.unreadCount ?? 0) > 0 && (
-                <span className="absolute right-0 top-0 flex min-w-4 translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground">
-                  {(unread.data?.unreadCount ?? 0) > 99 ? "99+" : unread.data?.unreadCount}
-                </span>
-              )}
-            </Button>
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

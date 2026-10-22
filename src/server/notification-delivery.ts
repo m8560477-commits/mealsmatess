@@ -1,15 +1,13 @@
+import { campaignMetrics } from "@/server/notification-metrics";
+import { categoryEnabled, preferencesFrom } from "@/lib/notification-policy";
+import { deliverPendingNotifications } from "@/server/user-notifications";
 import { createHash, randomUUID } from "node:crypto";
-import {
-  FieldPath,
-  FieldValue,
-  type DocumentReference,
-  type Firestore,
-} from "firebase-admin/firestore";
-import { getFirebaseAdminFirestore, getFirebaseAdminMessaging } from "@/server/firebase-admin";
+import { FieldPath, type Firestore } from "firebase-admin/firestore";
+import { getFirebaseAdminFirestore, getFirebaseAdminAuth } from "@/server/firebase-admin";
 import { isHealthyInterest } from "@/lib/notification-segments";
 import type { AnnouncementAudience, AnnouncementInput } from "@/lib/notifications.types";
 
-const PAGE_SIZE = 250;
+const PAGE_SIZE = 25;
 const LEASE_MS = 5 * 60_000;
 const EXCLUDED_ROLES = new Set([
   "admin",
@@ -28,8 +26,67 @@ function profileIsIneligible(profile: Record<string, unknown>) {
   return profile.deleted === true || profile.disabled === true || profile.account_disabled === true;
 }
 
-function profileMatchesAudience(audience: AnnouncementAudience, profile: Record<string, unknown>) {
-  return audience === "all_consumers" || isHealthyInterest(profile);
+async function resolveSelected(values: string[] = []) {
+  const ids = new Set<string>();
+  for (const value of values) {
+    const target = value.trim();
+    if (!target) continue;
+    try {
+      const account = target.includes("@")
+        ? await getFirebaseAdminAuth().getUserByEmail(target.toLowerCase())
+        : await getFirebaseAdminAuth().getUser(target);
+      if (!account.disabled) ids.add(account.uid);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (
+        code !== "auth/user-not-found" &&
+        code !== "auth/invalid-email" &&
+        code !== "auth/invalid-uid"
+      )
+        throw error;
+    }
+  }
+  return [...ids];
+}
+async function profileMatchesAudience(
+  audience: AnnouncementAudience,
+  profile: Record<string, unknown>,
+  userId: string,
+  selected: string[],
+  paidAudience: Set<string>,
+) {
+  if (audience === "selected") return selected.includes(userId);
+  if (audience === "healthy_interest") return isHealthyInterest(profile);
+  if (audience === "premium" || audience === "trial") return paidAudience.has(userId);
+  return true;
+}
+
+async function storedPaidAudience(db: Firestore, audience: AnnouncementAudience) {
+  const matched = new Set<string>();
+  if (audience !== "premium" && audience !== "trial") return matched;
+  const expected = process.env.REVENUECAT_ENTITLEMENT_ID;
+  if (!expected) return matched;
+  // Trusted snapshots originate only from verified RevenueCat subscriber responses.
+  // No per-recipient provider calls and no legacy product-name inferred access.
+  const snapshots = await db
+    .collection("revenuecat_entitlements")
+    .where("access.isPremium", "==", true)
+    .get();
+  for (const row of snapshots.docs) {
+    const access = row.get("access");
+    if (row.get("entitlementId") !== expected || access?.isManual) continue;
+    const expires = access?.periodEnd;
+    const valid =
+      typeof expires === "string"
+        ? Date.parse(expires) > Date.now()
+        : Number(row.get("checkedAt") ?? 0) > Date.now() - 5 * 60_000;
+    if (
+      valid &&
+      (audience === "trial" ? access.trialActive === true : access.trialActive === false)
+    )
+      matched.add(row.id);
+  }
+  return matched;
 }
 
 function consumerRoleExclusions(db: Firestore) {
@@ -47,11 +104,17 @@ function consumerRoleExclusions(db: Firestore) {
     });
 }
 
-export async function previewAudience(audience: AnnouncementAudience) {
+export async function previewAudience(
+  audience: AnnouncementAudience,
+  category = "general",
+  selectedUsers: string[] = [],
+) {
+  const selected = await resolveSelected(selectedUsers);
   const db = getFirebaseAdminFirestore();
-  const [profiles, excludedRoles] = await Promise.all([
+  const [profiles, excludedRoles, paidAudience] = await Promise.all([
     db.collection("users").get(),
     consumerRoleExclusions(db),
+    storedPaidAudience(db, audience),
   ]);
   const settingsByUser = new Map<string, Record<string, unknown>>();
   for (let offset = 0; offset < profiles.docs.length; offset += PAGE_SIZE) {
@@ -66,8 +129,8 @@ export async function previewAudience(audience: AnnouncementAudience) {
     if (
       !excludedRoles.has(profileDoc.id) &&
       !profileIsIneligible(profile) &&
-      preferences["productUpdatesEnabled"] !== false &&
-      profileMatchesAudience(audience, profile)
+      categoryEnabled(category, preferencesFrom(preferences)) &&
+      (await profileMatchesAudience(audience, profile, profileDoc.id, selected, paidAudience))
     )
       count += 1;
   }
@@ -76,6 +139,10 @@ export async function previewAudience(audience: AnnouncementAudience) {
 
 export async function saveAnnouncement(input: AnnouncementInput, actorId: string) {
   const db = getFirebaseAdminFirestore();
+  const selectedUserIds =
+    input.audience === "selected" ? await resolveSelected(input.selectedUsers) : [];
+  if (input.audience === "selected" && !selectedUserIds.length)
+    throw new Error("Choose at least one existing account.");
   const now = new Date().toISOString();
   if (input.status === "scheduled") {
     const when = input.scheduledAt ? Date.parse(input.scheduledAt) : NaN;
@@ -89,6 +156,7 @@ export async function saveAnnouncement(input: AnnouncementInput, actorId: string
     const ref = collection.doc(randomUUID());
     const record = {
       ...input,
+      selectedUserIds,
       scheduleAt: input.status === "scheduled" ? input.scheduledAt : null,
       createdAt: now,
       updatedAt: now,
@@ -116,6 +184,7 @@ export async function saveAnnouncement(input: AnnouncementInput, actorId: string
     }
     transaction.update(ref, {
       ...input,
+      selectedUserIds,
       scheduleAt: input.status === "scheduled" ? input.scheduledAt : null,
       updatedAt: now,
       updatedBy: actorId,
@@ -149,83 +218,6 @@ async function claimAnnouncement(id: string, allowImmediate: boolean) {
   });
 }
 
-async function sendPushBatch(
-  db: Firestore,
-  tokens: { token: string; ref: DocumentReference; userId: string }[],
-  announcement: Record<string, unknown>,
-) {
-  if (tokens.length === 0) return { attempted: 0, accepted: 0, failed: 0 };
-  const messaging = getFirebaseAdminMessaging();
-  const perUser = new Map<string, { accepted: number; failed: number }>();
-  const tokenResults: { token: (typeof tokens)[number]; accepted: boolean; stale: boolean }[] = [];
-  const destination = String(announcement["destination"] ?? "/");
-  const vercelUrl = process.env["VERCEL_URL"]?.trim();
-  const appUrl =
-    process.env["MEALMATE_APP_URL"]?.trim()?.replace(/\/$/, "") ??
-    (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000");
-
-  for (let offset = 0; offset < tokens.length; offset += 500) {
-    const chunk = tokens.slice(offset, offset + 500);
-    const response = await messaging.sendEachForMulticast({
-      tokens: chunk.map((entry) => entry.token),
-      data: { announcementId: String(announcement["id"]), destination },
-      webpush: {
-        notification: {
-          title: String(announcement["title"]),
-          body: String(announcement["body"]),
-          ...(typeof announcement["imageUrl"] === "string" && announcement["imageUrl"]
-            ? { image: String(announcement["imageUrl"]) }
-            : {}),
-        },
-        fcmOptions: { link: `${appUrl}${destination}` },
-      },
-    });
-    response.responses.forEach((result, index) => {
-      const token = chunk[index];
-      if (!token) return;
-      const code = result.error?.code ?? "";
-      const stale =
-        code === "messaging/registration-token-not-registered" ||
-        code === "messaging/invalid-registration-token";
-      tokenResults.push({ token, accepted: result.success, stale });
-      const counts = perUser.get(token.userId) ?? { accepted: 0, failed: 0 };
-      if (result.success) counts.accepted += 1;
-      else counts.failed += 1;
-      perUser.set(token.userId, counts);
-    });
-  }
-
-  const batch = db.batch();
-  for (const result of tokenResults) {
-    if (result.accepted)
-      batch.set(
-        result.token.ref,
-        { lastAcceptedAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { merge: true },
-      );
-    else if (result.stale) batch.delete(result.token.ref);
-  }
-  for (const [userId, counts] of perUser) {
-    const notificationRef = db
-      .collection("users")
-      .doc(userId)
-      .collection("notifications")
-      .doc(String(announcement["id"]));
-    batch.set(
-      notificationRef,
-      {
-        pushStatus: counts.accepted > 0 ? "accepted" : "failed",
-        pushAcceptedTokens: counts.accepted,
-        pushFailedTokens: counts.failed,
-      },
-      { merge: true },
-    );
-  }
-  await batch.commit();
-  const accepted = tokenResults.filter((result) => result.accepted).length;
-  return { attempted: tokenResults.length, accepted, failed: tokenResults.length - accepted };
-}
-
 async function processRecipientPage(announcement: Record<string, unknown>) {
   const db = getFirebaseAdminFirestore();
   const audience = String(announcement["audience"] ?? "all_consumers") as AnnouncementAudience;
@@ -233,7 +225,11 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
   const lastRecipientId =
     typeof announcement["lastRecipientId"] === "string" ? announcement["lastRecipientId"] : null;
   if (lastRecipientId) query = query.startAfter(lastRecipientId);
-  const [profiles, excludedRoles] = await Promise.all([query.get(), consumerRoleExclusions(db)]);
+  const [profiles, excludedRoles, paidAudience] = await Promise.all([
+    query.get(),
+    consumerRoleExclusions(db),
+    storedPaidAudience(db, audience),
+  ]);
   const announcementRef = db.collection("admin_announcements").doc(String(announcement["id"]));
   if (profiles.empty) {
     await announcementRef.update({
@@ -252,16 +248,24 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
   const settingsByUser = new Map(
     pageDocs.map((profile, index) => [profile.id, settingsSnapshots[index]?.data() ?? {}]),
   );
-  const eligible = pageDocs.filter((profile) => {
+  const eligible = [];
+  for (const profile of pageDocs) {
     const data = profile.data() as Record<string, unknown>;
     const settings = settingsByUser.get(profile.id) ?? {};
-    return (
+    if (
       !excludedRoles.has(profile.id) &&
       !profileIsIneligible(data) &&
-      settings["productUpdatesEnabled"] !== false &&
-      profileMatchesAudience(audience, data)
-    );
-  });
+      categoryEnabled(String(announcement["category"] ?? "general"), preferencesFrom(settings)) &&
+      (await profileMatchesAudience(
+        audience,
+        data,
+        profile.id,
+        (announcement["selectedUserIds"] ?? []) as string[],
+        paidAudience,
+      ))
+    )
+      eligible.push(profile);
+  }
 
   const notificationRefs = eligible.map((profile) =>
     db
@@ -299,105 +303,22 @@ async function processRecipientPage(announcement: Record<string, unknown>) {
   });
   if (fresh.length) await writeBatch.commit();
 
-  const pushUsers = eligible.filter(
-    (profile, index) =>
-      settingsByUser.get(profile.id)?.["pushEnabled"] === true &&
-      (!existing[index]?.exists || existing[index]?.get("pushStatus") === "pending"),
-  );
-  const tokenSnapshots = await Promise.all(
-    pushUsers.map((profile) =>
-      db
-        .collection("users")
-        .doc(profile.id)
-        .collection("push_tokens")
-        .where("enabled", "==", true)
-        .limit(5)
-        .get(),
-    ),
-  );
-  const tokens = tokenSnapshots.flatMap((snapshot, index) =>
-    snapshot.docs
-      .map((tokenDoc) => ({
-        userId: pushUsers[index]!.id,
-        token: String(tokenDoc.get("token") ?? ""),
-        ref: tokenDoc.ref,
-      }))
-      .filter((item) => item.token.length > 0),
-  );
-
-  if (pushUsers.length) {
-    const usersWithTokens = new Set(tokens.map((token) => token.userId));
-    const noDevice = pushUsers.filter((user) => !usersWithTokens.has(user.id));
-    const noDeviceBatch = db.batch();
-    noDevice.forEach((user) =>
-      noDeviceBatch.set(
-        db
-          .collection("users")
-          .doc(user.id)
-          .collection("notifications")
-          .doc(String(announcement["id"])),
-        { pushStatus: "no_active_device" },
-        { merge: true },
-      ),
-    );
-    if (noDevice.length) await noDeviceBatch.commit();
+  // Delivery shares quiet hours, privacy, rate limiting and durable per-event claims.
+  for (const profile of eligible) await deliverPendingNotifications(profile.id);
+  const push = { attempted: 0, accepted: 0, failed: 0 };
+  const deliveryRecords = notificationRefs.length ? await db.getAll(...notificationRefs) : [];
+  for (const record of deliveryRecords) {
+    push.accepted += Number(record.get("pushAcceptedTokens") ?? 0);
+    push.failed += Number(record.get("pushFailedTokens") ?? 0);
   }
-
-  if (tokens.length) {
-    const attemptBatch = db.batch();
-    [...new Set(tokens.map((item) => item.userId))].forEach((userId) =>
-      attemptBatch.set(
-        db
-          .collection("users")
-          .doc(userId)
-          .collection("notifications")
-          .doc(String(announcement["id"])),
-        { pushStatus: "attempted", pushAttemptedAt: createdAt },
-        { merge: true },
-      ),
-    );
-    await attemptBatch.commit();
-  }
-
-  let push = { attempted: 0, accepted: 0, failed: 0 };
-  if (tokens.length) {
-    try {
-      push = await sendPushBatch(db, tokens, announcement);
-    } catch {
-      const failedBatch = db.batch();
-      [...new Set(tokens.map((item) => item.userId))].forEach((userId) =>
-        failedBatch.set(
-          db
-            .collection("users")
-            .doc(userId)
-            .collection("notifications")
-            .doc(String(announcement["id"])),
-          {
-            pushStatus: "failed",
-            pushAttemptedAt: createdAt,
-            pushFailedTokens: tokens.filter((item) => item.userId === userId).length,
-          },
-          { merge: true },
-        ),
-      );
-      await failedBatch.commit();
-      push = { attempted: tokens.length, accepted: 0, failed: tokens.length };
-    }
-  }
+  push.attempted = push.accepted + push.failed;
 
   const lastProfileId = pageDocs[pageDocs.length - 1]?.id ?? null;
   const complete = pageDocs.length < PAGE_SIZE;
-  const storedNotificationCount = await db
-    .collectionGroup("notifications")
-    .where("announcementId", "==", String(announcement["id"]))
-    .count()
-    .get();
+  const metrics = await campaignMetrics(db, String(announcement["id"]));
   await announcementRef.update({
     lastRecipientId: lastProfileId,
-    recipientCount: storedNotificationCount.data().count,
-    pushAttemptedTokens: FieldValue.increment(push.attempted),
-    pushAcceptedTokens: FieldValue.increment(push.accepted),
-    pushFailedTokens: FieldValue.increment(push.failed),
+    ...metrics,
     status: complete ? "published" : "processing",
     ...(complete ? { publishedAt: new Date().toISOString() } : {}),
     leaseUntil: complete ? null : Date.now(),

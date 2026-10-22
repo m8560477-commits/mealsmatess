@@ -93,47 +93,29 @@ export enum OperationType {
   WRITE = "write",
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  };
-}
-
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
-  path: string | null,
+  _path: string | null,
 ) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid ?? null,
-      email: auth.currentUser?.email ?? null,
-      emailVerified: auth.currentUser?.emailVerified ?? null,
-      isAnonymous: auth.currentUser?.isAnonymous ?? null,
-      tenantId: auth.currentUser?.tenantId ?? null,
-      providerInfo:
-        auth.currentUser?.providerData?.map((provider) => ({
-          providerId: provider.providerId,
-          email: provider.email,
-        })) || [],
-    },
-    operationType,
-    path,
-  };
-  console.error("Firestore Error: ", JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  const code =
+    error && typeof error === "object" && "code" in error ? String(error.code) : "unknown";
+  const known = [
+    "permission-denied",
+    "unauthenticated",
+    "unavailable",
+    "not-found",
+    "resource-exhausted",
+  ].includes(code)
+    ? code
+    : "unknown";
+  // No email, UID, provider data, document paths or raw service response in browser logs/UI.
+  console.error("MealMate data operation failed", { operationType, code: known });
+  throw new Error(
+    known === "permission-denied" || known === "unauthenticated"
+      ? "You do not have access to this data. Please sign in again."
+      : "MealMate could not access your data. Check your connection and try again.",
+  );
 }
 
 export async function testFirestoreConnection() {
@@ -180,6 +162,22 @@ export async function sendPasswordReset(email: string, continueUrl?: string) {
 }
 
 export async function signOutUser() {
+  // Bound module loading as well as provider cleanup, so logout works offline.
+  const cleanup = Promise.allSettled([
+    import("@/lib/push-client").then((module) => module.disconnectPushDevice()),
+    import("@/lib/revenuecat-client").then((module) => module.disconnectPurchases()),
+  ]);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      cleanup,
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, 4_000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
   return firebaseSignOut(auth);
 }
 

@@ -7,7 +7,6 @@ import {
   deduplicateAiRequest,
   generateAiObject,
   generateAiText,
-  imageInputFromDataUrl,
 } from "@/lib/ai-engine.server";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
@@ -291,139 +290,6 @@ export const generateRecipe = createServerFn({ method: "POST" })
     });
   });
 
-// Kitchen Scan — identify ingredients from a photo
-export const scanKitchen = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
-  .validator((v: unknown) =>
-    z.object({ imageDataUrl: z.string().startsWith("data:image/").max(11_200_000) }).parse(v),
-  )
-  .handler(async ({ data, context }) => {
-    await requireAiCredit(context.userId);
-    await enforceRateLimit("ai_vision", context.userId, 10);
-    const t0 = Date.now();
-    try {
-      const { bytes, mediaType } = imageInputFromDataUrl(data.imageDataUrl);
-      const result = await generateAiObject({
-        feature: "scan.kitchen",
-        instructions:
-          "Identify only visible food ingredients. Use lowercase ingredient names and never infer items that are not visible.",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Identify every distinct food ingredient visible. Return items with name, quantity, and category. Use lowercase names.",
-              },
-              { type: "image", image: bytes, mediaType },
-            ],
-          },
-        ],
-        schema: z.object({
-          items: z
-            .array(
-              z.object({
-                name: z.string().trim().min(1).max(80),
-                quantity: z.string().max(80).optional(),
-                category: z.string().max(60).optional(),
-              }),
-            )
-            .max(40),
-        }),
-      });
-      const items = result.items;
-      void trackEvent({
-        user_id: context.userId,
-        kind: "scan",
-        name: "scan.kitchen",
-        latency_ms: Date.now() - t0,
-        success: true,
-        metadata: { item_count: items.length },
-      });
-      return items;
-    } catch (e) {
-      void trackEvent({
-        user_id: context.userId,
-        kind: "scan",
-        name: "scan.kitchen",
-        latency_ms: Date.now() - t0,
-        success: false,
-        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
-      });
-      throw e;
-    }
-  });
-
-const DishSchema = z.object({
-  is_food: z.boolean().default(true),
-  name: z.string().min(1),
-  description: z.string().nullable().optional(),
-  cuisine: z.string().nullable().optional(),
-  meal_type: z.string().nullable().optional(),
-  confidence: z.number().min(0).max(1).default(0.7),
-  portion: z.string().nullable().optional(),
-  calories: z.number().nullable().optional(),
-  protein_g: z.number().nullable().optional(),
-  carbs_g: z.number().nullable().optional(),
-  fat_g: z.number().nullable().optional(),
-  fiber_g: z.number().nullable().optional(),
-  ingredients: z.array(z.string()).default([]),
-  health_note: z.string().nullable().optional(),
-});
-export type ScannedDish = z.infer<typeof DishSchema>;
-
-// Dish Scan — identify a plated meal and estimate its nutrition
-export const scanDish = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
-  .validator((v: unknown) =>
-    z.object({ imageDataUrl: z.string().startsWith("data:image/").max(11_200_000) }).parse(v),
-  )
-  .handler(async ({ data, context }) => {
-    await requireAiCredit(context.userId);
-    await enforceRateLimit("ai_vision", context.userId, 10);
-    const t0 = Date.now();
-    try {
-      const { bytes, mediaType } = imageInputFromDataUrl(data.imageDataUrl);
-      const dish = await generateAiObject({
-        feature: "scan.dish",
-        instructions:
-          "You are a food identification assistant. Nutritional values must be clearly treated as approximate estimates, not precise medical advice.",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Identify the dish shown and give rough rounded nutrition estimates for the visible portion. Return is_food, name, description, cuisine, meal_type, confidence from 0 to 1, portion, calories, protein_g, carbs_g, fat_g, fiber_g, ingredients, and a short health_note. If it is not food, set is_food false and name "Not food".`,
-              },
-              { type: "image", image: bytes, mediaType },
-            ],
-          },
-        ],
-        schema: DishSchema,
-      });
-      void trackEvent({
-        user_id: context.userId,
-        kind: "scan",
-        name: "scan.dish",
-        latency_ms: Date.now() - t0,
-        success: true,
-        metadata: { name: dish.name, confidence: dish.confidence, is_food: dish.is_food },
-      });
-      return dish;
-    } catch (e) {
-      void trackEvent({
-        user_id: context.userId,
-        kind: "scan",
-        name: "scan.dish",
-        latency_ms: Date.now() - t0,
-        success: false,
-        error: e instanceof Error ? e.message.slice(0, 500) : String(e),
-      });
-      throw e;
-    }
-  });
-
 // Ask anything about food — a single-turn Q&A used by the AI Chat quick action
 export const askFoodQuestion = createServerFn({ method: "POST" })
   .middleware([requireFirebaseAuth])
@@ -436,7 +302,7 @@ export const askFoodQuestion = createServerFn({ method: "POST" })
       const answer = await generateAiText({
         feature: "chat.food_question",
         instructions:
-          "You are MealMate's kitchen assistant. Answer food, cooking, nutrition, and ingredient-substitution questions clearly and concisely, in 2-4 short paragraphs or a short list. Treat nutrition as estimates, not precise values. Plain text only, no markdown headers.",
+          "You are MealMate's kitchen assistant. Answer food, cooking, nutrition, and ingredient-substitution questions clearly and concisely, in two to four short, well-spaced paragraphs. Do not use dash bullets, em dashes, or decorative dividers. Use numbered steps only for cooking instructions. Treat nutrition as estimates, not precise values. Plain text only, no markdown headers.",
         prompt: data.question,
       });
       void trackEvent({

@@ -38,6 +38,7 @@ function PantryPage() {
   const { data: items = [], isLoading, error } = useQuery({ ...myPantryQuery(), enabled: !!user });
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [expiry, setExpiry] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -50,10 +51,12 @@ function PantryPage() {
         name: name.trim(),
         quantity: quantity.trim() || null,
         source: "manual",
+        ...(expiry ? { expires_at: expiry } : {}),
       });
       if (error) throw error;
       setName("");
       setQuantity("");
+      setExpiry("");
       await client.invalidateQueries({ queryKey: ["pantry"] });
     } catch {
       toast.error("Couldn't add that ingredient. Please try again.");
@@ -117,7 +120,7 @@ function PantryPage() {
           e.preventDefault();
           void add();
         }}
-        className="mt-8 grid grid-cols-[minmax(0,1fr)_80px_auto] gap-2"
+        className="mt-8 grid grid-cols-[minmax(0,1fr)_80px_auto] items-end gap-2"
       >
         <Input
           aria-label="Ingredient"
@@ -136,6 +139,10 @@ function PantryPage() {
           onChange={(e) => setQuantity(e.target.value)}
           className="h-11"
         />
+        <label className="col-span-3 row-start-2 grid gap-1 text-xs text-muted-foreground">
+          Expiry date (optional)
+          <Input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+        </label>
         <Button
           type="submit"
           size="icon"

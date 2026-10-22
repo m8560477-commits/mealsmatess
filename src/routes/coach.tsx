@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import ReactMarkdown from "react-markdown";
+import { MiaReply } from "@/components/mia-reply";
 import { toast } from "sonner";
 import { Loader2, Send, Sparkles, HeartPulse, ChevronRight } from "lucide-react";
 import { nutritionCoach, getCoachContext } from "@/lib/coach.functions";
@@ -185,7 +185,7 @@ function CoachPage() {
           ) : (
             <div key={i} className="flex justify-start">
               <div className="rise-in max-w-[92%] space-y-2 rounded-2xl rounded-bl-sm bg-card px-4 py-3 text-sm leading-relaxed [&_h3]:font-display [&_h3]:text-base [&_h3]:mt-2 [&_li]:ml-4 [&_li]:list-disc [&_strong]:font-semibold [&_a]:underline">
-                <ReactMarkdown>{t.content}</ReactMarkdown>
+                <MiaReply>{t.content}</MiaReply>
               </div>
             </div>
           ),

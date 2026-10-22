@@ -1,5 +1,19 @@
 apply plugin: 'com.android.application'
 
+// Release credentials are supplied by the private build environment, never source control.
+def releaseStorePath = System.getenv('MEALMATE_KEYSTORE_PATH')
+def releaseStorePassword = System.getenv('MEALMATE_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('MEALMATE_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('MEALMATE_KEY_PASSWORD')
+
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.name in ['assembleRelease', 'bundleRelease', 'packageRelease', 'validateSigningRelease'] } &&
+        (!releaseStorePath || !releaseStorePassword || !releaseKeyAlias || !releaseKeyPassword)) {
+        throw new GradleException('Configure the private MEALMATE_KEYSTORE_PATH, MEALMATE_KEYSTORE_PASSWORD, MEALMATE_KEY_ALIAS and MEALMATE_KEY_PASSWORD before signing a release.')
+    }
+}
+
+
 android {
     namespace = "com.taztechnologies.mealmate"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,10 +32,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file("../mealmate-release.keystore")
-            storePassword "MealMate2026"
-            keyAlias "mealmate"
-            keyPassword "MealMate2026"
+            if (releaseStorePath) storeFile file(releaseStorePath)
+            storePassword releaseStorePassword
+            keyAlias releaseKeyAlias
+            keyPassword releaseKeyPassword
         }
     }
     buildTypes {

@@ -519,20 +519,12 @@ function startOfUtcMonth(date = new Date()) {
 }
 
 async function premiumActive(userId: string) {
-  const { data } = await firebaseAdmin
-    .from("subscriptions")
-    .select("tier,status,period_end")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (
-    !!data &&
-    (data.tier === "lifetime" ||
-      !data.period_end ||
-      new Date(data.period_end).getTime() > Date.now())
-  );
+  const { premiumForUsage } = await import("@/server/entitlements");
+  return premiumForUsage(userId);
+}
+
+export function getFirebaseAdminAuth() {
+  return getServices().auth;
 }
 
 async function runRpc(name: string, args: Record<string, unknown>): Promise<DbResult<any>> {

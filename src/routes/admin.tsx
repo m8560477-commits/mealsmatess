@@ -321,7 +321,7 @@ function AdminPage() {
           <TabsTrigger value="promos">Promos</TabsTrigger>
           <TabsTrigger value="grant">Grant</TabsTrigger>
           <TabsTrigger value="restaurants">Restaurants</TabsTrigger>
-          <TabsTrigger value="announce">Announce</TabsTrigger>
+          <TabsTrigger value="announce">Push Notifications</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
 
@@ -1122,9 +1122,9 @@ function GrantTab() {
 
   return (
     <div className="max-w-md space-y-3 rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
-      <h3 className="font-display text-lg">Manual grant / revoke</h3>
+      <h3 className="font-display text-lg">Premium email whitelist / user grants</h3>
       <Input
-        placeholder="User ID (uuid)"
+        placeholder="Account email or Firebase user ID"
         value={userId}
         onChange={(e) => setUserId(e.target.value)}
       />
@@ -1142,7 +1142,10 @@ function GrantTab() {
           Revoke
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">Find user IDs in the Users tab.</p>
+      <p className="text-xs text-muted-foreground">
+        Email grants require a verified account email. Grants are separate from paid subscriptions;
+        revoking a grant does not cancel a purchase.
+      </p>
     </div>
   );
 }

@@ -28,6 +28,7 @@ type AiRequestOptions = {
   model?: string;
   timeoutMs?: number;
   maxRetries?: number;
+  abortSignal?: AbortSignal;
   modelOverride?: TextModel;
   instructions?: string;
 } & PromptInput;
@@ -139,6 +140,7 @@ async function lovableRequest(
   path: "/chat/completions" | "/images/generations" | "/audio/speech",
   body: unknown,
   timeoutMs: number,
+  abortSignal?: AbortSignal,
 ): Promise<Response> {
   const key = apiKey();
   const response = await fetch(`${LOVABLE_AI_BASE_URL}${path}`, {
@@ -150,7 +152,9 @@ async function lovableRequest(
       "X-Lovable-AIG-SDK": "fetch",
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: abortSignal
+      ? AbortSignal.any([abortSignal, AbortSignal.timeout(timeoutMs)])
+      : AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new AiProviderError(categoryForStatus(response.status), response.status);
   return response;
@@ -218,6 +222,7 @@ async function lovableChat(options: AiRequestOptions, jsonMode = false): Promise
       ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
     },
     options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS,
+    options.abortSignal,
   );
   let result: unknown;
   try {
@@ -243,12 +248,16 @@ async function lovableChat(options: AiRequestOptions, jsonMode = false): Promise
 
 async function sdkTextRequest<T>(
   options: AiRequestOptions,
-  generate: (model: TextModel, settings: { maxRetries: number; timeout: number }) => Promise<T>,
+  generate: (
+    model: TextModel,
+    settings: { maxRetries: number; timeout: number; abortSignal?: AbortSignal },
+  ) => Promise<T>,
 ): Promise<T> {
   const modelId = options.model ?? DEFAULT_AI_TEXT_MODEL;
   return generate(options.modelOverride ?? vercelGateway().languageModel(modelId), {
     maxRetries: options.maxRetries ?? 1,
     timeout: options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS,
+    abortSignal: options.abortSignal,
   });
 }
 

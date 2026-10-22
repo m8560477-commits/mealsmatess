@@ -1,3 +1,5 @@
+import { NotificationSettings } from "@/components/notification-settings";
+import { notificationNavigation } from "@/lib/notification-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, CheckCheck, ChevronRight, Loader2, Utensils } from "lucide-react";
@@ -6,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/hooks/use-session";
 import {
+  clearMyNotification,
   listMyNotifications,
   markAllMyNotificationsRead,
   setMyNotificationReadStatus,
@@ -13,6 +16,10 @@ import {
 import type { UserNotification } from "@/lib/notifications.types";
 
 const categoryNames: Record<UserNotification["category"], string> = {
+  meal_planning: "Meal planning",
+  pantry_shopping: "Pantry & shopping",
+  account: "Account",
+  promotions: "Promotions",
   recipes: "Recipes",
   healthy_eating: "Healthy eating",
   dining: "MealMate Dining",
@@ -30,6 +37,7 @@ export function NotificationCenter() {
     queryFn: () => listMyNotifications(),
     enabled: !!user,
     staleTime: 15_000,
+    refetchInterval: 30_000,
   });
   const items = (notifications.data?.items ?? []) as UserNotification[];
 
@@ -40,7 +48,7 @@ export function NotificationCenter() {
         queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] }),
         queryClient.invalidateQueries({ queryKey: ["notification-count", user?.id] }),
       ]);
-      navigate({ to: item.destination });
+      navigate(notificationNavigation(item.destination));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not open notification.");
     }
@@ -86,7 +94,7 @@ export function NotificationCenter() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-8 sm:px-6">
+    <main className="notification-centre mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-8 sm:px-6">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -106,6 +114,13 @@ export function NotificationCenter() {
           </Button>
         )}
       </header>
+
+      <details className="mb-6 rounded-2xl border border-white/10 p-4">
+        <summary className="cursor-pointer font-medium">Manage notifications & quiet hours</summary>
+        <div className="mt-4">
+          <NotificationSettings />
+        </div>
+      </details>
 
       {notifications.isLoading ? (
         <div className="flex min-h-48 items-center justify-center">
@@ -176,7 +191,25 @@ export function NotificationCenter() {
                       <time className="text-xs text-muted-foreground" dateTime={item.createdAt}>
                         {new Date(item.createdAt).toLocaleString()}
                       </time>
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            void clearMyNotification({ data: { id: item.id } })
+                              .then(async () => {
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["notifications", user.id],
+                                });
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["notification-count", user.id],
+                                });
+                              })
+                              .catch(() => toast.error("Could not clear notification."));
+                          }}
+                        >
+                          Clear
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"

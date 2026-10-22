@@ -1,3 +1,4 @@
+import { PushLifecycle } from "@/components/push-lifecycle";
 import { SplashScreen } from "@/components/splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -221,6 +222,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <PushLifecycle />
       <ThemeProvider>
         <MascotThemeProvider>
           <LocaleProvider>

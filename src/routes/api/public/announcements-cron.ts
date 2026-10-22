@@ -18,7 +18,11 @@ export const Route = createFileRoute("/api/public/announcements-cron")({
         if (!authorized(request, secret)) return new Response("Unauthorized", { status: 401 });
         try {
           const { processDueAnnouncements } = await import("@/server/notification-delivery");
-          const result = await processDueAnnouncements();
+          const { processNotificationReminders } = await import("@/server/notification-reminders");
+          const result = {
+            announcements: await processDueAnnouncements(),
+            reminders: await processNotificationReminders(),
+          };
           return Response.json(result, { headers: { "Cache-Control": "no-store" } });
         } catch {
           return new Response("Scheduled announcement processing failed.", { status: 500 });
