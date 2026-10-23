@@ -1,8 +1,4 @@
-import { RECIPE_PHOTOS } from "@/assets/recipes/manifest";
-import ackeeImg from "@/assets/recipes/dishes/ackee-and-saltfish.jpg";
-import quinoaImg from "@/assets/recipes/dishes/quinoa-harissa-chicken.jpg";
-import pizzaImg from "@/assets/recipes/dishes/pizza-margherita.jpg";
-
+import { RECIPE_PHOTOS, DISH_RENDITIONS } from "@/assets/recipes/manifest";
 /**
  * Recipe image matching + delivery.
  *
@@ -106,16 +102,16 @@ function curatedKey(value: string): string {
 
 /** Dish photos generated specifically for recipes that had no curated photo. */
 const DISH_PHOTOS: Record<string, string> = {
-  "ackee-and-saltfish": ackeeImg,
-  "mediterranean-quinoa-bowl-with-harissa-chicken": quinoaImg,
-  "pizza-napoletana-margherita": pizzaImg,
-  "pizza-napoletana": pizzaImg,
-  "pizza-margherita": pizzaImg,
+  "ackee-and-saltfish": "ackee-and-saltfish",
+  "mediterranean-quinoa-bowl-with-harissa-chicken": "quinoa-harissa-chicken",
+  "pizza-napoletana-margherita": "pizza-margherita",
+  "pizza-napoletana": "pizza-margherita",
+  "pizza-margherita": "pizza-margherita",
 };
 
 /** Strip the random "-ab12c" suffix some slugs carry. */
 function stripSuffix(key: string): string {
-  return key.replace(/-[a-z0-9]{5}$/, "");
+  return key.replace(/-(?=[a-z0-9]{0,4}[0-9])[a-z0-9]{5}$/, "");
 }
 
 export function curatedRecipeImageUrl(
@@ -130,7 +126,7 @@ export function curatedRecipeImageUrl(
       const photo = RECIPE_PHOTOS[k];
       if (photo) return photo[size];
       const dish = DISH_PHOTOS[k];
-      if (dish) return dish;
+      if (dish) return DISH_RENDITIONS[dish]?.[size] ?? null;
     }
   }
   return null;
@@ -152,7 +148,7 @@ export function categoryFallbackUrl(_r: ImageRecipeLike): string {
   return NEUTRAL_RECIPE_PLACEHOLDER;
 }
 
-/** onError handler: fall back to the dish-matched photo, then a real category photo. */
+/** onError handler: fall back to the dish-matched photo, then the branded placeholder. */
 export function imageFallback(r: ImageRecipeLike, size: ImageSize = "card") {
   return (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -167,4 +163,49 @@ export function imageFallback(r: ImageRecipeLike, size: ImageSize = "card") {
       img.src = categoryFallbackUrl(r);
     }
   };
+}
+
+/** Resize only providers with a known image CDN contract; preserve signed/unknown URLs. */
+export function photoRendition(url: string, width: number): string {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.protocol !== "https:" ||
+      !["images.unsplash.com", "images.pexels.com"].includes(parsed.hostname)
+    )
+      return url;
+    if (parsed.searchParams.has("s") || parsed.searchParams.has("signature")) return url;
+    parsed.searchParams.set("w", String(width));
+    parsed.searchParams.delete("h");
+    parsed.searchParams.set(
+      "auto",
+      parsed.hostname === "images.pexels.com" ? "compress,format" : "format",
+    );
+    parsed.searchParams.set("fit", "max");
+    parsed.searchParams.set("q", "82");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+export function recipePhotoSources(recipe: ImageRecipeLike, size: ImageSize, useCurated = false) {
+  const stored = !useCurated && recipe.image_source && recipe.image_url;
+  const widths = [256, 512, 1024] as const;
+  const sizes = ["thumb", "card", "hero"] as const;
+  const urls = sizes.map((rendition, i) =>
+    stored ? photoRendition(stored, widths[i]!) : curatedRecipeImageUrl(recipe, rendition),
+  );
+  const src = urls[sizes.indexOf(size)] ?? NEUTRAL_RECIPE_PLACEHOLDER;
+  // Unknown hosts (including Blob) have no resizing contract: never advertise fictitious sizes.
+  const srcSet =
+    new Set(urls).size > 1
+      ? urls
+          .map((url, i) =>
+            url ? `${url} ${!stored && url.endsWith(".jpg") ? 816 : widths[i]}w` : null,
+          )
+          .filter(Boolean)
+          .join(", ")
+      : undefined;
+  return { src, srcSet };
 }

@@ -344,7 +344,7 @@ export async function aiScore(
         text:
           `You verify food photos for a recipe app. Score how well EACH image shows exactly this dish from 0 to 100.\n` +
           `RECIPE:\n${recipeSummary(r)}\n\n` +
-          `90+ means exact dish; 70-89 means very likely; 40-69 means similar or unclear; under 40 means a different dish or non-food. Penalize a different main protein, sauce, or dish type heavily. Return one integer score per image in order.`,
+          `90+ means exact dish; 70-89 means very likely; 40-69 means similar or unclear; under 40 means a different dish or non-food. Penalize a different main protein, sauce, or dish type heavily. Reject watermarks, visible text, blur, distorted food, illustrations and unappetising lighting with a score below 40. Prefer rich natural colours, fresh textures, clear plating and professional natural light. Return one integer score per image in order.`,
       },
       ...cands.flatMap((candidate, index) => [
         {
@@ -549,8 +549,12 @@ export async function generateAndSaveAiImage(
     `Photorealistic food photograph of the finished dish "${r.name}"${r.cuisine ? ` (${r.cuisine} cuisine)` : ""}, exactly as made by this recipe.\n` +
     `Ingredients: ${ingredientText(r.ingredients)}\n` +
     `Method:\n${stepText(r.steps)}\n` +
-    `Show only the plated final dish so its key ingredients are visible. Natural light, shallow depth of field, real crockery, 3/4 angle. ` +
-    `No text, no labels, no people, no hands, not an illustration.`;
+    `Premium editorial food photography: show the finished dish clearly, close enough to reveal appetising textures while keeping its identity and plating understandable. ` +
+    `Choose an overhead angle for flat dishes, salads and bowls; a 45-degree angle for layered dishes and baking; a low close-up for stacked food. ` +
+    `Soft natural window light, gentle shadows, realistic depth of field with the main ingredients in focus, rich natural colours, neutral ceramic tableware and a quiet tasteful background. ` +
+    `Match the actual method: crisp fresh leaves for salads, natural sauce gloss for pasta, char only for grilled food, delicate steam only for hot food, tender crumb for baking. ` +
+    `Only show cheese, herbs, sauces, garnishes and sides present in the recipe. No invented ingredients. Respect the cuisine and dietary requirements. ` +
+    `Keep the dish centred with safe space for square and landscape crops. No text, watermark, labels, people or hands. No plastic textures, artificial glow, oversaturation, illustration or distorted food.`;
   const image = await generateAiImage(prompt, {
     feature: "recipe.image",
     size: "1536x1024",

@@ -20,11 +20,12 @@ const prefsSchema = z.object({
 export const getMyPreferences = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }): Promise<FoodPreferences | null> => {
-    const { data } = await context.firebase
+    const { data, error } = await context.firebase
       .from("profiles")
       .select("preferences, onboarding_completed")
       .eq("id", context.userId)
       .maybeSingle();
+    if (error) throw new Error(error.message);
     if (!data) return null;
     const prefs = normalizePreferences(data.preferences);
     return { ...prefs, onboarding_completed: Boolean(data.onboarding_completed) };

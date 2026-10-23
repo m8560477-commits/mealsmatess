@@ -137,11 +137,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      // Only the weights actually used (400 body, 600 medium emphasis, 700 bold)
-      // Sora headings and Nunito Sans body. swap keeps text visible immediately.
+      // One shared family for headings and body text; swap keeps text visible while loading.
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
       },
     ],
   }),
@@ -170,7 +169,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user } = useSession();
+  const { user, loading: sessionLoading } = useSession();
+  const userId = user?.id;
   const isMarketplace = pathname === "/restaurants" || pathname.startsWith("/restaurant/");
   const isFlow =
     pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
@@ -179,15 +179,16 @@ function RootComponent() {
 
   // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
   useEffect(() => {
-    if (user || pathname !== "/") return;
+    if (sessionLoading || userId || pathname !== "/") return;
     if (!hasSeenTour()) void router.navigate({ to: "/welcome", replace: true });
-  }, [pathname, router, user]);
+  }, [pathname, router, userId, sessionLoading]);
 
   useEffect(() => {
     if (
-      !user ||
+      !userId ||
       pathname === "/onboarding" ||
       pathname.startsWith("/auth") ||
+      pathname.startsWith("/legal/") ||
       pathname === "/reset-password"
     )
       return;
@@ -195,21 +196,23 @@ function RootComponent() {
     firebaseData
       .from("profiles")
       .select("onboarding_completed")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           console.error("[onboarding] status check failed", error);
           return;
         }
-        if (active && data && !data.onboarding_completed) {
+        if (active && !data?.onboarding_completed) {
           void router.navigate({ to: "/onboarding", replace: true });
+        } else if (active && pathname === "/welcome") {
+          void router.navigate({ to: "/", replace: true });
         }
       });
     return () => {
       active = false;
     };
-  }, [user, pathname, router]);
+  }, [userId, pathname, router]);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
@@ -232,10 +235,10 @@ function RootComponent() {
                 {/* The one scroll container. Header and nav are siblings, not children. */}
                 <div
                   id="app-scroll"
-                  className="h-full overflow-y-auto overscroll-y-none pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"
+                  className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
                 >
                   <div
-                    className={`mx-auto flex min-h-full w-full flex-col ${pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
+                    className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
                   >
                     <AuthGate>
                       <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
@@ -244,7 +247,7 @@ function RootComponent() {
                     </AuthGate>
                   </div>
                 </div>
-                {pathname === "/onboarding" ? null : <BottomNav />}
+                {isFlow ? null : <BottomNav />}
               </div>
               <Toaster position="top-center" />
               <SplashScreen />

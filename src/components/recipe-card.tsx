@@ -6,6 +6,7 @@ export interface RecipeCardData {
   slug: string;
   name: string;
   image_url: string | null;
+  image_source?: string | null;
   cooking_time_minutes: number | null;
   cuisine: string | null;
   category: string | null;
@@ -17,6 +18,7 @@ export interface TrendingCardData {
   slug: string;
   name: string;
   image_url: string | null;
+  image_source?: string | null;
   cooking_time_minutes: number | null;
   calories: number | null;
   difficulty: string | null;
@@ -51,6 +53,7 @@ export function TrendingCard({
         <RecipeImage
           recipe={recipe}
           size="card"
+          sizes="160px"
           priority={priority}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -102,7 +105,13 @@ export function TrendingCard({
   );
 }
 
-export function RecipeCard({ recipe }: { recipe: RecipeCardData }) {
+export function RecipeCard({
+  recipe,
+  priority = false,
+}: {
+  recipe: RecipeCardData;
+  priority?: boolean;
+}) {
   return (
     <Link
       to="/recipe/$slug"
@@ -113,6 +122,8 @@ export function RecipeCard({ recipe }: { recipe: RecipeCardData }) {
         <RecipeImage
           recipe={recipe}
           size="card"
+          sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 50vw, 320px"
+          priority={priority}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
       </div>

@@ -215,8 +215,8 @@ function RecipesPage() {
           </div>
         ) : recipes && recipes.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {recipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r} />
+            {recipes.map((r, index) => (
+              <RecipeCard key={r.id} recipe={r} priority={index < 2} />
             ))}
           </div>
         ) : (
