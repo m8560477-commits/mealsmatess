@@ -69,3 +69,17 @@ WebP renditions use quality 86; the welcome capture uses quality 90. Food media 
 ## Content maintenance
 
 Update the source audit and destination verification before changing availability claims. Keep real-app screenshots current after significant UI changes. Link to the app's maintained legal pages; do not invent compliance guarantees, testimonials, restaurant counts or pricing. Add a Play link only after verifying the actual published listing. All navigation and calls to action work without JavaScript; the mobile menu uses native `details`/`summary`.
+
+## Google discovery and indexing
+
+The public site ships a single-page XML sitemap at `/sitemap.xml`, referenced by `/robots.txt`. The sitemap intentionally lists only the canonical homepage: section anchors are not separate pages, and Consumer/Hub URLs belong to their own domains. Search metadata includes a descriptive title, canonical URL, index/follow and large-image-preview directives, plus JSON-LD Organization, WebSite and WebPage entities with real branding only. JSON-LD is data, not executable application JavaScript. No reviews, ratings, prices or search actions are fabricated.
+
+After DNS and HTTPS for `www.mealmate.site` work:
+
+1. Open https://search.google.com/search-console/ using the Google account that should own the site.
+2. Add a Domain property for `mealmate.site`. Publish the exact DNS TXT verification value Google provides at your DNS provider. No verification token is stored in this repository.
+3. Submit `https://www.mealmate.site/sitemap.xml` under **Sitemaps**.
+4. Inspect `https://www.mealmate.site/` under **URL inspection**, run **Test live URL**, then **Request indexing** when eligible.
+5. Check Page indexing for crawl or canonical issues. Google decides when and whether to index a page; a sitemap submission does not guarantee inclusion or ranking.
+
+Check the production homepage and sitemap return HTTP 200 and have no `X-Robots-Tag: noindex` header. Keep Vercel preview deployments excluded from indexing. Do not use the retired unauthenticated sitemap-ping endpoint; Google no longer supports it. These steps require access to the site's DNS and Google Search Console account.

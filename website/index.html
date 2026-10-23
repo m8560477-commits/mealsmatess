@@ -4,12 +4,57 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f8f7f3" />
-    <title>MealMate — Discover. Plan. Eat. Enjoy.</title>
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <title>MealMate — Recipes, Meal Planning &amp; Restaurant Tools</title>
     <meta
       name="description"
       content="Meet MealMate by Taz Technologies. Find cooking inspiration, plan your meals and organise shopping. Explore MealMate Hub for restaurant operations."
     />
     <link rel="canonical" href="https://www.mealmate.site/" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.mealmate.site/#taz-technologies",
+            "name": "Taz Technologies"
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://www.mealmate.site/#organization",
+            "name": "MealMate",
+            "url": "https://www.mealmate.site/",
+            "logo": "https://www.mealmate.site/apple-touch-icon.png",
+            "parentOrganization": { "@id": "https://www.mealmate.site/#taz-technologies" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.mealmate.site/#website",
+            "name": "MealMate",
+            "url": "https://www.mealmate.site/",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://www.mealmate.site/#organization" }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://www.mealmate.site/#webpage",
+            "url": "https://www.mealmate.site/",
+            "name": "MealMate — Recipes, Meal Planning & Restaurant Tools",
+            "description": "Meet MealMate by Taz Technologies. Find cooking inspiration, plan your meals and organise shopping. Explore MealMate Hub for restaurant operations.",
+            "inLanguage": "en",
+            "isPartOf": { "@id": "https://www.mealmate.site/#website" },
+            "about": { "@id": "https://www.mealmate.site/#organization" },
+            "primaryImageOfPage": {
+              "@type": "ImageObject",
+              "url": "https://www.mealmate.site/media/social.jpg",
+              "width": 1200,
+              "height": 630
+            }
+          }
+        ]
+      }
+    </script>
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="MealMate" />
     <meta property="og:title" content="MealMate — Discover. Plan. Eat. Enjoy." />
