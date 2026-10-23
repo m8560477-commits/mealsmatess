@@ -1,4 +1,4 @@
-const recipeImageAssets = import.meta.glob("./*.webp", {
+const recipeImageAssets = import.meta.glob("./**/*.{webp,jpg}", {
   eager: true,
   query: "?url",
   import: "default",
@@ -22,8 +22,8 @@ const recipeSlugs = [
   "west-african-jollof-rice",
 ] as const;
 
-function imageUrl(slug: string) {
-  const filename = `${slug}.webp`;
+function imageUrl(slug: string, size: "thumb" | "card" | "hero") {
+  const filename = size === "hero" ? `${slug}.webp` : `${slug}-${size}.webp`;
   const url = recipeImageAssets[`./${filename}`];
   if (!url) throw new Error(`Missing bundled recipe image: ${filename}`);
   return url;
@@ -32,7 +32,25 @@ function imageUrl(slug: string) {
 export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: string }> =
   Object.fromEntries(
     recipeSlugs.map((slug) => {
-      const url = imageUrl(slug);
-      return [slug, { thumb: url, card: url, hero: url }];
+      return [
+        slug,
+        {
+          thumb: imageUrl(slug, "thumb"),
+          card: imageUrl(slug, "card"),
+          hero: imageUrl(slug, "hero"),
+        },
+      ];
     }),
+  );
+
+export const DISH_RENDITIONS: Record<string, { thumb: string; card: string; hero: string }> =
+  Object.fromEntries(
+    ["ackee-and-saltfish", "quinoa-harissa-chicken", "pizza-margherita"].map((slug) => [
+      slug,
+      {
+        thumb: recipeImageAssets[`./dishes/${slug}-thumb.webp`]!,
+        card: recipeImageAssets[`./dishes/${slug}-card.webp`]!,
+        hero: recipeImageAssets[`./dishes/${slug}.jpg`]!,
+      },
+    ]),
   );
