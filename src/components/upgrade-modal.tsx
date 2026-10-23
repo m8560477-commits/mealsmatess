@@ -8,19 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  Check,
-  Crown,
-  Leaf,
-  Lock,
-  RefreshCcw,
-  Shield,
-  Sparkles,
-  Users,
-  X,
-  Zap,
-  Gift,
-} from "lucide-react";
+import { Check, Crown, Leaf, Lock, RefreshCcw, Shield, Users, X, Zap, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCurrency, formatPrice, PRICES_USD } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -257,7 +245,7 @@ function PremiumCard({ billing, onClose }: { billing: "annual" | "monthly"; onCl
       <div className="shimmer pointer-events-none absolute inset-0 opacity-40" aria-hidden />
       <div className="relative rounded-[26px] bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-5 dark:from-amber-950/60 dark:via-orange-950/50 dark:to-rose-950/60">
         <span className="pulse-badge absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/40">
-          <Sparkles className="h-3 w-3" /> Most Popular
+          Most Popular
         </span>
 
         <div className="mt-2 flex items-center gap-3">
@@ -282,7 +270,7 @@ function PremiumCard({ billing, onClose }: { billing: "annual" | "monthly"; onCl
 
         <Link to="/premium" onClick={onClose} className="mt-4 block">
           <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-base font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
-            <Sparkles className="mr-2 h-4 w-4" /> Start 3-Day Free Trial
+            Start 3-Day Free Trial
           </Button>
         </Link>
         <p className="mt-2 text-center text-[11px] text-muted-foreground">

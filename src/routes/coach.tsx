@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
-import { Loader2, Send, Sparkles, HeartPulse, ChevronRight } from "lucide-react";
+import { Loader2, Send, HeartPulse, ChevronRight } from "lucide-react";
 import { nutritionCoach, getCoachContext } from "@/lib/coach.functions";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
@@ -230,7 +230,7 @@ function CoachPage() {
         </Button>
       </form>
       <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-        <Sparkles className="h-3 w-3" /> Educational guidance, not medical advice.
+        Educational guidance, not medical advice.
       </p>
     </main>
   );

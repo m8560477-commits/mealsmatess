@@ -10,7 +10,7 @@ import {
   ChefHat,
   Lightbulb,
   Loader2,
-  Sparkles,
+  Image,
   Play,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -314,7 +314,7 @@ function RecipePage() {
                 {regen ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Image className="mr-2 h-4 w-4" />
                 )}
                 {isPremium ? "Regenerate image" : "AI image (Premium)"}
               </Button>

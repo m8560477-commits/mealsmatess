@@ -9,11 +9,10 @@ import {
   Loader2,
   Plus,
   Search,
-  Sparkles,
+  TrendingUp,
   Ticket,
   Trash2,
   TrendingDown,
-  TrendingUp,
   Users,
   Utensils,
 } from "lucide-react";
@@ -535,7 +534,7 @@ function OverviewTab({ analytics, loading }: { analytics?: Analytics; loading: b
         <KpiCard
           label="Conversion"
           value={`${subscriptions.conversionRate.toFixed(1)}%`}
-          icon={Sparkles}
+          icon={TrendingUp}
         />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">

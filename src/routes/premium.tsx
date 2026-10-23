@@ -11,7 +11,6 @@ import {
   Lock,
   RefreshCcw,
   Shield,
-  Sparkles,
   Ticket,
   Users,
   Zap,
@@ -127,7 +126,6 @@ function PremiumPage() {
           </p>
           {isPremium && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1.5 text-xs font-semibold backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5" />
               {t("premium.youAreMember", { defaultValue: "You're Premium" })} ({tier}){" "}
               {trialActive ? "· trial" : ""}
               {entitlement?.periodEnd
@@ -389,7 +387,7 @@ function PremiumHeroCard({
       <div className="shimmer pointer-events-none absolute inset-0 opacity-40" aria-hidden />
       <div className="relative rounded-[30px] bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-6 dark:from-amber-950/60 dark:via-orange-950/50 dark:to-rose-950/60">
         <span className="pulse-badge absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-orange-500/40">
-          <Sparkles className="h-3 w-3" /> Most Popular
+          Most Popular
         </span>
         <div className="mt-2 flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-rose-500 text-white shadow-md">
@@ -416,7 +414,7 @@ function PremiumHeroCard({
           disabled={disabled}
           className="mt-5 h-14 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-base font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50"
         >
-          <Sparkles className="mr-2 h-5 w-5" /> Start 3-Day Free Trial
+          Start 3-Day Free Trial
         </Button>
         <p className="mt-2 text-center text-xs text-muted-foreground">
           Cancel anytime. No charges during the free trial.

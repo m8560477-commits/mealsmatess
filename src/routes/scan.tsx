@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Camera, CalendarDays, Flame, Loader2, Plus, Sparkles, Utensils } from "lucide-react";
+import { Camera, CalendarDays, Flame, Loader2, Plus, Utensils } from "lucide-react";
 import { scanKitchen, scanDish, type ScannedDish } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
 import { firebaseData } from "@/lib/firebase-data";
@@ -241,7 +241,7 @@ function ScanPage() {
         {(
           [
             { id: "dish", label: "Identify dish", icon: Utensils },
-            { id: "ingredients", label: "Log ingredients", icon: Sparkles },
+            { id: "ingredients", label: "Log ingredients", icon: Camera },
           ] as const
         ).map((m) => (
           <button
@@ -434,7 +434,7 @@ function ScanPage() {
               Add all to pantry
             </Button>
             <Button variant="secondary" className="rounded-full" onClick={reset}>
-              <Sparkles className="mr-2 h-4 w-4" />
+              <Camera className="mr-2 h-4 w-4" />
               Scan again
             </Button>
           </div>

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Crown, Loader2, Send, Sparkles, Wand2 } from "lucide-react";
+import { Crown, Loader2, Send, Eye } from "lucide-react";
 import { ChefMascot } from "@/components/chef-mascot";
 import { CookingInput } from "@/components/cooking-input";
 import { postAuthenticatedAi } from "@/lib/ai-api";
@@ -156,7 +156,7 @@ function ChatPage() {
             aria-pressed={visualMode}
             onClick={() => setVisualMode((v) => !v)}
           >
-            <Wand2 /> Visual Mode {visualMode ? "on" : "off"}
+            <Eye /> Visual Mode {visualMode ? "on" : "off"}
           </Button>
         ) : (
           <Button asChild variant="ghost" className="rounded-full text-muted-foreground">
@@ -249,8 +249,7 @@ function ChatPage() {
         />
       </div>
       <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-        <Sparkles className="h-3 w-3" /> AI answers can be wrong — use judgment for allergies and
-        safety.
+        AI answers can be wrong — use judgment for allergies and safety.
       </p>
     </main>
   );

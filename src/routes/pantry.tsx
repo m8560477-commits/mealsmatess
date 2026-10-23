@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Refrigerator, Camera, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Trash2, Refrigerator, Camera, ChefHat, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,7 +198,7 @@ function PantryPage() {
         disabled={!items.length || generating}
         onClick={cook}
       >
-        {generating ? <Loader2 className="animate-spin" /> : <Sparkles />} Find a recipe
+        {generating ? <Loader2 className="animate-spin" /> : <ChefHat />} Find a recipe
       </Button>
       <Button asChild variant="ghost" className="mt-3 h-11 w-full">
         <Link to="/list">Shopping list</Link>

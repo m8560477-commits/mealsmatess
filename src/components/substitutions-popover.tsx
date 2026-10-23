@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, ArrowLeftRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { suggestSubstitutions } from "@/lib/planner.functions";
@@ -41,7 +41,7 @@ export function SubstitutionsButton({
         aria-label={`Substitutes for ${ingredient}`}
         className="text-muted-foreground transition-colors hover:text-primary"
       >
-        <Sparkles className="h-3.5 w-3.5" />
+        <ArrowLeftRight className="h-3.5 w-3.5" />
       </button>
       {open && (
         <div
