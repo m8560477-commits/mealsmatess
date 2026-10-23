@@ -6,6 +6,17 @@
   "outputDirectory": "dist",
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "hub.mealsmates.site"
+        }
+      ],
+      "destination": "https://mealmate-partners.vercel.app/",
+      "permanent": false
+    },
+    {
       "source": "/:path*",
       "has": [
         {
