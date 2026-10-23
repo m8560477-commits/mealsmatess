@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Loader2, Sparkles } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
 import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
@@ -178,7 +178,7 @@ function RecipesPage() {
           onClick={handleSurprise}
           disabled={busy}
         >
-          <Sparkles className="mr-2 h-4 w-4" /> Surprise
+          Surprise
         </Button>
       </form>
 

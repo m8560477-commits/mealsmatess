@@ -1,7 +1,15 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Plus, Trash2, Loader2, ShoppingCart, Sparkles, Wand2 } from "lucide-react";
+import {
+  CalendarDays,
+  Plus,
+  Trash2,
+  Loader2,
+  ShoppingCart,
+  ChefHat,
+  ShoppingBag,
+} from "lucide-react";
 import { toast } from "sonner";
 import { myPlannerQuery, myFavoritesQuery } from "@/lib/queries";
 import { firebaseData } from "@/lib/firebase-data";
@@ -194,7 +202,7 @@ function PlannerPage() {
               {planShop ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Wand2 className="mr-2 h-4 w-4" />
+                <ShoppingBag className="mr-2 h-4 w-4" />
               )}
               Plan & shop
             </Button>
@@ -204,7 +212,7 @@ function PlannerPage() {
               {aiLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
+                <ChefHat className="mr-2 h-4 w-4" />
               )}
               AI ideas
             </Button>

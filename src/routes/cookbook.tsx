@@ -15,7 +15,6 @@ import {
   Search,
   ShoppingCart,
   Trash2,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -296,7 +295,7 @@ function CookbookPage() {
         </div>
       ) : merged.length === 0 ? (
         <div className="mt-10 rounded-3xl border border-dashed border-border p-10 text-center">
-          <Sparkles className="mx-auto h-10 w-10 text-primary" />
+          <BookMarked className="mx-auto h-10 w-10 text-primary" />
           <h2 className="mt-3 font-display text-xl">Your cookbook is empty</h2>
           <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
             Paste a cooking video link from TikTok, Instagram Reels, YouTube Shorts, or Facebook
@@ -421,7 +420,7 @@ function CookbookPage() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <BookMarked className="mr-2 h-4 w-4" />
                   Import
                 </>
               )}

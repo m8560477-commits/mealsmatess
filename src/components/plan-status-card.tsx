@@ -1,13 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  Crown,
-  Sparkles,
-  ChefHat,
-  MessageCircleQuestion,
-  Calendar,
-  Check,
-  Zap,
-} from "lucide-react";
+import { Crown, MessageCircleQuestion, ChefHat, Calendar, Check, Zap } from "lucide-react";
 import { usePremium, useUsage } from "@/hooks/use-premium";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
@@ -17,7 +9,7 @@ const FEATURE_META: Record<
   { icon: React.ComponentType<{ className?: string }>; label: string }
 > = {
   ai_day: { icon: MessageCircleQuestion, label: "Mia AI today" },
-  ai_month: { icon: Sparkles, label: "Mia AI this month" },
+  ai_month: { icon: MessageCircleQuestion, label: "Mia AI this month" },
   favorites: { icon: ChefHat, label: "Saved favourites" },
   meal_plans: { icon: Calendar, label: "Active meal plans" },
 };
@@ -71,7 +63,7 @@ export function PlanStatusCard() {
               <Crown className="h-3 w-3" /> Premium {tier} {trialActive ? "· trial" : ""}
             </span>
             <h3 className="mt-2 font-display text-2xl font-bold leading-tight">
-              Unlimited everything ✨
+              Unlimited everything
             </h3>
             <p className="mt-1 text-xs text-white/90">
               {entitlement?.periodEnd
@@ -112,7 +104,7 @@ export function PlanStatusCard() {
           to="/premium"
           className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-white shadow-sm"
         >
-          <Sparkles className="h-3 w-3" /> Upgrade
+          Upgrade
         </Link>
       </div>
 
@@ -122,7 +114,7 @@ export function PlanStatusCard() {
               <li key={k} className="h-10 animate-pulse rounded-xl bg-muted/60" />
             ))
           : entries.map(([key, u]) => {
-              const meta = FEATURE_META[key] ?? { icon: Sparkles, label: u.label };
+              const meta = FEATURE_META[key] ?? { icon: MessageCircleQuestion, label: u.label };
               const Icon = meta.icon;
               const remaining = Math.max(u.max - u.count, 0);
               const pct = Math.min((u.count / u.max) * 100, 100);

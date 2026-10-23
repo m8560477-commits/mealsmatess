@@ -7,7 +7,7 @@ import {
   Loader2,
   MessageCircle,
   ShieldCheck,
-  Sparkles,
+  Activity,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,12 +29,12 @@ type Result = {
   configured?: boolean;
 };
 
-const tests: { name: TestName; label: string; description: string; icon: typeof Sparkles }[] = [
+const tests: { name: TestName; label: string; description: string; icon: typeof Activity }[] = [
   {
     name: "backend",
     label: "Backend + provider config",
     description: "Authenticated server and selected model configuration",
-    icon: Sparkles,
+    icon: Activity,
   },
   {
     name: "recipe",
@@ -52,7 +52,7 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
     name: "gateway",
     label: "AI Gateway",
     description: "Live text request using server-side provider credentials",
-    icon: Sparkles,
+    icon: Activity,
   },
   {
     name: "image",

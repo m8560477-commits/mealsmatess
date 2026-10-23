@@ -4,7 +4,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Sparkles,
   Search,
   SlidersHorizontal,
   Camera,
@@ -270,18 +269,13 @@ function Index() {
           className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-ink via-ink to-primary/40 p-5 text-left text-background"
         >
           <div>
-            <Sparkles className="h-4 w-4 text-primary" />
             <h2 className="mt-2 font-display text-2xl leading-tight text-primary">Surprise Me</h2>
             <p className="mt-2 text-xs leading-relaxed text-background/70">
               Get a random recipe made just for you!
             </p>
           </div>
           <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-background px-4 py-2 text-xs font-semibold text-foreground">
-            {busy === "surprise" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
+            {busy === "surprise" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Surprise me
           </span>
         </button>
@@ -490,7 +484,7 @@ function Index() {
         aria-label="AI Assistant"
         className="fixed bottom-24 right-4 z-40 flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full bg-ink text-background shadow-lg"
       >
-        <Sparkles className="h-4 w-4" />
+        <MessageCircleQuestion className="h-4 w-4" />
         <span className="text-[8px] font-medium leading-none">AI</span>
       </Link>
     </main>
