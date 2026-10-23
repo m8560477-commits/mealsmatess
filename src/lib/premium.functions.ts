@@ -345,7 +345,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
         promo.reward_kind === "percent_discount"
           ? `${promo.reward_value}% discount saved — it'll apply at checkout on mobile.`
           : grantedLifetime
-            ? "Lifetime Premium unlocked! 🎉"
+            ? "Lifetime Premium unlocked!"
             : `${grantedDays} days of Premium added to your account.`,
     };
   });

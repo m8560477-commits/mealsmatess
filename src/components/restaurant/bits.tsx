@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Star, MapPin, Clock, BadgeCheck, Bike } from "lucide-react";
+import { Star, MapPin, Clock, BadgeCheck, Bike, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDistance, isOpenNow } from "@/lib/geo";
 import { ORDER_STATUS_LABEL, TRACKING_STEPS, type OrderStatus } from "@/lib/restaurants.schemas";
@@ -46,7 +46,9 @@ export function RestaurantCard({
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl">🍽️</div>
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <Utensils className="h-8 w-8" aria-hidden="true" />
+          </div>
         )}
         <div className="absolute left-3 top-3 flex gap-2">
           <OpenBadge hours={restaurant.opening_hours} />

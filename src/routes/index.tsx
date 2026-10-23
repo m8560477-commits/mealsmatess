@@ -61,14 +61,14 @@ export const Route = createFileRoute("/")({
 });
 
 const CATEGORY_PILLS = [
-  { label: "Breakfast", emoji: "🍳", search: { c: "Breakfast" } },
-  { label: "Lunch", emoji: "🥣", search: { c: "Lunch" } },
-  { label: "Dinner", emoji: "🍛", search: { c: "Dinner" } },
-  { label: "Dessert", emoji: "🍰", search: { c: "Dessert" } },
-  { label: "Snacks", emoji: "🍿", search: { c: "Snacks" } },
-  { label: "South African", emoji: "🇿🇦", search: { c: "South African Favorites" } },
-  { label: "Healthy", emoji: "🌿", search: { c: "Healthy Meals" } },
-  { label: "Vegan", emoji: "🌱", search: { c: "Vegan" } },
+  { label: "Breakfast", search: { c: "Breakfast" } },
+  { label: "Lunch", search: { c: "Lunch" } },
+  { label: "Dinner", search: { c: "Dinner" } },
+  { label: "Dessert", search: { c: "Dessert" } },
+  { label: "Snacks", search: { c: "Snacks" } },
+  { label: "South African", search: { c: "South African Favorites" } },
+  { label: "Healthy", search: { c: "Healthy Meals" } },
+  { label: "Vegan", search: { c: "Vegan" } },
 ] as const;
 
 function greeting() {
@@ -171,9 +171,7 @@ function Index() {
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             {greeting()}
           </p>
-          <h1 className="font-display text-4xl leading-tight">
-            Hi {firstName} <span aria-hidden>👋</span>
-          </h1>
+          <h1 className="font-display text-4xl leading-tight">Hi {firstName}</h1>
         </div>
         <div className="flex items-center gap-2">
           <XpChip />
@@ -224,7 +222,6 @@ function Index() {
               search={c.search}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
             >
-              <span aria-hidden>{c.emoji}</span>
               {c.label}
             </Link>
           ))}

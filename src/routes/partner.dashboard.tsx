@@ -383,9 +383,9 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
             </div>
 
             <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-              {o.delivery_address && <p>📍 {o.delivery_address}</p>}
-              {o.contact_phone && <p>📞 {o.contact_phone}</p>}
-              {o.notes && <p>📝 {o.notes}</p>}
+              {o.delivery_address && <p>Address: {o.delivery_address}</p>}
+              {o.contact_phone && <p>Phone: {o.contact_phone}</p>}
+              {o.notes && <p>Notes: {o.notes}</p>}
             </div>
 
             {NEXT_STATUS[o.status].length > 0 && (
