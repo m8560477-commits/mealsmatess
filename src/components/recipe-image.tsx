@@ -7,6 +7,7 @@ import {
   type ImageRecipeLike,
   type ImageSize,
 } from "@/lib/recipe-image";
+
 /**
  * Renders a recipe photo that always depicts the dish (or a neutral category
  * placeholder). Order: verified stored photo -> audited bundled photo ->
@@ -51,6 +52,7 @@ export function RecipeImage({
       </div>
     );
   }
+
   if (src === fallback || failed)
     return (
       <div
