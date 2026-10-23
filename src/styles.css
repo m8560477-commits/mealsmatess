@@ -1222,3 +1222,39 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
     padding-block: 16px;
   }
 }
+
+/* Restaurant workspace has its own restrained palette and normal page scrolling. */
+.hub-surface {
+  --background: #0b0b0c;
+  --foreground: #faf9f6;
+  --card: #151516;
+  --card-foreground: #faf9f6;
+  --primary: #faf9f6;
+  --primary-foreground: #111111;
+  --secondary: #252526;
+  --secondary-foreground: #faf9f6;
+  --muted: #232324;
+  --muted-foreground: #b3afaa;
+  --border: #333334;
+  --input: #3b3b3c;
+  --accent: #29292b;
+  --accent-foreground: #faf9f6;
+  color-scheme: dark;
+}
+
+.hub-auth > div {
+  display: block;
+  max-width: 32rem;
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: none;
+}
+.hub-auth > div > div:first-child {
+  display: none;
+}
+.hub-auth .bg-white\/80 {
+  background: var(--card);
+}
+.hub-auth .text-emerald-700\/80 {
+  color: var(--muted-foreground);
+}

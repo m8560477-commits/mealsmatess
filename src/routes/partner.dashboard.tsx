@@ -1,3 +1,6 @@
+import { RestaurantImageUpload } from "@/components/hub/restaurant-image-upload";
+import { RestaurantSettings } from "@/components/hub/restaurant-settings";
+import { CONSUMER_URL } from "@/lib/hub-surface";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -62,6 +65,7 @@ type MenuRow = {
   category: string | null;
   is_available: boolean;
   sort_order: number;
+  image_url: string | null;
 };
 
 type OrderRow = {
@@ -83,7 +87,14 @@ type OrderRow = {
   }[];
 };
 
-const emptyItem = { name: "", description: "", price: "", category: "", is_available: true };
+const emptyItem = {
+  name: "",
+  description: "",
+  price: "",
+  category: "",
+  is_available: true,
+  image_url: "",
+};
 
 function PartnerDashboard() {
   const { user, loading } = useSession();
@@ -116,6 +127,16 @@ function PartnerDashboard() {
     );
   }
 
+  if (mine.isError)
+    return (
+      <div role="alert" className="p-8 text-center">
+        <p>Could not load your restaurant.</p>
+        <Button onClick={() => mine.refetch()} className="mt-4">
+          Try again
+        </Button>
+      </div>
+    );
+
   const restaurant = mine.data?.restaurant as
     | (Record<string, unknown> & {
         id: string;
@@ -141,8 +162,8 @@ function PartnerDashboard() {
     return (
       <Empty
         title={`Application ${restaurant.approval_status.replace("_", " ")}`}
-        body="Your dashboard opens as soon as our team approves your restaurant. We usually review within 1–2 business days."
-        cta={{ to: "/restaurants", label: "Browse restaurants" }}
+        body="Your dashboard opens when your restaurant is approved. Contact support if you need help with your application."
+        cta={{ to: "/support", label: "Contact support" }}
       />
     );
   }
@@ -173,6 +194,9 @@ function PartnerDashboard() {
           <TabsTrigger value="menu" className="flex-1 rounded-full">
             Menu
           </TabsTrigger>
+          <TabsTrigger value="settings" className="flex-1 rounded-full">
+            Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="mt-4">
@@ -185,17 +209,19 @@ function PartnerDashboard() {
             items={(mine.data?.menu ?? []) as unknown as MenuRow[]}
           />
         </TabsContent>
+        <TabsContent value="settings" className="mt-4">
+          <RestaurantSettings key={restaurant.id} restaurant={restaurant} />
+        </TabsContent>
       </Tabs>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
         Your live customer page:{" "}
-        <Link
-          to="/restaurant/$slug"
-          params={{ slug: String(restaurant["slug"] ?? "") }}
+        <a
+          href={`${CONSUMER_URL}/restaurant/${encodeURIComponent(String(restaurant["slug"] ?? ""))}`}
           className="underline"
         >
-          view as a customer
-        </Link>
+          view in MealMate Consumer
+        </a>
       </p>
     </div>
   );
@@ -288,7 +314,7 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
 
   usePartnerOrdersRealtime(restaurantId);
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ["partner", "orders", restaurantId, scope],
     queryFn: () => listOrders({ data: { restaurantId, scope } }),
     refetchInterval: scope === "active" ? 20000 : false,
@@ -305,6 +331,15 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
   });
 
   const orders = (data ?? []) as unknown as OrderRow[];
+  if (isError)
+    return (
+      <div role="alert" className="p-6 text-center">
+        <p>Could not load orders.</p>
+        <Button onClick={() => refetch()} className="mt-3">
+          Try again
+        </Button>
+      </div>
+    );
 
   return (
     <div className="space-y-3">
@@ -428,6 +463,7 @@ function MenuPanel({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<MenuRow | null>(null);
   const [form, setForm] = useState(emptyItem);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const grouped = useMemo(() => {
@@ -453,6 +489,7 @@ function MenuPanel({
       price: String(item.price ?? ""),
       category: item.category ?? "",
       is_available: item.is_available,
+      image_url: item.image_url ?? "",
     });
     setOpen(true);
   }
@@ -463,6 +500,7 @@ function MenuPanel({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy || uploading) return;
     const price = Number(form.price);
     if (!Number.isFinite(price) || price < 0) {
       toast.error("Enter a valid price");
@@ -477,6 +515,7 @@ function MenuPanel({
           name: form.name.trim(),
           price,
           is_available: form.is_available,
+          image_url: form.image_url || null,
           sort_order: editing?.sort_order ?? items.length,
           ...(form.description.trim() ? { description: form.description.trim() } : {}),
           ...(form.category.trim() ? { category: form.category.trim() } : {}),
@@ -512,6 +551,7 @@ function MenuPanel({
           name: item.name,
           price: Number(item.price),
           is_available: checked,
+          image_url: item.image_url,
           sort_order: item.sort_order,
           ...(item.description ? { description: item.description } : {}),
           ...(item.category ? { category: item.category } : {}),
@@ -545,6 +585,14 @@ function MenuPanel({
                   key={item.id}
                   className={`flex items-center gap-3 p-4 ${i > 0 ? "border-t border-border/60" : ""}`}
                 >
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt=""
+                      loading="lazy"
+                      className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.name}</p>
                     {item.description && (
@@ -581,8 +629,13 @@ function MenuPanel({
         ))
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl">
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!busy && !uploading) setOpen(next);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-3xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit dish" : "Add dish"}</DialogTitle>
           </DialogHeader>
@@ -626,6 +679,14 @@ function MenuPanel({
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
+            <RestaurantImageUpload
+              restaurantId={restaurantId}
+              kind="menu-item"
+              label="Dish photo"
+              value={form.image_url}
+              onUploaded={(url) => setForm((prev) => ({ ...prev, image_url: url }))}
+              onBusyChange={setUploading}
+            />
             <label className="flex items-center justify-between rounded-2xl border border-border/60 px-4 py-3 text-sm">
               Available to order
               <Switch
@@ -634,7 +695,7 @@ function MenuPanel({
               />
             </label>
             <DialogFooter>
-              <Button type="submit" disabled={busy} className="w-full rounded-full">
+              <Button type="submit" disabled={busy || uploading} className="w-full rounded-full">
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editing ? "Save changes" : "Add dish"}
               </Button>

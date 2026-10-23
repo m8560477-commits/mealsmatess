@@ -17,6 +17,7 @@ const ROUTE_SMOKE_PATHS = [
   "/coach",
   "/cookbook",
   "/grocery",
+  "/hub",
   "/list",
   "/notifications",
   "/onboarding",

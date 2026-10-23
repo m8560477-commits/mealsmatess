@@ -92,12 +92,10 @@ Canonical, JSON-LD identifiers, Open Graph/social image URLs, sitemap and robots
 
 For Google Search Console, verify a URL-prefix property for **https://discover.mealsmates.site/** (using Google's actual verification instructions), or a Domain property for `mealsmates.site` if you control its DNS. Submit **https://discover.mealsmates.site/sitemap.xml**, then inspect the homepage and request indexing. Google account ownership verification is still required; no submission or indexing is claimed.
 
-## Hub entry subdomain — hub.mealsmates.site
+## Dedicated Hub — partner.mealsmates.site
 
-**https://hub.mealsmates.site/** forwards to the verified existing Hub application at **https://mealmate-partners.vercel.app/**. Its host-specific temporary 307 redirect is deployed in the website project, preserving paths and query strings. The public website's four Hub links use this branded entry address. Browsers finish on the existing Hub domain; this is forwarding, not a migration of the Hub app or its authentication origin.
+The new Firebase Hub is served directly at **https://partner.mealsmates.site/** by the existing `mealsmates` Vercel application project. `hub.mealsmates.site` is a direct alias. Attach these hostnames to that project, not this static website. Website forwarding rules have been removed. The app selects its restaurant surface from the request hostname on the server and browser, with the same Firebase authentication, Firestore records and Blob store as Consumer.
 
-The signed-in Vercel team exposes the undeployed `mealmate-hub` project, Consumer and website projects. The working `mealmate-partners.vercel.app` deployment is not available as an editable project in that team, so attaching a custom domain directly to its deployment cannot be done with current access. This redirect avoids changing Hub hosting, authentication, services or application code. If the live Hub project becomes available later, replace forwarding with a direct domain attachment after checking authentication callback URLs. The existing website and Consumer domains are unaffected.
+The earlier audited Supabase Hub at mealmate-partners.vercel.app remains a separate legacy application; its accounts and records are not automatically migrated. The public website now describes the new shared Firebase workspace: applications, orders, menus, photos, profile settings and four order metrics. New partner applications require administrator approval before discovery.
 
-## Preferred restaurant address — partner.mealsmates.site
-
-Per the requested name change, **https://partner.mealsmates.site/** is the preferred branded entry for MealMate Hub. It forwards to the existing https://mealmate-partners.vercel.app/ application with explicit root and wildcard 307 rules, preserving paths/query strings. All four website restaurant links use partner. The earlier hub.mealsmates.site entry continues to work. Neither hostname changes the Hub authentication origin.
+See `docs/hub-deployment.md` for cutover and validation details.

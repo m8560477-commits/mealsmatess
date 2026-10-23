@@ -1,3 +1,4 @@
+import { storeRestaurantImage } from "@/lib/restaurant-media.server";
 // Server-only restaurant marketplace logic. Never import from client code.
 import { firebaseAdmin } from "@/server/firebase-admin";
 import { slugify } from "@/lib/slug";
@@ -10,9 +11,6 @@ import {
   type OrderStatus,
   type ProfileUpdateInput,
 } from "@/lib/restaurants.schemas";
-
-const BUCKET = "restaurant-media";
-const SIGNED_URL_TTL = 60 * 60 * 24 * 365 * 5;
 
 async function isAdmin(userId: string): Promise<boolean> {
   const { data } = await firebaseAdmin
@@ -91,6 +89,11 @@ export async function createApplication(userId: string, input: ApplicationInput)
       delivery_estimate_minutes: input.delivery_estimate_minutes,
       opening_hours: (input.opening_hours ?? {}) as never,
       approval_status: "pending",
+      is_demo: false,
+      is_accepting_orders: false,
+      supports_delivery: true,
+      supports_pickup: true,
+      created_at: new Date().toISOString(),
     })
     .select("id,slug,approval_status")
     .single();
@@ -114,6 +117,7 @@ export async function createApplication(userId: string, input: ApplicationInput)
     restaurant_id: restaurant.id,
     applicant_id: userId,
     status: "pending",
+    created_at: new Date().toISOString(),
     submitted_data: input as never,
   });
 
@@ -128,49 +132,56 @@ export async function createApplication(userId: string, input: ApplicationInput)
 }
 
 export async function fetchMyRestaurant(userId: string) {
-  const { data: restaurant } = await firebaseAdmin
+  const { data: restaurant, error: restaurantError } = await firebaseAdmin
     .from("restaurants")
     .select("*,restaurant_locations(id,label,address,latitude,longitude)")
     .eq("owner_id", userId)
     .maybeSingle();
 
+  if (restaurantError) throw restaurantError;
   if (!restaurant) {
-    const { data: staff } = await firebaseAdmin
+    const { data: staff, error: staffError } = await firebaseAdmin
       .from("restaurant_staff")
       .select("restaurant_id")
       .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
+    if (staffError) throw staffError;
     if (!staff) return { restaurant: null, application: null, menu: [] };
-    const { data: viaStaff } = await firebaseAdmin
+    const { data: viaStaff, error: viaStaffError } = await firebaseAdmin
       .from("restaurants")
       .select("*,restaurant_locations(id,label,address,latitude,longitude)")
       .eq("id", staff.restaurant_id)
       .maybeSingle();
+    if (viaStaffError) throw viaStaffError;
     if (!viaStaff) return { restaurant: null, application: null, menu: [] };
-    const { data: menu } = await firebaseAdmin
+    const { data: menu, error: menuError } = await firebaseAdmin
       .from("menu_items")
       .select("*")
       .eq("restaurant_id", viaStaff.id)
       .order("sort_order");
+    if (menuError) throw menuError;
     return { restaurant: viaStaff, application: null, menu: menu ?? [] };
   }
 
-  const [{ data: application }, { data: menu }] = await Promise.all([
-    firebaseAdmin
-      .from("restaurant_applications")
-      .select("id,status,rejection_reason,requested_changes,admin_notes,reviewed_at,created_at")
-      .eq("restaurant_id", restaurant.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    firebaseAdmin
-      .from("menu_items")
-      .select("*")
-      .eq("restaurant_id", restaurant.id)
-      .order("sort_order"),
-  ]);
+  const [{ data: application, error: applicationError }, { data: menu, error: menuError }] =
+    await Promise.all([
+      firebaseAdmin
+        .from("restaurant_applications")
+        .select("id,status,rejection_reason,requested_changes,admin_notes,reviewed_at,created_at")
+        .eq("restaurant_id", restaurant.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      firebaseAdmin
+        .from("menu_items")
+        .select("*")
+        .eq("restaurant_id", restaurant.id)
+        .order("sort_order"),
+    ]);
 
+  if (applicationError) throw applicationError;
+  if (menuError) throw menuError;
   return { restaurant, application: application ?? null, menu: menu ?? [] };
 }
 
@@ -242,48 +253,41 @@ export async function uploadMedia(
     restaurantId = data.id;
   }
 
-  const raw = input.base64.includes(",") ? input.base64.split(",")[1]! : input.base64;
-  const bytes = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
-  if (bytes.byteLength > 6 * 1024 * 1024) {
-    throw new Response("Image too large (max 6MB)", { status: 400 });
-  }
-  const ext = (input.fileName.split(".").pop() ?? "jpg").toLowerCase().slice(0, 5);
-  const path = `${restaurantId}/${input.kind}-${Date.now()}.${ext}`;
-
-  const { error } = await firebaseAdmin.storage
-    .from(BUCKET)
-    .upload(path, bytes, { contentType: input.contentType, upsert: true });
-  if (error) throw new Error(error.message);
-
-  const { data: signed, error: signErr } = await firebaseAdmin.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL);
-  if (signErr || !signed) throw new Error(signErr?.message ?? "Could not sign media URL");
+  const { url, path } = await storeRestaurantImage(
+    restaurantId!,
+    input.kind,
+    input.base64,
+    input.contentType,
+  );
 
   if (input.kind === "logo") {
-    await firebaseAdmin
+    const { error } = await firebaseAdmin
       .from("restaurants")
-      .update({ logo_url: signed.signedUrl })
+      .update({ logo_url: url })
       .eq("id", restaurantId);
+    if (error) throw error;
   } else if (input.kind === "cover") {
-    await firebaseAdmin
+    const { error } = await firebaseAdmin
       .from("restaurants")
-      .update({ cover_image_url: signed.signedUrl })
+      .update({ cover_image_url: url })
       .eq("id", restaurantId);
+    if (error) throw error;
   } else if (input.kind === "food") {
-    const { data: r } = await firebaseAdmin
+    const { data: r, error: readError } = await firebaseAdmin
       .from("restaurants")
       .select("food_photos")
       .eq("id", restaurantId)
       .maybeSingle();
+    if (readError) throw readError;
     const photos = Array.isArray(r?.food_photos) ? (r!.food_photos as string[]) : [];
-    await firebaseAdmin
+    const { error } = await firebaseAdmin
       .from("restaurants")
-      .update({ food_photos: [...photos, signed.signedUrl].slice(0, 20) as never })
+      .update({ food_photos: [...photos, url].slice(0, 20) as never })
       .eq("id", restaurantId);
+    if (error) throw error;
   }
 
-  return { url: signed.signedUrl, path };
+  return { url, path };
 }
 
 export async function persistMenuItem(userId: string, input: MenuItemInput) {
@@ -309,7 +313,11 @@ export async function persistMenuItem(userId: string, input: MenuItemInput) {
     if (error) throw new Error(error.message);
     return data;
   }
-  const { data, error } = await firebaseAdmin.from("menu_items").insert(row).select("*").single();
+  const { data, error } = await firebaseAdmin
+    .from("menu_items")
+    .insert({ ...row, is_hidden: false, dietary_tags: [], created_at: new Date().toISOString() })
+    .select("*")
+    .single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -353,7 +361,21 @@ export async function fetchRestaurantOrders(
     .order("placed_at", { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);
-  return data ?? [];
+  const orders = data ?? [];
+  if (!orders.length) return [];
+  // Firestore has no SQL joins: load line items explicitly after the membership check.
+  const { data: items, error: itemsError } = await firebaseAdmin
+    .from("order_items")
+    .select("*")
+    .in(
+      "order_id",
+      orders.map((order: { id: string }) => order.id),
+    );
+  if (itemsError) throw itemsError;
+  return orders.map((order: { id: string }) => ({
+    ...order,
+    order_items: (items ?? []).filter((item: { order_id: string }) => item.order_id === order.id),
+  }));
 }
 
 export async function setOrderStatus(

@@ -1,3 +1,4 @@
+import { MAX_RESTAURANT_IMAGE_BASE64, RESTAURANT_IMAGE_TYPES } from "@/lib/restaurant-media";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
@@ -42,8 +43,8 @@ export const uploadRestaurantMedia = createServerFn({ method: "POST" })
         restaurantId: z.string().uuid().optional(),
         kind: z.enum(["logo", "cover", "food", "menu-item"]),
         fileName: z.string().min(1).max(200),
-        contentType: z.string().min(3).max(100),
-        base64: z.string().min(16),
+        contentType: z.enum(RESTAURANT_IMAGE_TYPES),
+        base64: z.string().min(16).max(MAX_RESTAURANT_IMAGE_BASE64),
       })
       .parse(v),
   )
