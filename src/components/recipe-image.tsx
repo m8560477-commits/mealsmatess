@@ -62,8 +62,6 @@ export function RecipeImage({
       </div>
     );
 
-  const isCuratedFallback = !stored && !!curated && src === curated;
-
   return (
     <div className={`relative overflow-hidden ${className ?? ""}`}>
       <img
@@ -80,11 +78,6 @@ export function RecipeImage({
         }}
         className="h-full w-full object-cover"
       />
-      {isCuratedFallback && (
-        <span className="absolute bottom-2 left-2 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold text-foreground">
-          Curated photo
-        </span>
-      )}
     </div>
   );
 }
