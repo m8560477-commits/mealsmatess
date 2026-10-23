@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MascotMark } from "@/components/mealmate-logo";
 import { markTourSeen } from "@/lib/preferences";
 import { cn } from "@/lib/utils";
+import { signInWithGoogle } from "@/lib/firebase";
 
 export const Route = createFileRoute("/welcome")({
   head: () => ({
@@ -13,14 +15,12 @@ export const Route = createFileRoute("/welcome")({
       { title: "Welcome to MealMate" },
       {
         name: "description",
-        content:
-          "Discover restaurants, order your food, plan your meals, and make every bite count.",
+        content: "Discover. Plan. Eat. Enjoy. Your personal companion for better meals and easier dining.",
       },
       { property: "og:title", content: "Welcome to MealMate" },
       {
         property: "og:description",
-        content:
-          "Discover restaurants, order your food, plan your meals, and make every bite count.",
+        content: "Discover. Plan. Eat. Enjoy. Your personal companion for better meals and easier dining.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -67,7 +67,6 @@ function haptic() {
   }
 }
 
-/** Renders above the app shell (header + bottom bar) instead of inside the page. */
 function Overlay({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -86,6 +85,7 @@ function WelcomeFlow() {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("welcome");
   const [step, setStep] = useState(0);
+  const [busyGoogle, setBusyGoogle] = useState(false);
 
   const finishTour = useCallback(() => {
     markTourSeen();
@@ -113,41 +113,71 @@ function WelcomeFlow() {
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, next, back, finishTour]);
 
+  const handleGoogle = async () => {
+    try {
+      setBusyGoogle(true);
+      const cred = await signInWithGoogle();
+      if (!cred?.user) return;
+      toast.success("Welcome to MealMate!");
+      navigate({ to: "/", replace: true });
+    } catch (error) {
+      console.error("[Welcome] Google sign-in failed:", error);
+      toast.error(
+        error instanceof Error && "code" in error && error.code === "auth/popup-closed-by-user"
+          ? "Google sign-in was cancelled."
+          : "Google sign-in is unavailable right now. Please try email instead.",
+      );
+    } finally {
+      setBusyGoogle(false);
+    }
+  };
+
   if (phase === "welcome") {
     return (
-      <div className="theme-backdrop fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)]">
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              markTourSeen();
-              setPhase("ready");
-            }}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            Skip
-          </button>
-        </div>
+      <div className="fixed inset-0 z-50 flex flex-col bg-[#07070a] px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)] text-white">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center text-center">
-          <MascotMark className="size-36 rounded-[2rem] shadow-sm motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700" />
-          <h1 className="mt-10 font-display text-4xl leading-tight tracking-tight motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-500 sm:text-5xl">
-            Welcome to MealMate.
+          <div className="mb-5 flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80">
+            MealMate
+          </div>
+          <MascotMark className="size-28 rounded-[2rem] bg-[#1e1b2a] shadow-[0_0_40px_rgba(161,154,255,0.25)] motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-90 motion-safe:duration-700" />
+          <h1 className="mt-8 max-w-sm font-display text-5xl leading-none tracking-[-0.06em] text-white motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-500">
+            Discover. Plan. Eat. Enjoy.
           </h1>
-          <p className="mt-4 max-w-sm text-base text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700">
-            Discover restaurants, order your food, plan your meals, and make every bite count.
+          <p className="mt-4 max-w-sm text-base leading-6 text-white/70 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-700">
+            Your personal companion for better meals and easier dining.
           </p>
         </div>
-        <div className="mx-auto w-full max-w-md">
+
+        <div className="mx-auto w-full max-w-md space-y-3">
           <Button
             size="lg"
-            className="h-14 w-full rounded-full text-base transition-transform active:scale-[0.98]"
-            onClick={() => {
-              haptic();
-              setPhase("tour");
-            }}
+            className="h-14 w-full rounded-full bg-white text-black shadow-[0_10px_30px_rgba(255,255,255,0.18)] hover:bg-white/95 active:scale-[0.99]"
+            onClick={handleGoogle}
+            disabled={busyGoogle}
           >
-            Explore MealMate
+            {busyGoogle ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[#4285F4]">
+                G
+              </span>
+            )}
+            Continue with Google
           </Button>
+
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-14 w-full rounded-full border-white/15 bg-white/5 text-white hover:bg-white/8 active:scale-[0.99]"
+            onClick={() => navigate({ to: "/auth", search: { mode: "signin" } })}
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Continue with Email
+          </Button>
+
+          <div className="pt-2 text-center text-xs text-white/45">
+            By continuing, you agree to our <a href="/legal/terms" className="underline underline-offset-2">Terms</a> and <a href="/legal/privacy" className="underline underline-offset-2">Privacy Policy</a>.
+          </div>
         </div>
       </div>
     );
@@ -155,7 +185,7 @@ function WelcomeFlow() {
 
   if (phase === "ready") {
     return (
-      <div className="theme-backdrop fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
+      <div className="theme-backdrop fixed inset-0 z-50 flex flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-[max(env(safe-area-inset-top),1.5rem)] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center text-center">
           <MascotMark className="size-24 rounded-3xl" />
           <h1 className="mt-8 font-display text-4xl leading-tight tracking-tight">
@@ -171,7 +201,7 @@ function WelcomeFlow() {
             className="h-14 rounded-full text-base active:scale-[0.98]"
             onClick={() => navigate({ to: "/auth", search: { mode: "signup" } })}
           >
-            Create Account
+            Create account
           </Button>
           <Button
             size="lg"
@@ -179,7 +209,7 @@ function WelcomeFlow() {
             className="h-14 rounded-full text-base"
             onClick={() => navigate({ to: "/auth", search: { mode: "signin" } })}
           >
-            Sign In
+            Sign in
           </Button>
         </div>
       </div>
@@ -239,7 +269,6 @@ function Tour({
         else if (dx > 50 && step > 0) onBack();
       }}
     >
-      {/* Spotlight: the real app UI stays visible through the cut-out. */}
       {rect ? (
         <div
           aria-hidden="true"
