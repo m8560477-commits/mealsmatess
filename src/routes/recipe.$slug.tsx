@@ -101,7 +101,7 @@ function RecipePage() {
     setMakingImage(true);
     setImageError(false);
     try {
-      const result = await postAuthenticatedAi<{
+      const result = await postAuthenticatedAi<{ 
         imageUrl: string | null;
         reason?: string;
         limit?: number | null;
@@ -124,6 +124,11 @@ function RecipePage() {
       setMakingImage(false);
     }
   }, [queryClient, r?.id, r?.slug, user]);
+
+  useEffect(() => {
+    if (!user || !r?.id || r.image_url) return;
+    void requestRecipeImage();
+  }, [user, r?.id, r?.image_url, requestRecipeImage]);
 
   async function regenerateImage() {
     if (!user || !r) {
