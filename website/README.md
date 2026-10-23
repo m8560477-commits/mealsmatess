@@ -83,3 +83,11 @@ After DNS and HTTPS for `www.mealmate.site` work:
 5. Check Page indexing for crawl or canonical issues. Google decides when and whether to index a page; a sitemap submission does not guarantee inclusion or ranking.
 
 Check the production homepage and sitemap return HTTP 200 and have no `X-Robots-Tag: noindex` header. Keep Vercel preview deployments excluded from indexing. Do not use the retired unauthenticated sitemap-ping endpoint; Google no longer supports it. These steps require access to the site's DNS and Google Search Console account.
+
+## Launch update — discover.mealsmates.site
+
+The public website is now launched at **https://discover.mealsmates.site/** in the separate `mealmate-website` Vercel project. This is the current canonical address and supersedes the earlier proposed `www.mealmate.site` launch instructions above. The existing domain's proxy serves the subdomain successfully over HTTPS. No registrar DNS edits were needed. Consumer remains at `https://mealsmates.site/` and Hub at its verified destination.
+
+Canonical, JSON-LD identifiers, Open Graph/social image URLs, sitemap and robots now use `https://discover.mealsmates.site/`. The unresolved `mealmate.site` and `www.mealmate.site` domain attachments remain available for future setup and redirect to discover when they become reachable. Do not submit the unresolved domain's sitemap.
+
+For Google Search Console, verify a URL-prefix property for **https://discover.mealsmates.site/** (using Google's actual verification instructions), or a Domain property for `mealsmates.site` if you control its DNS. Submit **https://discover.mealsmates.site/sitemap.xml**, then inspect the homepage and request indexing. Google account ownership verification is still required; no submission or indexing is claimed.
