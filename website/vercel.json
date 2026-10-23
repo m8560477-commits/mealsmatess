@@ -10,6 +10,17 @@
       "has": [
         {
           "type": "host",
+          "value": "hub.mealsmates.site"
+        }
+      ],
+      "destination": "https://mealmate-partners.vercel.app/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
           "value": "mealmate.site"
         }
       ],

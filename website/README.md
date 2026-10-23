@@ -91,3 +91,9 @@ The public website is now launched at **https://discover.mealsmates.site/** in t
 Canonical, JSON-LD identifiers, Open Graph/social image URLs, sitemap and robots now use `https://discover.mealsmates.site/`. The unresolved `mealmate.site` and `www.mealmate.site` domain attachments remain available for future setup and redirect to discover when they become reachable. Do not submit the unresolved domain's sitemap.
 
 For Google Search Console, verify a URL-prefix property for **https://discover.mealsmates.site/** (using Google's actual verification instructions), or a Domain property for `mealsmates.site` if you control its DNS. Submit **https://discover.mealsmates.site/sitemap.xml**, then inspect the homepage and request indexing. Google account ownership verification is still required; no submission or indexing is claimed.
+
+## Hub entry subdomain — hub.mealsmates.site
+
+**https://hub.mealsmates.site/** forwards to the verified existing Hub application at **https://mealmate-partners.vercel.app/**. Its host-specific temporary 307 redirect is deployed in the website project, preserving paths and query strings. The public website's four Hub links use this branded entry address. Browsers finish on the existing Hub domain; this is forwarding, not a migration of the Hub app or its authentication origin.
+
+The signed-in Vercel team exposes the undeployed `mealmate-hub` project, Consumer and website projects. The working `mealmate-partners.vercel.app` deployment is not available as an editable project in that team, so attaching a custom domain directly to its deployment cannot be done with current access. This redirect avoids changing Hub hosting, authentication, services or application code. If the live Hub project becomes available later, replace forwarding with a direct domain attachment after checking authentication callback URLs. The existing website and Consumer domains are unaffected.
