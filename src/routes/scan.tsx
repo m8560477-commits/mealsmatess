@@ -349,7 +349,7 @@ function ScanPage() {
             </ul>
           )}
           {dish.health_note && (
-            <p className="mt-4 text-sm text-muted-foreground">💡 {dish.health_note}</p>
+            <p className="mt-4 text-sm text-muted-foreground">{dish.health_note}</p>
           )}
 
           <div className="mt-5 border-t border-border pt-4">

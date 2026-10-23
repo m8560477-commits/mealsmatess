@@ -486,7 +486,7 @@ function RestaurantsPage() {
             </section>
             {visibleDishes.length > 0 && (
               <DishSection
-                title="Lunchtime just got better! 🍔😋"
+                title="Lunchtime just got better!"
                 dishes={visibleDishes.slice(0, 8)}
                 restaurants={restaurantById}
                 cart={cart}

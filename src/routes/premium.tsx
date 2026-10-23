@@ -112,7 +112,6 @@ function PremiumPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6">
       {/* Hero */}
       <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-6 text-white shadow-xl shadow-orange-500/30">
-        <FloatingFruits />
         <div className="relative">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest backdrop-blur">
             <Crown className="h-3.5 w-3.5" /> Premium
@@ -255,7 +254,7 @@ function PremiumPage() {
         · sign in on mobile to sync Premium
       </p>
 
-      <FruitAnimStyles />
+      <PremiumAnimStyles />
     </main>
   );
 }
@@ -537,33 +536,9 @@ function TrustBadges() {
   );
 }
 
-function FloatingFruits() {
-  const fruits = ["🥑", "🍅", "🥦", "🥕", "🍋", "🌿", "🫑", "🍓"];
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {fruits.map((f, i) => (
-        <span
-          key={i}
-          className="float-fruit absolute select-none text-3xl opacity-20 sm:text-4xl"
-          style={{
-            left: `${(i * 13 + 5) % 95}%`,
-            top: `${(i * 23 + 8) % 90}%`,
-            animationDelay: `${i * 0.6}s`,
-            animationDuration: `${6 + (i % 4)}s`,
-          }}
-        >
-          {f}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function FruitAnimStyles() {
+function PremiumAnimStyles() {
   return (
     <style>{`
-      @keyframes float-y { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-14px) rotate(6deg); } }
-      .float-fruit { animation: float-y ease-in-out infinite; }
       @keyframes shimmer-move { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
       .shimmer { background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.6) 50%, transparent 70%); background-size: 200% 100%; animation: shimmer-move 3.5s linear infinite; }
       @keyframes pulse-badge { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.06); } }

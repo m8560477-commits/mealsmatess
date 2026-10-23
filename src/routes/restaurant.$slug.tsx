@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Star, Clock, Bike, Phone, MapPin, Minus, Plus, ShoppingBag } from "lucide-react";
+import { Star, Clock, Bike, Phone, MapPin, Minus, Plus, ShoppingBag, Utensils } from "lucide-react";
 import {
   restaurantBySlugQuery,
   restaurantMenuQuery,
@@ -115,7 +115,9 @@ function RestaurantPage() {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-5xl">🍽️</div>
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <Utensils className="h-12 w-12" aria-hidden="true" />
+          </div>
         )}
       </div>
 
@@ -210,7 +212,7 @@ function RestaurantPage() {
                         />
                       ) : (
                         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-muted text-xl">
-                          🍲
+                          <Utensils className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">

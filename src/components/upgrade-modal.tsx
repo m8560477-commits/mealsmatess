@@ -86,7 +86,7 @@ function PaywallSheet({ reason, onClose }: { reason?: string; onClose: () => voi
         className="animate-in slide-in-from-bottom-6 fade-in relative h-[92vh] w-full max-w-2xl overflow-hidden rounded-t-[32px] border border-border bg-background shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-[32px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <FloatingFruits />
+        <PremiumAnimStyles />
 
         <button
           type="button"
@@ -382,32 +382,13 @@ function TrustBadges() {
   );
 }
 
-function FloatingFruits() {
-  const fruits = ["🥑", "🍅", "🥦", "🥕", "🍋", "🌿", "🫑", "🍓"];
+function PremiumAnimStyles() {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {fruits.map((f, i) => (
-        <span
-          key={i}
-          className="float-fruit absolute select-none text-2xl opacity-20 sm:text-3xl"
-          style={{
-            left: `${(i * 13 + 5) % 95}%`,
-            top: `${(i * 23 + 8) % 90}%`,
-            animationDelay: `${i * 0.6}s`,
-            animationDuration: `${6 + (i % 4)}s`,
-          }}
-        >
-          {f}
-        </span>
-      ))}
-      <style>{`
-        @keyframes float-y { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-14px) rotate(6deg); } }
-        .float-fruit { animation: float-y ease-in-out infinite; }
+    <style>{`
         @keyframes shimmer-move { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .shimmer { background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.6) 50%, transparent 70%); background-size: 200% 100%; animation: shimmer-move 3.5s linear infinite; }
         @keyframes pulse-badge { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.06); } }
         .pulse-badge { animation: pulse-badge 2.2s ease-in-out infinite; }
       `}</style>
-    </div>
   );
 }

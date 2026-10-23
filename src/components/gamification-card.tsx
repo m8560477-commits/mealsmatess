@@ -25,7 +25,7 @@ export function GamificationCard() {
   const claim = useMutation({
     mutationFn: () => claimElite(),
     onSuccess: (res) => {
-      toast.success("Elite reward claimed! 💎", {
+      toast.success("Elite reward claimed!", {
         description: `Premium active until ${new Date(res.premiumUntil).toLocaleDateString()}.`,
       });
       queryClient.invalidateQueries({ queryKey: ["gamification"] });
@@ -65,9 +65,7 @@ export function GamificationCard() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="truncate font-display text-2xl leading-tight">
-              {level.emoji} {level.name}
-            </h2>
+            <h2 className="truncate font-display text-2xl leading-tight">{level.name}</h2>
             <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
               {formatXp(data.totalXp)} XP
             </span>
@@ -205,9 +203,7 @@ export function GamificationCard() {
               )}
             >
               {a.unlockedAt ? (
-                <span className="text-lg leading-none" aria-hidden>
-                  {a.emoji}
-                </span>
+                <Trophy className="h-4 w-4 text-primary" aria-hidden="true" />
               ) : (
                 <Lock className="h-4 w-4 text-muted-foreground" />
               )}
