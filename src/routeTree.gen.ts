@@ -18,6 +18,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CoachRouteImport } from './routes/coach'
 import { Route as CookbookRouteImport } from './routes/cookbook'
 import { Route as GroceryRouteImport } from './routes/grocery'
+import { Route as HubRouteImport } from './routes/hub'
 import { Route as ListRouteImport } from './routes/list'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -90,6 +91,11 @@ const CookbookRoute = CookbookRouteImport.update({
 const GroceryRoute = GroceryRouteImport.update({
   id: '/grocery',
   path: '/grocery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HubRoute = HubRouteImport.update({
+  id: '/hub',
+  path: '/hub',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ListRoute = ListRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/coach': typeof CoachRoute
   '/cookbook': typeof CookbookRoute
   '/grocery': typeof GroceryRoute
+  '/hub': typeof HubRoute
   '/list': typeof ListRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/coach': typeof CoachRoute
   '/cookbook': typeof CookbookRoute
   '/grocery': typeof GroceryRoute
+  '/hub': typeof HubRoute
   '/list': typeof ListRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -325,6 +333,7 @@ export interface FileRoutesById {
   '/coach': typeof CoachRoute
   '/cookbook': typeof CookbookRoute
   '/grocery': typeof GroceryRoute
+  '/hub': typeof HubRoute
   '/list': typeof ListRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -366,6 +375,7 @@ export interface FileRouteTypes {
     | '/coach'
     | '/cookbook'
     | '/grocery'
+    | '/hub'
     | '/list'
     | '/notifications'
     | '/onboarding'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/coach'
     | '/cookbook'
     | '/grocery'
+    | '/hub'
     | '/list'
     | '/notifications'
     | '/onboarding'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/coach'
     | '/cookbook'
     | '/grocery'
+    | '/hub'
     | '/list'
     | '/notifications'
     | '/onboarding'
@@ -484,6 +496,7 @@ export interface RootRouteChildren {
   CoachRoute: typeof CoachRoute
   CookbookRoute: typeof CookbookRoute
   GroceryRoute: typeof GroceryRoute
+  HubRoute: typeof HubRoute
   ListRoute: typeof ListRoute
   NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -575,6 +588,13 @@ declare module '@tanstack/react-router' {
       path: '/grocery'
       fullPath: '/grocery'
       preLoaderRoute: typeof GroceryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hub': {
+      id: '/hub'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof HubRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/list': {
@@ -807,6 +827,7 @@ const rootRouteChildren: RootRouteChildren = {
   CoachRoute: CoachRoute,
   CookbookRoute: CookbookRoute,
   GroceryRoute: GroceryRoute,
+  HubRoute: HubRoute,
   ListRoute: ListRoute,
   NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,

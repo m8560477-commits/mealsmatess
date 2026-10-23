@@ -6,50 +6,6 @@
   "outputDirectory": "dist",
   "redirects": [
     {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "partner.mealsmates.site"
-        }
-      ],
-      "destination": "https://mealmate-partners.vercel.app/",
-      "permanent": false
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "partner.mealsmates.site"
-        }
-      ],
-      "destination": "https://mealmate-partners.vercel.app/:path*",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "hub.mealsmates.site"
-        }
-      ],
-      "destination": "https://mealmate-partners.vercel.app/",
-      "permanent": false
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "hub.mealsmates.site"
-        }
-      ],
-      "destination": "https://mealmate-partners.vercel.app/:path*",
-      "permanent": false
-    },
-    {
       "source": "/:path*",
       "has": [
         {

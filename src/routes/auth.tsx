@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useHubSurface } from "@/components/hub/hub-context";
+import { createFileRoute, useNavigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -69,7 +70,7 @@ export const Route = createFileRoute("/auth")({
   }),
   validateSearch: (s: Record<string, unknown>): { mode?: "signin" | "signup" } =>
     s["mode"] === "signup" ? { mode: "signup" } : s["mode"] === "signin" ? { mode: "signin" } : {},
-  component: AuthPage,
+  component: AuthLayout,
 });
 
 function extractErrorMessage(err: unknown, fallback: string): string {
@@ -97,10 +98,19 @@ function getGoogleSignInErrorMessage(error: unknown): string {
     return "Google could not finish signing in. Check that Google sign-in is enabled and this site is listed in Firebase Authentication's authorized domains.";
   }
 
-  return extractErrorMessage(error, "Google sign-in is unavailable. Please use email and password.");
+  return extractErrorMessage(
+    error,
+    "Google sign-in is unavailable. Please use email and password.",
+  );
+}
+
+export function AuthLayout() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname === "/auth" || pathname === "/auth/" ? <AuthPage /> : <Outlet />;
 }
 
 function AuthPage() {
+  const isHub = useHubSurface();
   const navigate = useNavigate();
   const { user, loading } = useSession();
   const search = Route.useSearch();
@@ -244,7 +254,13 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(157,204,153,0.16),_transparent_34%),linear-gradient(135deg,#f3f1eb_0%,#f6f4ef_28%,#f0efe9_100%)] px-4 py-10 text-foreground">
+    <main
+      className={
+        isHub
+          ? "hub-auth flex flex-1 items-center justify-center px-4 py-10"
+          : "flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(157,204,153,0.16),_transparent_34%),linear-gradient(135deg,#f3f1eb_0%,#f6f4ef_28%,#f0efe9_100%)] px-4 py-10 text-foreground"
+      }
+    >
       <div className="grid w-full max-w-6xl overflow-hidden rounded-[32px] border border-black/5 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-[1.1fr_0.9fr]">
         <div className="relative hidden min-h-[680px] overflow-hidden bg-[#1f2d1c] p-8 text-white md:flex md:flex-col md:justify-between">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(176,214,120,0.35),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.12),_transparent_26%)]" />
@@ -260,7 +276,8 @@ function AuthPage() {
               Make better meals feel effortless.
             </h2>
             <p className="max-w-md text-base text-emerald-50/80">
-              Save recipes, shop smarter, and turn everyday ingredients into dinner plans you’ll actually enjoy.
+              Save recipes, shop smarter, and turn everyday ingredients into dinner plans you’ll
+              actually enjoy.
             </p>
             <div className="grid max-w-md gap-4 pt-2">
               {[
@@ -268,7 +285,10 @@ function AuthPage() {
                 "Flexible meal planning",
                 "Recipe ideas you’ll cook again",
               ].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90">
+                <div
+                  key={item}
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90"
+                >
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400/20 text-base text-emerald-200">
                     ✓
                   </span>
@@ -304,7 +324,13 @@ function AuthPage() {
                   {mode === "signin" ? "Welcome back" : "Join MealMate"}
                 </p>
                 <h1 className="mt-3 font-display text-3xl text-foreground">
-                  {mode === "signin" ? "Log in to cook smarter" : "Start cooking with confidence"}
+                  {isHub
+                    ? mode === "signin"
+                      ? "Sign in to your workspace"
+                      : "Create your Hub account"
+                    : mode === "signin"
+                      ? "Log in to cook smarter"
+                      : "Start cooking with confidence"}
                 </h1>
               </div>
 
@@ -364,8 +390,18 @@ function AuthPage() {
                   )}
                 </div>
 
-                <Button type="submit" className="h-11 w-full rounded-2xl bg-[#1f2d1c] text-white hover:bg-[#243722]" disabled={busy}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Create account"}
+                <Button
+                  type="submit"
+                  className="h-11 w-full rounded-2xl bg-[#1f2d1c] text-white hover:bg-[#243722]"
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : mode === "signin" ? (
+                    "Sign in"
+                  ) : (
+                    "Create account"
+                  )}
                 </Button>
 
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -399,7 +435,9 @@ function AuthPage() {
                         await sendFirebasePasswordReset(email.trim().toLowerCase());
                         toast.success("Check your inbox for a reset link.");
                       } catch (err) {
-                        toast.error("Could not send the reset email. Please check the address and try again.");
+                        toast.error(
+                          "Could not send the reset email. Please check the address and try again.",
+                        );
                       } finally {
                         setBusy(false);
                       }

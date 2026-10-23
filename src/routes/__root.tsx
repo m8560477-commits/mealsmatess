@@ -1,3 +1,7 @@
+import { HubContext } from "@/components/hub/hub-context";
+import { HubShell } from "@/components/hub/hub-shell";
+import { isHubSurface } from "@/lib/hub-surface";
+import { requestHostname } from "@/lib/hub-request";
 import { SplashScreen } from "@/components/splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -90,6 +94,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: ({ location }) => ({ isHub: isHubSurface(requestHostname(), location.pathname) }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -166,7 +171,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const { queryClient, isHub } = Route.useRouteContext();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user, loading: sessionLoading } = useSession();
@@ -174,17 +179,18 @@ function RootComponent() {
   const isMarketplace = pathname === "/restaurants" || pathname.startsWith("/restaurant/");
   const isFlow =
     pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
-  const showAppHeader = pathname !== "/" && !isMarketplace && !isFlow;
+  const showAppHeader = !isHub && pathname !== "/" && !isMarketplace && !isFlow;
   useShellMetrics(showAppHeader ? "with-header" : "no-header");
 
   // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
   useEffect(() => {
-    if (sessionLoading || userId || pathname !== "/") return;
+    if (isHub || sessionLoading || userId || pathname !== "/") return;
     if (!hasSeenTour()) void router.navigate({ to: "/welcome", replace: true });
-  }, [pathname, router, userId, sessionLoading]);
+  }, [pathname, router, userId, sessionLoading, isHub]);
 
   useEffect(() => {
     if (
+      isHub ||
       !userId ||
       pathname === "/onboarding" ||
       pathname.startsWith("/auth") ||
@@ -212,7 +218,7 @@ function RootComponent() {
     return () => {
       active = false;
     };
-  }, [userId, pathname, router]);
+  }, [userId, pathname, router, isHub]);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
@@ -228,29 +234,42 @@ function RootComponent() {
         <MascotThemeProvider>
           <LocaleProvider>
             <UpgradeModalProvider>
-              <div
-                className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
-              >
-                {showAppHeader && <AppHeader />}
-                {/* The one scroll container. Header and nav are siblings, not children. */}
-                <div
-                  id="app-scroll"
-                  className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
-                >
-                  <div
-                    className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
-                  >
-                    <AuthGate>
-                      <div key={pathname} className="page-enter motion-reveal flex flex-1 flex-col">
-                        <Outlet />
-                      </div>
+              <HubContext.Provider value={isHub}>
+                {isHub ? (
+                  <HubShell>
+                    <AuthGate publicHome={pathname === "/" || pathname === "/hub"}>
+                      <Outlet />
                     </AuthGate>
+                  </HubShell>
+                ) : (
+                  <div
+                    className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
+                  >
+                    {showAppHeader && <AppHeader />}
+                    {/* The one scroll container. Header and nav are siblings, not children. */}
+                    <div
+                      id="app-scroll"
+                      className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
+                    >
+                      <div
+                        className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
+                      >
+                        <AuthGate>
+                          <div
+                            key={pathname}
+                            className="page-enter motion-reveal flex flex-1 flex-col"
+                          >
+                            <Outlet />
+                          </div>
+                        </AuthGate>
+                      </div>
+                    </div>
+                    {isFlow ? null : <BottomNav />}
                   </div>
-                </div>
-                {isFlow ? null : <BottomNav />}
-              </div>
+                )}
+              </HubContext.Provider>
               <Toaster position="top-center" />
-              <SplashScreen />
+              {!isHub && <SplashScreen />}
             </UpgradeModalProvider>
           </LocaleProvider>
         </MascotThemeProvider>

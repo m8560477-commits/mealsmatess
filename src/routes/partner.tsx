@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Store } from "lucide-react";
@@ -28,8 +28,13 @@ export const Route = createFileRoute("/partner")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: PartnerPage,
+  component: PartnerLayout,
 });
+
+export function PartnerLayout() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname === "/partner" || pathname === "/partner/" ? <PartnerPage /> : <Outlet />;
+}
 
 function PartnerPage() {
   const { user } = useSession();
@@ -52,6 +57,7 @@ function PartnerPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     try {
       await submit({
@@ -85,11 +91,10 @@ function PartnerPage() {
         <Store className="h-10 w-10 text-primary" />
         <h1 className="font-display text-2xl">Application received</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Our team reviews new restaurants within 1–2 business days. We'll email you as soon as
-          you're approved.
+          You can check the progress of your application in your restaurant workspace.
         </p>
         <Button asChild className="rounded-full">
-          <Link to="/restaurants">Back to restaurants</Link>
+          <Link to="/partner/dashboard">View application status</Link>
         </Button>
       </main>
     );

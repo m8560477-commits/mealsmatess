@@ -170,3 +170,102 @@ describe("Firebase write results used by recipe generation", () => {
     expect(optional).toMatchObject({ data: null, error: null });
   });
 });
+
+// Exercise the real Hub service and query adapter against the existing synthetic Firestore boundary.
+import {
+  createApplication,
+  persistMenuItem,
+  fetchRestaurantOrders,
+  uploadMedia,
+} from "@/lib/restaurants.server";
+import { ApplicationSchema } from "@/lib/restaurants.schemas";
+const restaurantBlob = vi.hoisted(() => ({ put: vi.fn() }));
+vi.mock("@vercel/blob", () => ({ put: restaurantBlob.put }));
+
+describe("shared Hub and Consumer restaurant records", () => {
+  it("creates pending non-demo restaurants and discoverable menu records only after approval", async () => {
+    const application = await createApplication(
+      "owner",
+      ApplicationSchema.parse({
+        name: "Test Kitchen",
+        owner_name: "Test Owner",
+        phone: "0000000",
+        email: "owner@example.test",
+        address: "Synthetic address",
+      }),
+    );
+    const row = fixture.table("restaurants").get(application.restaurantId);
+    expect(row).toMatchObject({
+      approval_status: "pending",
+      is_demo: false,
+      is_accepting_orders: false,
+    });
+    const before = await firebaseAdmin
+      .from("restaurants")
+      .select("*")
+      .eq("approval_status", "approved")
+      .eq("is_demo", false);
+    expect(before.data).toEqual([]);
+    // Simulate the existing administrator approval boundary.
+    await firebaseAdmin
+      .from("restaurants")
+      .update({ approval_status: "approved" })
+      .eq("id", application.restaurantId);
+    const dish = await persistMenuItem("owner", {
+      restaurantId: application.restaurantId,
+      name: "Tomato toast",
+      price: 30,
+      is_available: true,
+      sort_order: 0,
+      image_url: "https://example.test/photo.webp",
+    });
+    const menu = await firebaseAdmin
+      .from("menu_items")
+      .select("*")
+      .eq("restaurant_id", application.restaurantId)
+      .eq("is_hidden", false)
+      .eq("is_available", true);
+    expect(menu.data).toEqual([
+      expect.objectContaining({ id: dish.id, image_url: "https://example.test/photo.webp" }),
+    ]);
+  });
+  it("joins Consumer order items for the owning restaurant and isolates other orders", async () => {
+    fixture.table("restaurants").set("r1", { id: "r1", owner_id: "owner" });
+    fixture
+      .table("restaurant_orders")
+      .set("o1", { id: "o1", restaurant_id: "r1", status: "new", placed_at: "2026-10-23" });
+    fixture
+      .table("restaurant_orders")
+      .set("o2", { id: "o2", restaurant_id: "r2", status: "new", placed_at: "2026-10-23" });
+    fixture.table("order_items").set("i1", { id: "i1", order_id: "o1", name: "Toast" });
+    fixture.table("order_items").set("i2", { id: "i2", order_id: "o2", name: "Other dish" });
+    expect(await fetchRestaurantOrders("owner", "r1", "active")).toEqual([
+      expect.objectContaining({ id: "o1", order_items: [expect.objectContaining({ id: "i1" })] }),
+    ]);
+  });
+  it("blocks non-members from restaurant orders, menu writes and Blob uploads", async () => {
+    fixture.table("restaurants").set("r1", { id: "r1", owner_id: "owner" });
+    await expect(fetchRestaurantOrders("outsider", "r1", "active")).rejects.toMatchObject({
+      status: 403,
+    });
+    await expect(
+      persistMenuItem("outsider", {
+        restaurantId: "r1",
+        name: "Injected",
+        price: 1,
+        is_available: true,
+        sort_order: 0,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      uploadMedia("outsider", {
+        restaurantId: "r1",
+        kind: "logo",
+        fileName: "x.png",
+        contentType: "image/png",
+        base64: "invalid",
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(restaurantBlob.put).not.toHaveBeenCalled();
+  });
+});

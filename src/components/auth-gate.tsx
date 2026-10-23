@@ -1,3 +1,4 @@
+import { useHubSurface } from "@/components/hub/hub-context";
 import { useEffect, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Loader2, MailWarning } from "lucide-react";
@@ -14,12 +15,19 @@ const PUBLIC_PREFIXES = ["/auth", "/welcome", "/reset-password", "/legal", "/abo
 // Inactive sessions are signed out after this window.
 const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
 
-export function AuthGate({ children }: { children: ReactNode }) {
+export function AuthGate({
+  children,
+  publicHome = false,
+}: {
+  children: ReactNode;
+  publicHome?: boolean;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user, loading } = useSession();
   const navigate = useNavigate();
 
-  const isPublic = PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const isPublic =
+    publicHome || PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const needsAccount = !isPublic;
 
   // Inactivity timeout: sign out after N minutes of no interaction.
@@ -76,14 +84,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
 }
 
 function SignInPrompt() {
+  const isHub = useHubSurface();
   const navigate = useNavigate();
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
         <h1 className="font-display text-2xl">Sign in to continue</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Create your free MealMate account to unlock your personalised recipes, meal plans and
-          restaurant picks.
+          {isHub
+            ? "Sign in with your MealMate account to manage your restaurant, menu and orders."
+            : "Create your free MealMate account to unlock your personalised recipes, meal plans and restaurant picks."}
         </p>
         <Button className="mt-6 w-full" onClick={() => navigate({ to: "/auth" })}>
           Create account or sign in

@@ -1,3 +1,4 @@
+import { HubHome } from "@/components/hub/hub-home";
 import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
 import { RecipeImage } from "@/components/recipe-image";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
@@ -39,26 +40,42 @@ import { usePreferences } from "@/hooks/use-preferences";
 import { personalize } from "@/lib/preferences";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
-      { title: "MealMate — Cook the world, one recipe at a time" },
+      {
+        title: matches[0]?.context.isHub
+          ? "MealMate Hub | Your restaurant workspace"
+          : "MealMate — Cook the world, one recipe at a time",
+      },
       {
         name: "description",
-        content:
-          "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate.",
+        content: matches[0]?.context.isHub
+          ? "Manage your restaurant menu, photos and orders in MealMate Hub."
+          : "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate.",
       },
-      { property: "og:title", content: "MealMate — Cook the world, one recipe at a time" },
+      {
+        property: "og:title",
+        content: matches[0]?.context.isHub
+          ? "MealMate Hub | Your restaurant workspace"
+          : "MealMate — Cook the world, one recipe at a time",
+      },
       {
         property: "og:description",
-        content:
-          "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate.",
+        content: matches[0]?.context.isHub
+          ? "Manage your restaurant menu, photos and orders in MealMate Hub."
+          : "Discover South African favourites and global recipes, then plan, shop, and cook with MealMate.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Index,
+  component: HomeSurface,
 });
+
+function HomeSurface() {
+  const { isHub } = Route.useRouteContext();
+  return isHub ? <HubHome /> : <Index />;
+}
 
 const CATEGORY_PILLS = [
   { label: "Breakfast", search: { c: "Breakfast" } },
