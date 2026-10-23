@@ -94,14 +94,12 @@ function RecipePage() {
   const [cookingOpen, setCookingOpen] = useState(false);
   const cookingModeEnabled = useFeatureFlag("cooking_mode", true);
   const [makingImage, setMakingImage] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
   const requestRecipeImage = useCallback(async () => {
     if (!r?.id || !user) return;
     setMakingImage(true);
-    setImageError(false);
     try {
-      const result = await postAuthenticatedAi<{ 
+      const result = await postAuthenticatedAi<{
         imageUrl: string | null;
         reason?: string;
         limit?: number | null;
@@ -116,7 +114,6 @@ function RecipePage() {
         });
       }
     } catch (error) {
-      setImageError(true);
       toast.error("Couldn't create a recipe photo", {
         description: error instanceof Error ? error.message : "Please try again.",
       });
@@ -249,27 +246,6 @@ function RecipePage() {
             </div>
             <div>
               <ImageCredit source={r.image_source} attribution={r.image_attribution} />
-              {user && (!r.image_source || !r.image_url) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  disabled={makingImage}
-                  onClick={() => void requestRecipeImage()}
-                >
-                  {makingImage
-                    ? "Creating photo…"
-                    : imageError
-                      ? "Try photo again"
-                      : "Create photo"}
-                </Button>
-              )}
-              {r.id && (
-                <ChangeImageButton
-                  recipe={{ id: r.id, slug: r.slug, created_by: r.created_by }}
-                  userId={user?.id}
-                />
-              )}
             </div>
           </div>
 
