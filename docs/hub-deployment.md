@@ -5,7 +5,8 @@
 The `mealsmates` Vercel project serves two interfaces from this repository:
 
 - `mealsmates.site`: Consumer.
-- `partner.mealsmates.site` and `hub.mealsmates.site`: dedicated Hub, served directly with no external forwarding.
+- `hub.mealsmates.site`: current public Hub destination, served directly with no external forwarding.
+- `partner.mealsmates.site`: supported legacy hostname; keep host detection for existing links and restore DNS before advertising it again.
 - `/hub`: a public Hub introduction for local inspection.
 
 The request hostname selects the interface through the root route context, consistently during SSR and browser navigation. Host selection does not grant access: Firebase ID tokens and restaurant ownership/staff checks still protect every operation. Hub users skip Consumer food-preference onboarding, while Consumer retains its existing onboarding and five-tab navigation. Sessions remain browser-origin scoped: the same Firebase account can sign in on each domain, but this does not silently share a session cookie.
@@ -28,3 +29,7 @@ Restaurant photos are stored under `restaurant-media/<restaurant-id>/` in the ex
 6. With authorized test accounts, verify sign-in/email verification, application review, menu/photo writes and Consumer visibility, and cross-restaurant denial. Do not create synthetic records in production during deployment.
 
 The deployment uses the Consumer project's existing Firebase/Blob configuration, avoiding a second set of credentials or a duplicate backend. Public landing and auth-page checks alone do not prove live database writes or Google consent work.
+
+## Connected navigation
+
+The app About and Profile pages and the Hub footer link Consumer, Discover and Hub. Discover links to `https://hub.mealsmates.site/`. The shared `HUB_URL` selects that reachable hostname; `partner.mealsmates.site` remains recognized for compatibility. On 2026-10-24, HTTPS checks returned 200 for Hub and Discover, while partner.mealsmates.site and mealmate.site did not resolve. This changes public navigation destinations only, not authentication, approval or data access. Consumer and Hub still use the same Firebase collections described above, with separate browser-origin sessions.

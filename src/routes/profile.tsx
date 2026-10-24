@@ -1,3 +1,4 @@
+import { EcosystemLinks } from "@/components/ecosystem-links";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -529,6 +530,10 @@ function SettingsPage() {
 
       <Section title="Help & Support" items={supportItems} />
       <Section title="About MealMate" items={aboutItems} />
+      <section className="mt-6 px-2">
+        <h2 className="text-sm font-semibold">Explore MealMate</h2>
+        <EcosystemLinks />
+      </section>
       <Section title="Terms & Privacy" items={legalItems} />
 
       <section className="mt-6 grid grid-cols-2 gap-3">

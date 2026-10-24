@@ -1,3 +1,4 @@
+import { EcosystemLinks } from "@/components/ecosystem-links";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 
@@ -41,6 +42,10 @@ function AboutPage() {
           <dd className="font-medium">MealMate</dd>
         </div>
       </dl>
+      <section className="mt-8 border-t border-border pt-5">
+        <h2 className="text-sm font-semibold">Explore MealMate</h2>
+        <EcosystemLinks />
+      </section>
     </main>
   );
 }
