@@ -92,9 +92,9 @@ Canonical, JSON-LD identifiers, Open Graph/social image URLs, sitemap and robots
 
 For Google Search Console, verify a URL-prefix property for **https://discover.mealsmates.site/** (using Google's actual verification instructions), or a Domain property for `mealsmates.site` if you control its DNS. Submit **https://discover.mealsmates.site/sitemap.xml**, then inspect the homepage and request indexing. Google account ownership verification is still required; no submission or indexing is claimed.
 
-## Dedicated Hub — partner.mealsmates.site
+## Dedicated Hub — hub.mealsmates.site
 
-The new Firebase Hub is served directly at **https://partner.mealsmates.site/** by the existing `mealsmates` Vercel application project. `hub.mealsmates.site` is a direct alias. Attach these hostnames to that project, not this static website. Website forwarding rules have been removed. The app selects its restaurant surface from the request hostname on the server and browser, with the same Firebase authentication, Firestore records and Blob store as Consumer.
+The Firebase Hub is served directly at **https://hub.mealsmates.site/** by the existing `mealsmates` Vercel application project. Public links use this reachable hostname. `partner.mealsmates.site` remains a supported hostname in app routing, but did not resolve during the 2026-10-24 check. Attach these hostnames to that project, not this static website. Website forwarding rules have been removed. The app selects its restaurant surface from the request hostname on the server and browser, with the same Firebase authentication, Firestore records and Blob store as Consumer.
 
 The earlier audited Supabase Hub at mealmate-partners.vercel.app remains a separate legacy application; its accounts and records are not automatically migrated. The public website now describes the new shared Firebase workspace: applications, orders, menus, photos, profile settings and four order metrics. New partner applications require administrator approval before discovery.
 

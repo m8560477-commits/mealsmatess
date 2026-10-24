@@ -211,7 +211,7 @@ export const getAdminAnalytics = createServerFn({ method: "POST" })
         const r = recipesById.get(id);
         return {
           id,
-          name: r?.name ?? "—",
+          name: r?.name ?? "N/A",
           slug: r?.slug ?? "",
           image_url: r?.image_url ?? null,
           saves,

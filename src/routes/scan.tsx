@@ -21,13 +21,13 @@ export const Route = createFileRoute("/scan")({
   }),
   head: () => ({
     meta: [
-      { title: "Food Scanner – MealMate" },
+      { title: "Food Scanner: MealMate" },
       {
         name: "description",
         content:
           "Point your camera at a dish to identify it, get nutrition facts, and add it to your meal planner.",
       },
-      { property: "og:title", content: "Food Scanner – MealMate" },
+      { property: "og:title", content: "Food Scanner: MealMate" },
       {
         property: "og:description",
         content: "Identify any dish, see its nutrition, and save it to your planner.",
@@ -175,7 +175,8 @@ function ScanPage() {
       if (logErr) throw logErr;
       queryClient.invalidateQueries({ queryKey: ["planner"] });
       toast.success(`${dish.name} added to ${mealType}`, {
-        description: `${dish.calories ?? "–"} kcal logged`,
+        description:
+          dish.calories != null ? `${dish.calories} kcal logged` : "Calories unavailable",
         action: { label: "Open planner", onClick: () => navigate({ to: "/planner" }) },
       });
       reset();
@@ -232,7 +233,7 @@ function ScanPage() {
         <div>
           <h1 className="font-display text-3xl leading-tight">Food Scanner</h1>
           <p className="text-sm text-muted-foreground">
-            Point your camera at a dish — we'll name it, count the nutrition, and plan it.
+            Point your camera at a dish. We'll name it, count the nutrition, and plan it.
           </p>
         </div>
       </div>
@@ -317,7 +318,7 @@ function ScanPage() {
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
             <Flame className="h-6 w-6" />
             <div>
-              <div className="font-display text-2xl leading-none">{dish.calories ?? "–"}</div>
+              <div className="font-display text-2xl leading-none">{dish.calories ?? "N/A"}</div>
               <div className="text-xs opacity-80">kcal per portion</div>
             </div>
           </div>
@@ -329,7 +330,7 @@ function ScanPage() {
                   {m.label}
                 </dt>
                 <dd className="font-display text-lg">
-                  {m.value ?? "–"}
+                  {m.value ?? "N/A"}
                   <span className="text-xs font-normal">{m.value != null ? m.unit : ""}</span>
                 </dd>
               </div>

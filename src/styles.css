@@ -1258,3 +1258,147 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
 .hub-auth .text-emerald-700\/80 {
   color: var(--muted-foreground);
 }
+
+/* Consumer login owns document scrolling; preserve the app shell on every other route. */
+html:has(.login-document-shell),
+body:has(.login-document-shell) {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+  overscroll-behavior: none;
+  scroll-behavior: auto;
+  contain: none;
+  transition: none;
+}
+
+/* Keep this light surface independent of system, app and mascot themes. */
+.consumer-auth {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --muted-foreground: #475569;
+  --border: #cbd5e1;
+  --ring: #0d4423;
+  color: #0f172a;
+  color-scheme: light;
+}
+
+.consumer-auth > div {
+  overflow: visible;
+}
+
+.consumer-auth > div > div:first-child {
+  border-radius: 32px 0 0 32px;
+}
+
+.consumer-auth .auth-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.consumer-auth .auth-card h1 {
+  color: #0f172a;
+}
+
+.consumer-auth label {
+  color: #334155;
+}
+
+.consumer-auth .auth-card > div > p,
+.consumer-auth .auth-account-toggle,
+.consumer-auth .auth-account-link {
+  /* Existing deep brand green: 11.25:1 on white (requested green is only 3.99:1). */
+  color: #0d4423;
+}
+
+.consumer-auth .auth-account-toggle,
+.consumer-auth input,
+.consumer-auth .auth-google {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+
+.consumer-auth input,
+.consumer-auth .auth-google {
+  color: #0f172a;
+}
+
+.consumer-auth input::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.consumer-auth input:autofill {
+  -webkit-text-fill-color: #0f172a;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+}
+
+.consumer-auth :is(input, button, a):focus-visible {
+  outline: 2px solid #0d4423;
+  outline-offset: 3px;
+}
+
+.consumer-auth :is(.auth-google, .auth-account-toggle):hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #64748b;
+}
+
+.consumer-auth :is(.auth-google, .auth-account-toggle):active:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.consumer-auth button:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.consumer-auth .auth-google:disabled {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.consumer-auth button,
+.consumer-auth button:active {
+  transform: none;
+  transition-property: color, background-color, border-color, box-shadow;
+}
+
+.consumer-auth .auth-form-logo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.consumer-auth .auth-brand-logo {
+  min-width: 180px;
+  height: 44px;
+}
+
+.consumer-auth .auth-form-logo img {
+  width: 48px;
+  height: 48px;
+}
+
+.consumer-auth .auth-brand-logo img {
+  width: 44px;
+  height: 44px;
+}
+
+.consumer-auth :is(.auth-form-logo, .auth-brand-logo) img {
+  flex-shrink: 0;
+  object-fit: contain;
+  object-position: center;
+  overflow: visible;
+  border-radius: 0;
+  animation: none;
+  transition: none;
+  opacity: 1;
+  transform: none;
+}
+
+@media (max-width: 359px) {
+  .consumer-auth .auth-form-panel,
+  .consumer-auth .auth-card {
+    padding: 1rem;
+  }
+}

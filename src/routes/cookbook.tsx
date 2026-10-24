@@ -49,7 +49,7 @@ import {
 export const Route = createFileRoute("/cookbook")({
   head: () => ({
     meta: [
-      { property: "og:title", content: "Cookbook \u2014 MealMate" },
+      { property: "og:title", content: "Cookbook: MealMate" },
       {
         property: "og:description",
         content:
@@ -57,7 +57,7 @@ export const Route = createFileRoute("/cookbook")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Cookbook — MealMate" },
+      { title: "Cookbook: MealMate" },
       {
         name: "description",
         content:
@@ -299,7 +299,7 @@ function CookbookPage() {
           <h2 className="mt-3 font-display text-xl">Your cookbook is empty</h2>
           <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
             Paste a cooking video link from TikTok, Instagram Reels, YouTube Shorts, or Facebook
-            Reels — MealMate will turn it into a full recipe.
+            Reels: MealMate will turn it into a full recipe.
           </p>
           <Button className="mt-5" onClick={() => setImportOpen(true)}>
             <Link2 className="mr-2 h-4 w-4" />

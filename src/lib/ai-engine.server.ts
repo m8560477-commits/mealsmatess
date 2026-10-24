@@ -62,7 +62,7 @@ export function getAiProviderConfiguration() {
     imageModel: DEFAULT_AI_IMAGE_MODEL,
     speechProvider: provider,
     speechModel: DEFAULT_AI_SPEECH_MODEL,
-    authentication: lovable ? "Server-only credentials" : "Server API key or Vercel OIDC",
+    authentication: lovable ? "Server only credentials" : "Server API key or Vercel OIDC",
     configured:
       lovable ||
       Boolean(

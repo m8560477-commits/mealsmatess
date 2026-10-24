@@ -77,7 +77,7 @@ function PartnerPage() {
         },
       });
       setDone(true);
-      toast.success("Application submitted — we'll review it shortly");
+      toast.success("Application submitted. We'll review it shortly");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit your application");
     } finally {

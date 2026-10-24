@@ -43,7 +43,7 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
       return;
     }
     if (!myRating) {
-      toast.info("Pick 1–5 stars");
+      toast.info("Pick 1 to 5 stars");
       return;
     }
     setSaving(true);

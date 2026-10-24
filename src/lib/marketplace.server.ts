@@ -482,7 +482,7 @@ export async function cancelOwnOrder(userId: string, orderId: string, reason?: s
   if (!["new", "accepted"].includes(order.status)) {
     throw new MarketplaceError(
       "cancel_too_late",
-      "The kitchen has already started — please call the restaurant.",
+      "The kitchen has already started. Please call the restaurant.",
     );
   }
   const { error } = await firebaseAdmin

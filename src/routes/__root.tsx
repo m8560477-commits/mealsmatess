@@ -108,22 +108,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "MealMate" },
       { name: "application-name", content: "MealMate" },
-      { title: "MealMate — Cook the world, one recipe at a time" },
+      { title: "MealMate: Cook the world, one recipe at a time" },
       {
         name: "description",
         content:
           "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics.",
       },
       { name: "author", content: "MealMate" },
-      { property: "og:title", content: "MealMate — Cook the world, one recipe at a time" },
+      { property: "og:title", content: "MealMate: Cook the world, one recipe at a time" },
       {
         property: "og:description",
         content:
-          "AI-powered recipes, meal planning, and smart grocery lists rooted in South African and global cuisine.",
+          "AI powered recipes, meal planning, and smart grocery lists rooted in South African and global cuisine.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "MealMate — Cook the world, one recipe at a time" },
+      { name: "twitter:title", content: "MealMate: Cook the world, one recipe at a time" },
       {
         name: "twitter:description",
         content:
@@ -177,6 +177,7 @@ function RootComponent() {
   const { user, loading: sessionLoading } = useSession();
   const userId = user?.id;
   const isMarketplace = pathname === "/restaurants" || pathname.startsWith("/restaurant/");
+  const isConsumerLogin = !isHub && (pathname === "/auth" || pathname === "/auth/");
   const isFlow =
     pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
   const showAppHeader = !isHub && pathname !== "/" && !isMarketplace && !isFlow;
@@ -243,13 +244,13 @@ function RootComponent() {
                   </HubShell>
                 ) : (
                   <div
-                    className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
+                    className={`theme-backdrop w-full bg-background ${isConsumerLogin ? "login-document-shell" : "h-dvh overflow-hidden"} ${isMarketplace ? "marketplace-dark" : ""}`}
                   >
                     {showAppHeader && <AppHeader />}
-                    {/* The one scroll container. Header and nav are siblings, not children. */}
+                    {/* Login scrolls with the document; other routes use the app scroll container. */}
                     <div
                       id="app-scroll"
-                      className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
+                      className={`${isConsumerLogin ? "" : "h-full overflow-y-auto overscroll-y-none"} ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
                     >
                       <div
                         className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
@@ -257,7 +258,7 @@ function RootComponent() {
                         <AuthGate>
                           <div
                             key={pathname}
-                            className="page-enter motion-reveal flex flex-1 flex-col"
+                            className={`flex flex-1 flex-col ${isConsumerLogin ? "" : "page-enter motion-reveal"}`}
                           >
                             <Outlet />
                           </div>
@@ -269,7 +270,7 @@ function RootComponent() {
                 )}
               </HubContext.Provider>
               <Toaster position="top-center" />
-              {!isHub && <SplashScreen />}
+              {!isHub && !isConsumerLogin && <SplashScreen />}
             </UpgradeModalProvider>
           </LocaleProvider>
         </MascotThemeProvider>

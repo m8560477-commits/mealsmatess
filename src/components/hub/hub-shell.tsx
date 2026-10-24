@@ -1,3 +1,4 @@
+import { EcosystemLinks } from "@/components/ecosystem-links";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, LogOut } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -62,7 +63,10 @@ export function HubShell({ children }: { children: ReactNode }) {
         {children}
       </div>
       <footer className="mx-auto flex max-w-6xl flex-wrap justify-between gap-4 px-5 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-8">
-        <p>MealMate Hub by Taz Technologies</p>
+        <div>
+          <p>MealMate Hub by Taz Technologies</p>
+          <EcosystemLinks />
+        </div>
         <div className="flex gap-5">
           <Link to="/legal/privacy" className="underline">
             Privacy

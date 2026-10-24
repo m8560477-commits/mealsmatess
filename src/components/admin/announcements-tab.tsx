@@ -70,9 +70,9 @@ function statusLabel(status: AnnouncementStatus) {
 }
 
 function displayDate(value: unknown) {
-  if (typeof value !== "string" || !value) return "—";
+  if (typeof value !== "string" || !value) return "N/A";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? "N/A" : date.toLocaleString();
 }
 
 function dateTimeLocal(value: string) {
@@ -459,7 +459,7 @@ export function AnnouncementsTab() {
                       {status === "published" || status === "processing" ? (
                         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                           <span>
-                            {Number(item.recipientCount ?? 0).toLocaleString()} in-app notifications
+                            {Number(item.recipientCount ?? 0).toLocaleString()} in app notifications
                             stored
                           </span>
                           <span>{Number(item.readCount ?? 0).toLocaleString()} read</span>
@@ -557,7 +557,7 @@ export function AnnouncementsTab() {
         <div className="rounded-2xl border border-border bg-card p-5">
           <h3 className="font-semibold">Delivery notes</h3>
           <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
-            <li>In-app history is stored per recipient and remains available in their account.</li>
+            <li>In app history is stored per recipient and remains available in their account.</li>
             <li>Push is sent only to users who opted in and have a registered device.</li>
             <li>Firebase acceptance is an attempt status, not proof the device displayed it.</li>
             <li>

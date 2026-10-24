@@ -218,7 +218,7 @@ class BrowserFirestoreQuery implements PromiseLike<Result<any>> {
             (filter) => filter.field === "id" && filter.op === "eq",
           );
           if (!idFilter || idFilter.value !== uid)
-            throw new Error("Forbidden: profile access must be scoped to the signed-in user.");
+            throw new Error("Forbidden: profile access must be scoped to the signed in user.");
           const ref = doc(db, "users", uid);
           if (this.action === "update") {
             await updateDoc(ref, this.values as Record<string, unknown>);
@@ -242,7 +242,7 @@ class BrowserFirestoreQuery implements PromiseLike<Result<any>> {
           (filter) => filter.field === ownerField && filter.op === "eq",
         );
         if (ownerFilter && ownerFilter.value !== uid)
-          throw new Error("Forbidden: records must belong to the signed-in user.");
+          throw new Error("Forbidden: records must belong to the signed in user.");
         if (!ownerFilter) queryFilters.push({ field: ownerField, op: "eq", value: uid });
       }
       const queryConstraints: QueryConstraint[] = [];

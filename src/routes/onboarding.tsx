@@ -22,7 +22,7 @@ import { requestBrowserPushToken } from "@/lib/push-client";
 import { registerMyPushToken, saveMyNotificationPreferences } from "@/lib/notifications.functions";
 
 export const Route = createFileRoute("/onboarding")({
-  head: () => ({ meta: [{ title: "Your next great meal — MealMate" }] }),
+  head: () => ({ meta: [{ title: "Your next great meal: MealMate" }] }),
   component: OnboardingPage,
 });
 

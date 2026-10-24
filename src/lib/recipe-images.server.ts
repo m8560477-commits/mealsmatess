@@ -563,7 +563,7 @@ export async function generateAndSaveAiImage(
     throw new Error("Generated image was empty or exceeded the storage size limit.");
   }
   if (!image.mediaType.startsWith("image/")) {
-    throw new Error("AI Gateway returned a non-image response.");
+    throw new Error("AI Gateway returned a response without an image.");
   }
   const extension =
     image.mediaType === "image/jpeg" ? "jpg" : image.mediaType === "image/webp" ? "webp" : "png";

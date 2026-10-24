@@ -1,3 +1,4 @@
+import { EcosystemLinks } from "@/components/ecosystem-links";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 
@@ -27,7 +28,7 @@ function AboutPage() {
       </Link>
       <h1 className="mt-4 font-display text-4xl">About MealMate</h1>
       <p className="mt-3 text-sm leading-relaxed text-foreground/90">
-        MealMate is your kitchen companion — recipes, meal planning, and grocery lists, powered by
+        MealMate is your kitchen companion for recipes, meal planning, and grocery lists, powered by
         an AI assistant that helps you decide what to cook next.
       </p>
 
@@ -41,6 +42,10 @@ function AboutPage() {
           <dd className="font-medium">MealMate</dd>
         </div>
       </dl>
+      <section className="mt-8 border-t border-border pt-5">
+        <h2 className="text-sm font-semibold">Explore MealMate</h2>
+        <EcosystemLinks />
+      </section>
     </main>
   );
 }

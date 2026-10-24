@@ -70,7 +70,7 @@ function ListPage() {
       try {
         const res = await awardXp({ data: { action: "grocery_list_completed" } });
         if (res.awarded) {
-          toast.success(`+${res.points} XP — grocery list done!`);
+          toast.success(`+${res.points} XP, grocery list done!`);
           queryClient.invalidateQueries({ queryKey: ["gamification"] });
         }
       } catch {
