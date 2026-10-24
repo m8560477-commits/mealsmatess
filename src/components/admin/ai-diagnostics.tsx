@@ -51,7 +51,7 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
   {
     name: "gateway",
     label: "AI Gateway",
-    description: "Live text request using server-side provider credentials",
+    description: "Live text request using server side provider credentials",
     icon: Activity,
   },
   {
@@ -63,7 +63,7 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
   {
     name: "database",
     label: "Database read + write",
-    description: "Temporary user-scoped record, read back, then delete",
+    description: "Temporary user scoped record, read back, then delete",
     icon: Database,
   },
   {
@@ -75,7 +75,7 @@ const tests: { name: TestName; label: string; description: string; icon: typeof 
   {
     name: "security",
     label: "Auth + rate limiting",
-    description: "Admin authorization and repeat-request rejection",
+    description: "Admin authorization and repeat request rejection",
     icon: ShieldCheck,
   },
 ];
@@ -109,7 +109,7 @@ export function AiDiagnosticsTab() {
         <CardHeader>
           <CardTitle id="ai-diagnostics-heading">MealMate AI diagnostics</CardTitle>
           <CardDescription>
-            Admin-only live checks. Credentials are never displayed. Image generation can incur AI
+            Admin only live checks. Credentials are never displayed. Image generation can incur AI
             provider charges.
           </CardDescription>
         </CardHeader>
@@ -164,7 +164,7 @@ export function AiDiagnosticsTab() {
       </Card>
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        Database and storage tests create temporary records in your signed-in admin account and
+        Database and storage tests create temporary records in your signed in admin account and
         remove them immediately after verification.
       </p>
     </section>

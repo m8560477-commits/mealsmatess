@@ -110,8 +110,8 @@ function PaywallSheet({ reason, onClose }: { reason?: string; onClose: () => voi
           <TrustBadges />
 
           <p className="mt-4 text-center text-[11px] text-muted-foreground">
-            Purchases happen securely through Apple, Google or Paddle. Subscriptions auto-renew
-            until cancelled.
+            Purchases happen securely through Apple, Google or Paddle. Subscriptions automatically
+            renew until cancelled.
           </p>
           <p className="mt-1 text-center text-[11px] text-muted-foreground">
             <Link to="/profile" onClick={onClose} className="underline">
@@ -135,7 +135,7 @@ function PaywallHeader({ reason }: { reason?: string }) {
       </h2>
       <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
         {reason ??
-          "Get unlimited AI-powered recipes, meal planning, food scanning and nutrition insights."}
+          "Get unlimited AI powered recipes, meal planning, food scanning and nutrition insights."}
       </p>
     </header>
   );
@@ -235,7 +235,7 @@ function PremiumCard({ billing, onClose }: { billing: "annual" | "monthly"; onCl
     "Advanced Nutrition Analysis",
     "Barcode Scanner",
     "Unlimited Grocery Lists",
-    "Completely ad-free — no banners or sponsored cards",
+    "Completely ad free, no banners or sponsored cards",
     "Priority AI Processing",
     "Early Access to New Features",
   ];
@@ -270,7 +270,7 @@ function PremiumCard({ billing, onClose }: { billing: "annual" | "monthly"; onCl
 
         <Link to="/premium" onClick={onClose} className="mt-4 block">
           <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-base font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
-            Start 3-Day Free Trial
+            Start 3 Day Free Trial
           </Button>
         </Link>
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -296,7 +296,7 @@ function FamilyCard({ billing, onClose }: { billing: "annual" | "monthly"; onClo
     "Shared Recipe Collections",
     "Family Pantry",
     "Family Nutrition Dashboard",
-    "Cross-device Sync",
+    "Cross Device Sync",
     "No Ads for everyone",
     "Priority Support",
   ];
@@ -364,8 +364,8 @@ function TrustBadges() {
     { icon: Shield, label: "Cancel Anytime" },
     { icon: Lock, label: "Secure Payments" },
     { icon: Zap, label: "Instant Access" },
-    { icon: Gift, label: "3-Day Free Trial" },
-    { icon: RefreshCcw, label: "Auto-renews Until Cancelled" },
+    { icon: Gift, label: "3 Day Free Trial" },
+    { icon: RefreshCcw, label: "Renews Automatically Until Cancelled" },
   ];
   return (
     <ul className="mt-6 flex flex-wrap items-center justify-center gap-2">

@@ -74,14 +74,14 @@ const LineTrend = lazy(() =>
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { property: "og:title", content: "Admin \u2014 MealMate" },
+      { property: "og:title", content: "Admin: MealMate" },
       {
         property: "og:description",
         content: "Manage MealMate: analytics, subscribers, revenue, promo codes.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Admin — MealMate" },
+      { title: "Admin: MealMate" },
       {
         name: "description",
         content: "Manage MealMate: analytics, subscribers, revenue, promo codes.",
@@ -134,7 +134,7 @@ function ManagedRestaurantsTab() {
         try {
           await sendFirebasePasswordReset(email.trim().toLowerCase());
           toast.success(
-            "Password setup email sent. The owner must also verify their email before first sign-in.",
+            "Password setup email sent. The owner must also verify their email before first sign in.",
           );
         } catch {
           toast.error(
@@ -159,7 +159,7 @@ function ManagedRestaurantsTab() {
       <div className="mb-6">
         <h2 className="font-display text-2xl">Create a restaurant account</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Invite a restaurant owner by email. Their account starts with a one-month RevenueCat trial
+          Invite a restaurant owner by email. Their account starts with a one month RevenueCat trial
           and becomes visible to Consumer after Hub launch.
         </p>
       </div>
@@ -637,8 +637,8 @@ function UsersTab({ analytics, loading }: { analytics?: Analytics; loading: bool
                     created_at: string;
                   }) => (
                     <tr key={u.id} className="border-t border-border/60">
-                      <td className="px-3 py-2">{u.display_name ?? "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{u.username ?? "—"}</td>
+                      <td className="px-3 py-2">{u.display_name ?? "N/A"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{u.username ?? "N/A"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{u.locale}</td>
                       <td className="px-3 py-2 text-muted-foreground">
                         {format(new Date(u.created_at), "MMM d, yyyy")}
@@ -884,9 +884,9 @@ function SubscribersTab() {
                 <td className="px-3 py-2">{r.display_name}</td>
                 <td className="px-3 py-2 capitalize">{r.tier}</td>
                 <td className="px-3 py-2 capitalize">{r.status}</td>
-                <td className="px-3 py-2">{r.store ?? "—"}</td>
+                <td className="px-3 py-2">{r.store ?? "N/A"}</td>
                 <td className="px-3 py-2">
-                  {r.period_end ? new Date(r.period_end).toLocaleDateString() : "—"}
+                  {r.period_end ? new Date(r.period_end).toLocaleDateString() : "N/A"}
                 </td>
               </tr>
             ))}
@@ -1187,13 +1187,13 @@ function AuditTab() {
                     </td>
                     <td className="px-3 py-2">{r.action}</td>
                     <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                      {r.target_table ?? "—"}
+                      {r.target_table ?? "N/A"}
                       {r.target_id ? ` · ${r.target_id.slice(0, 8)}…` : ""}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                      {r.actor_id ? r.actor_id.slice(0, 8) + "…" : "—"}
+                      {r.actor_id ? r.actor_id.slice(0, 8) + "…" : "N/A"}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">{r.ip_address ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{r.ip_address ?? "N/A"}</td>
                   </tr>
                 ),
               )}

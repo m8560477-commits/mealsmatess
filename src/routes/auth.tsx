@@ -91,16 +91,16 @@ function getGoogleSignInErrorMessage(error: unknown): string {
 
   if (code === "auth/unauthorized-domain") {
     const hostname = typeof window === "undefined" ? "this site" : window.location.hostname;
-    return `Google sign-in is not enabled for ${hostname}. Add this domain under Firebase Authentication settings.`;
+    return `Google sign in is not enabled for ${hostname}. Add this domain under Firebase Authentication settings.`;
   }
 
   if (code === "auth/internal-error") {
-    return "Google could not finish signing in. Check that Google sign-in is enabled and this site is listed in Firebase Authentication's authorized domains.";
+    return "Google could not finish signing in. Check that Google sign in is enabled and this site is listed in Firebase Authentication's authorized domains.";
   }
 
   return extractErrorMessage(
     error,
-    "Google sign-in is unavailable. Please use email and password.",
+    "Google sign in is unavailable. Please use email and password.",
   );
 }
 
@@ -132,13 +132,13 @@ function AuthPage() {
           navigate({ to: "/", replace: true });
         } catch (error) {
           console.error("[Auth] Google redirect completion failed:", error);
-          toast.error("Google sign-in completed, but your profile could not be loaded.");
+          toast.error("Google sign in completed, but your profile could not be loaded.");
         }
       })
       .catch((error) => {
         if (error?.code === "auth/popup-closed-by-user") return;
         console.error("[Auth] Google redirect error:", error);
-        toast.error(extractErrorMessage(error, "Google sign-in is unavailable."));
+        toast.error(extractErrorMessage(error, "Google sign in is unavailable."));
       });
     return () => {
       active = false;

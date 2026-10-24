@@ -16,7 +16,7 @@ export function haversineKm(a: Coords, b: Coords): number {
 }
 
 export function formatDistance(km: number | null): string {
-  if (km === null || !Number.isFinite(km)) return "—";
+  if (km === null || !Number.isFinite(km)) return "N/A";
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(km < 10 ? 1 : 0)} km`;
 }

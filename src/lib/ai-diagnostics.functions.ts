@@ -29,9 +29,9 @@ function safeFailure(error: unknown) {
   if (/LOVABLE_API_KEY|AI_GATEWAY_API_KEY|not configured/i.test(message))
     return "The AI Gateway is not available in this server environment.";
   if (/authentication|unauthorized|rejected.*key/i.test(message))
-    return "AI Gateway authentication failed. Check the server-side provider credentials.";
+    return "AI Gateway authentication failed. Check the server side provider credentials.";
   if (/timeout|timed out/i.test(message)) return "The test timed out before the service responded.";
-  return "The server-side diagnostic failed. Check server logs for the test name and failure category.";
+  return "The server side diagnostic failed. Check server logs for the test name and failure category.";
 }
 
 async function checkDatabase(userId: string) {
@@ -57,7 +57,7 @@ async function checkDatabase(userId: string) {
       .maybeSingle();
     if (error) throw error;
     if (!data || data.user_id !== userId)
-      throw new Error("Scoped database read-after-write failed.");
+      throw new Error("Scoped database read after write failed.");
   } catch (error) {
     readFailed = true;
     readFailure = error;
@@ -70,7 +70,7 @@ async function checkDatabase(userId: string) {
     .eq("user_id", userId);
   if (cleanupError) throw cleanupError;
   if (readFailed) throw readFailure;
-  return "User-scoped database insert, read, and cleanup succeeded.";
+  return "User scoped database insert, read, and cleanup succeeded.";
 }
 
 async function checkStorage() {
@@ -207,7 +207,7 @@ export const runAiDiagnostics = createServerFn({ method: "POST" })
             test: data.test,
             ok: true,
             detail:
-              "Firebase authentication and admin authorization passed; repeat requests are rate-limited.",
+              "Firebase authentication and admin authorization passed; repeat requests are rate limited.",
           };
         }
       }

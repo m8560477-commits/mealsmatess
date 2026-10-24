@@ -132,7 +132,7 @@ export function priceModifiers(
       if (!option) {
         throw new MarketplaceError(
           "modifier_unknown",
-          `An add-on on ${itemName} is no longer available.`,
+          `An extra for ${itemName} is no longer available.`,
         );
       }
       chosen.push({
@@ -147,7 +147,7 @@ export function priceModifiers(
   if (selectedIds.some((s) => !knownGroups.has(s.group_id))) {
     throw new MarketplaceError(
       "modifier_unknown",
-      `An add-on on ${itemName} is no longer available.`,
+      `An extra for ${itemName} is no longer available.`,
     );
   }
   return chosen;

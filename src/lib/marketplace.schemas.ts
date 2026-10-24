@@ -56,7 +56,7 @@ export const PROMOTION_LABEL: Record<(typeof PROMOTION_KINDS)[number], string> =
   bogo: "Buy 1 get 1",
   free_delivery: "Free delivery",
   combo: "Combo deal",
-  first_order: "First-order discount",
+  first_order: "First order discount",
 };
 
 export const PromotionSchema = z.object({

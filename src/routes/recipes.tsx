@@ -141,7 +141,7 @@ function RecipesPage() {
       <div className="flex flex-col gap-2">
         <h1 className="font-display text-4xl md:text-5xl">Discover recipes</h1>
         <p className="text-muted-foreground">
-          Search our library — or ask the AI chef to invent something new.
+          Search our library, or ask the AI chef to invent something new.
         </p>
       </div>
 

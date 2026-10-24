@@ -28,11 +28,11 @@ export const Route = createFileRoute("/premium")({
   head: () => ({
     meta: [
       { name: "twitter:card", content: "summary" },
-      { title: "MealMate Premium — Unlimited AI, recipes & meal plans" },
+      { title: "MealMate Premium: Unlimited AI, recipes & meal plans" },
       {
         name: "description",
         content:
-          "Go Premium for unlimited AI Chef chats, unlimited recipe generation, meal plans, food scanning and advanced nutrition. Start a 3-day free trial.",
+          "Go Premium for unlimited AI Chef chats, unlimited recipe generation, meal plans, food scanning and advanced nutrition. Start a 3 day free trial.",
       },
       { property: "og:title", content: "MealMate Premium" },
       {
@@ -104,7 +104,7 @@ function PremiumPage() {
       return;
     }
     toast.info("Premium purchases open on the MealMate mobile app", {
-      description: "Sign in with the same account on iOS or Android to start your 3-day trial.",
+      description: "Sign in with the same account on iOS or Android to start your 3 day trial.",
     });
   }
 
@@ -120,7 +120,7 @@ function PremiumPage() {
             Unlock MealMate Premium
           </h1>
           <p className="mt-2 max-w-md text-sm/relaxed text-white/90">
-            Unlimited AI-powered recipes, meal plans, food scanning and nutrition insights for you
+            Unlimited AI powered recipes, meal plans, food scanning and nutrition insights for you
             or your whole family.
           </p>
           {isPremium && (
@@ -191,7 +191,7 @@ function PremiumPage() {
           {referral ? (
             <>
               <p className="mt-1 text-xs text-muted-foreground">
-                Share your code — you both get 14 free Premium days.
+                Share your code. You both get 14 free Premium days.
               </p>
               <div className="mt-3 flex items-center justify-between rounded-2xl border border-dashed border-border bg-muted/40 px-3 py-2">
                 <code className="font-mono text-sm font-bold tracking-wider">{referral.code}</code>
@@ -261,12 +261,12 @@ function PremiumPage() {
 
 const FAQ = [
   {
-    q: "How does the 3-day free trial work?",
+    q: "How does the 3 day free trial work?",
     a: "Start your trial and get full Premium access for 3 days. You're only charged when the trial ends. Cancel anytime before then and you won't be billed.",
   },
   {
     q: "Can I cancel anytime?",
-    a: "Yes — cancel any time in your App Store or Google Play subscription settings. You'll keep Premium until the end of your current billing period.",
+    a: "Yes, cancel any time in your App Store or Google Play subscription settings. You'll keep Premium until the end of your current billing period.",
   },
   {
     q: "What's the difference between monthly and annual?",
@@ -377,7 +377,7 @@ function PremiumHeroCard({
     "Barcode Scanner",
     "Personalized Meal Plans",
     "Unlimited Grocery Lists",
-    "Completely ad-free — no banners or sponsored cards",
+    "Completely ad free, no banners or sponsored cards",
     "Priority AI Processing",
     "Early Access to New Features",
   ];
@@ -413,7 +413,7 @@ function PremiumHeroCard({
           disabled={disabled}
           className="mt-5 h-14 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-base font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50"
         >
-          Start 3-Day Free Trial
+          Start 3 Day Free Trial
         </Button>
         <p className="mt-2 text-center text-xs text-muted-foreground">
           Cancel anytime. No charges during the free trial.
@@ -447,7 +447,7 @@ function FamilyCard({
     "Family Nutrition Dashboard",
     "Family Pantry Management",
     "Priority Support",
-    "Cross-device Sync",
+    "Cross Device Sync",
     "No Ads for All Members",
   ];
   return (
@@ -518,8 +518,8 @@ function TrustBadges() {
     { icon: Shield, label: "Cancel Anytime" },
     { icon: Lock, label: "Secure Payments" },
     { icon: Zap, label: "Instant Access" },
-    { icon: Gift, label: "3-Day Free Trial" },
-    { icon: RefreshCcw, label: "Auto-renews Until Cancelled" },
+    { icon: Gift, label: "3 Day Free Trial" },
+    { icon: RefreshCcw, label: "Renews Automatically Until Cancelled" },
   ];
   return (
     <ul className="mt-6 flex flex-wrap items-center justify-center gap-2">

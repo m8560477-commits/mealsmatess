@@ -108,22 +108,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "MealMate" },
       { name: "application-name", content: "MealMate" },
-      { title: "MealMate — Cook the world, one recipe at a time" },
+      { title: "MealMate: Cook the world, one recipe at a time" },
       {
         name: "description",
         content:
           "MealMate generates authentic recipes from around the world with AI, plans your week, and builds your grocery list. From pap and chakalaka to global classics.",
       },
       { name: "author", content: "MealMate" },
-      { property: "og:title", content: "MealMate — Cook the world, one recipe at a time" },
+      { property: "og:title", content: "MealMate: Cook the world, one recipe at a time" },
       {
         property: "og:description",
         content:
-          "AI-powered recipes, meal planning, and smart grocery lists rooted in South African and global cuisine.",
+          "AI powered recipes, meal planning, and smart grocery lists rooted in South African and global cuisine.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "MealMate — Cook the world, one recipe at a time" },
+      { name: "twitter:title", content: "MealMate: Cook the world, one recipe at a time" },
       {
         name: "twitter:description",
         content:

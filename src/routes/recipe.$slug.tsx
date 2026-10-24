@@ -48,14 +48,14 @@ export const Route = createFileRoute("/recipe/$slug")({
     loaderData
       ? {
           meta: [
-            { title: `${loaderData.name} — MealMate` },
+            { title: `${loaderData.name}: MealMate` },
             {
               name: "description",
               content:
                 loaderData.description ||
                 `Cook ${loaderData.name} with ingredients and step-by-step instructions from MealMate.`,
             },
-            { property: "og:title", content: `${loaderData.name} — MealMate` },
+            { property: "og:title", content: `${loaderData.name}: MealMate` },
             {
               property: "og:description",
               content:
@@ -330,7 +330,9 @@ function RecipePage() {
               { label: "Fat (est.)", value: r.fat_g },
             ].map((m) => (
               <div key={m.label} className="text-center">
-                <div className="font-display text-2xl">{m.value ?? "–"}g</div>
+                <div className="font-display text-2xl">
+                  {m.value != null ? `${m.value}g` : "N/A"}
+                </div>
                 <div className="text-xs text-muted-foreground">{m.label}</div>
               </div>
             ))}
@@ -397,7 +399,7 @@ function RecipePage() {
                   data: { action: "recipe_cooked", entityId: r.id },
                 });
                 if (res.awarded) {
-                  toast.success(`+${res.points} XP — well cooked!`);
+                  toast.success(`+${res.points} XP, well cooked!`);
                   queryClient.invalidateQueries({ queryKey: ["gamification"] });
                 }
               } catch {

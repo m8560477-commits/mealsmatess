@@ -18,7 +18,7 @@ function WelcomePage() {
   const pending = useRef(false);
   useEffect(() => {
     void getRedirectResult(auth).catch(() =>
-      toast.error("Google sign-in could not finish. Please try email."),
+      toast.error("Google sign in could not finish. Please try email."),
     );
   }, []);
   // The root onboarding guard checks the signed-in profile and selects home or onboarding.
@@ -29,7 +29,7 @@ function WelcomePage() {
     try {
       await signInWithGoogle();
     } catch {
-      toast.error("Google sign-in could not finish. Please try again or use email.");
+      toast.error("Google sign in could not finish. Please try again or use email.");
     } finally {
       pending.current = false;
       setBusy(false);

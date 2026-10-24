@@ -384,7 +384,7 @@ export function VisualExplainer({ data }: { data: VisualExplanation }) {
         ))}
       </div>
       <p className="flex items-center gap-1 px-1 pb-1 text-xs text-muted-foreground">
-        <Download className="h-3 w-3" /> Exports use your current aspect ratio — switch to 9:16 for
+        <Download className="h-3 w-3" /> Exports use your current aspect ratio; switch to 9:16 for
         social.
       </p>
     </div>

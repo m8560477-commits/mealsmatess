@@ -289,10 +289,10 @@ function StatsRow({ restaurantId, currency }: { restaurantId: string; currency: 
     queryFn: () => fetchStats({ data: { restaurantId } }),
   });
   const cards = [
-    { label: "Active orders", value: data ? String(data.active) : "—" },
-    { label: "Orders (30d)", value: data ? String(data.orders30d) : "—" },
-    { label: "Revenue (30d)", value: data ? money(data.revenue30d, currency) : "—" },
-    { label: "Avg order", value: data ? money(data.avgOrder, currency) : "—" },
+    { label: "Active orders", value: data ? String(data.active) : "N/A" },
+    { label: "Orders (30d)", value: data ? String(data.orders30d) : "N/A" },
+    { label: "Revenue (30d)", value: data ? money(data.revenue30d, currency) : "N/A" },
+    { label: "Avg order", value: data ? money(data.avgOrder, currency) : "N/A" },
   ];
   return (
     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -403,7 +403,7 @@ function OrdersPanel({ restaurantId, currency }: { restaurantId: string; currenc
                 <li key={it.id} className="flex justify-between gap-3">
                   <span className="min-w-0 truncate">
                     {it.quantity}× {it.name}
-                    {it.notes ? <span className="text-muted-foreground"> — {it.notes}</span> : null}
+                    {it.notes ? <span className="text-muted-foreground">: {it.notes}</span> : null}
                   </span>
                   <span className="shrink-0 text-muted-foreground">
                     {money(Number(it.unit_price) * it.quantity, currency)}

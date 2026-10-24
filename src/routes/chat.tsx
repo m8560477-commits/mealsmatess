@@ -19,13 +19,13 @@ export const Route = createFileRoute("/chat")({
     typeof search["q"] === "string" ? { q: search["q"].slice(0, 200) } : {},
   head: () => ({
     meta: [
-      { title: "AI Food Chat & Visual Mode — MealMate" },
+      { title: "AI Food Chat & Visual Mode: MealMate" },
       {
         name: "description",
         content:
           "Ask MealMate anything about food and get an AI answer plus a narrated, animated visual explanation you can download.",
       },
-      { property: "og:title", content: "AI Food Chat & Visual Mode — MealMate" },
+      { property: "og:title", content: "AI Food Chat & Visual Mode: MealMate" },
       {
         property: "og:description",
         content: "AI answers with animated, narrated visual explanations for Premium members.",
@@ -213,7 +213,7 @@ function ChatPage() {
             {t.visualLoading && (
               <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Directing your animated explainer — illustrations + narration…
+                Directing your animated explainer, illustrations + narration…
               </div>
             )}
             {t.visualError && (
@@ -249,7 +249,7 @@ function ChatPage() {
         />
       </div>
       <p className="mt-2 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-        AI answers can be wrong — use judgment for allergies and safety.
+        AI answers can be wrong. Use judgment for allergies and safety.
       </p>
     </main>
   );

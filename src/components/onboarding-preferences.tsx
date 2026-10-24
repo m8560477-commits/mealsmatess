@@ -1,5 +1,11 @@
 import type { FoodPreferences } from "@/lib/preferences";
 
+const DIETARY_LABELS = new Map([
+  ["Gluten-free", "Gluten free"],
+  ["Dairy-free", "Dairy free"],
+  ["High-protein", "High protein"],
+]);
+
 export function PreferenceChoices({
   preferences,
   onChange,
@@ -52,7 +58,7 @@ export function PreferenceChoices({
                 aria-pressed={preferences[field].includes(option)}
                 onClick={() => toggle(field, option)}
               >
-                {option}
+                {DIETARY_LABELS.get(option) ?? option}
               </button>
             ))}
           </div>

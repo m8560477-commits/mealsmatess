@@ -46,14 +46,14 @@ import {
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { property: "og:title", content: "Settings \u2014 MealMate" },
+      { property: "og:title", content: "Settings: MealMate" },
       {
         property: "og:description",
         content: "Manage your MealMate account, currency, language, notifications, and privacy.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Settings — MealMate" },
+      { title: "Settings: MealMate" },
       {
         name: "description",
         content: "Manage your MealMate account, currency, language, notifications, and privacy.",
@@ -256,7 +256,7 @@ function SettingsPage() {
     const url = "https://mealmate.app";
     const shareData = {
       title: "MealMate",
-      text: "Cook smarter with MealMate — recipes, planner, and AI in your kitchen.",
+      text: "Cook smarter with MealMate: recipes, planner, and AI in your kitchen.",
       url,
     };
     try {
@@ -299,7 +299,7 @@ function SettingsPage() {
     },
     {
       label: "MealMate Premium",
-      description: "Unlimited AI, recipes, meal plans · 3-day free trial",
+      description: "Unlimited AI, recipes, meal plans · 3 day free trial",
       icon: Star,
       to: "/premium",
     },
@@ -477,7 +477,7 @@ function SettingsPage() {
                   <SelectContent align="end">
                     {CURRENCIES.map((c) => (
                       <SelectItem key={c.code} value={c.code}>
-                        {c.symbol} {c.code} — {c.name}
+                        {c.symbol} {c.code}: {c.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

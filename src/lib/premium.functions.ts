@@ -223,7 +223,7 @@ export const applyReferralCode = createServerFn({ method: "POST" })
     });
     return {
       ok: true,
-      message: "Referral saved — both of you get 14 free Premium days when you first subscribe.",
+      message: "Referral saved. Both of you get 14 free Premium days when you first subscribe.",
     };
   });
 
@@ -343,7 +343,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
       ok: true,
       message:
         promo.reward_kind === "percent_discount"
-          ? `${promo.reward_value}% discount saved — it'll apply at checkout on mobile.`
+          ? `${promo.reward_value}% discount saved. It'll apply at checkout on mobile.`
           : grantedLifetime
             ? "Lifetime Premium unlocked!"
             : `${grantedDays} days of Premium added to your account.`,
@@ -396,7 +396,7 @@ export const adminListSubscribers = createServerFn({ method: "GET" })
     const profMap = new Map(profileRows.map((profile) => [profile.id, profile.display_name]));
     return subscriptionRows.map((subscription) => ({
       ...subscription,
-      display_name: profMap.get(subscription.user_id) ?? "—",
+      display_name: profMap.get(subscription.user_id) ?? "N/A",
     }));
   });
 

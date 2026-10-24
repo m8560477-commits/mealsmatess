@@ -83,7 +83,7 @@ function DiningComingSoon() {
       </span>
       <h1 className="font-sans text-2xl font-bold text-foreground">Dining is coming soon</h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        We're still getting restaurants and food delivery ready. Check back soon — in the meantime,
+        We're still getting restaurants and food delivery ready. Check back soon. In the meantime,
         explore recipes and plan your meals.
       </p>
       <Button asChild className="mt-6">

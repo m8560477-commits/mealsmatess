@@ -13,13 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 export const Route = createFileRoute("/coach")({
   head: () => ({
     meta: [
-      { title: "AI Nutrition Coach — MealMate" },
+      { title: "AI Nutrition Coach: MealMate" },
       {
         name: "description",
         content:
           "A personalized AI nutrition coach that reads your goals, allergies, and constraints to give practical daily food advice.",
       },
-      { property: "og:title", content: "AI Nutrition Coach — MealMate" },
+      { property: "og:title", content: "AI Nutrition Coach: MealMate" },
       {
         property: "og:description",
         content: "Personalized food and nutrition guidance tuned to your profile.",
@@ -35,8 +35,8 @@ type Turn = { role: "user" | "assistant"; content: string };
 
 const STARTERS = [
   "What should I eat today to hit my goal?",
-  "Plan a high-protein breakfast under 400 calories.",
-  "I'm short on time tonight — quick dinner ideas?",
+  "Plan a high protein breakfast under 400 calories.",
+  "I'm short on time tonight. Any quick dinner ideas?",
   "How many calories should I actually eat?",
 ];
 
