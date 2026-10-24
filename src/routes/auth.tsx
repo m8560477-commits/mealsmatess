@@ -258,14 +258,18 @@ function AuthPage() {
       className={
         isHub
           ? "hub-auth flex flex-1 items-center justify-center px-4 py-10"
-          : "flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(157,204,153,0.16),_transparent_34%),linear-gradient(135deg,#f3f1eb_0%,#f6f4ef_28%,#f0efe9_100%)] px-4 py-10 text-foreground"
+          : "consumer-auth flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(157,204,153,0.16),_transparent_34%),linear-gradient(135deg,#f3f1eb_0%,#f6f4ef_28%,#f0efe9_100%)] px-4 py-10 text-foreground"
       }
     >
       <div className="grid w-full max-w-6xl overflow-hidden rounded-[32px] border border-black/5 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-[1.1fr_0.9fr]">
         <div className="relative hidden min-h-[680px] overflow-hidden bg-[#1f2d1c] p-8 text-white md:flex md:flex-col md:justify-between">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(176,214,120,0.35),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.12),_transparent_26%)]" />
           <div className="relative z-10 flex items-center gap-3">
-            <MealMateLogo className="text-white" imageClassName="size-11 rounded-xl" showName />
+            <MealMateLogo
+              className="auth-brand-logo text-white"
+              imageClassName="size-11 rounded-xl"
+              showName
+            />
           </div>
 
           <div className="relative z-10 space-y-6">
@@ -303,22 +307,26 @@ function AuthPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center p-6 sm:p-8 md:p-10">
+        <div className="auth-form-panel flex items-center justify-center p-6 sm:p-8 md:p-10">
           <div className="w-full max-w-md">
             <div className="mb-8 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <MealMateLogo imageClassName="size-12 rounded-2xl" showName={false} />
+                <MealMateLogo
+                  className="auth-form-logo"
+                  imageClassName="size-12 rounded-2xl"
+                  showName={false}
+                />
               </div>
               <button
                 type="button"
                 onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                className="rounded-full border border-border bg-white/80 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-white"
+                className="auth-account-toggle rounded-full border border-border bg-white/80 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-white"
               >
                 {mode === "signin" ? "Create account" : "Sign in"}
               </button>
             </div>
 
-            <div className="rounded-[28px] border border-border/80 bg-white/80 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
+            <div className="auth-card rounded-[28px] border border-border/80 bg-white/80 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
               <div className="mb-6 text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700/80">
                   {mode === "signin" ? "Welcome back" : "Join MealMate"}
@@ -413,7 +421,7 @@ function AuthPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 w-full rounded-2xl border-border bg-background"
+                  className="auth-google h-11 w-full rounded-2xl border-border bg-background"
                   disabled={busy}
                   onClick={signInWithGoogle}
                 >
@@ -453,7 +461,7 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                  className="font-semibold text-foreground underline-offset-4 hover:underline"
+                  className="auth-account-link font-semibold text-foreground underline-offset-4 hover:underline"
                 >
                   {mode === "signin" ? "Create an account" : "Sign in"}
                 </button>
