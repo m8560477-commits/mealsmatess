@@ -2,10 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Camera, CalendarDays, Flame, Loader2, Plus, Utensils } from "lucide-react";
+import { Camera, CalendarDays, Flame, Loader2, Plus, Utensils, ImagePlus } from "lucide-react";
 import { scanKitchen, scanDish, type ScannedDish } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
-import { firebaseData } from "@/lib/firebase-data";
+import { prepareScanPhoto } from "@/lib/scan-photo";
+import { saveScannedDish, saveScannedIngredients } from "@/lib/scan-save";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -43,33 +44,6 @@ type ScannedItem = { name: string; quantity?: string; category?: string };
 type Mode = "dish" | "ingredients";
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-/** Downscale to keep uploads fast on mobile networks. */
-async function compressImage(dataUrl: string, max = 1024): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, max / Math.max(img.width, img.height));
-      if (scale === 1) return resolve(dataUrl);
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * scale);
-      c.height = Math.round(img.height * scale);
-      c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL("image/jpeg", 0.85));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
 function isoLocal(d: Date) {
   const x = new Date(d);
   x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
@@ -81,6 +55,10 @@ function ScanPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const pending = useRef(false);
+  const savePending = useRef(false);
+  const requestId = useRef(0);
   const search = Route.useSearch();
   const [mode, setMode] = useState<Mode>(search.mode ?? "dish");
   const [preview, setPreview] = useState<string | null>(null);
@@ -88,6 +66,7 @@ function ScanPage() {
   const [dish, setDish] = useState<ScannedDish | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const days = useMemo(
     () =>
@@ -105,24 +84,45 @@ function ScanPage() {
     if (!loading && !user) navigate({ to: "/auth", replace: true });
   }, [user, loading, navigate]);
 
+  useEffect(() => {
+    reset();
+    pending.current = false;
+    setBusy(false);
+    return () => {
+      // Invalidate in-flight results; this sequence counter is intentionally read at cleanup.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      requestId.current++;
+    };
+  }, [user?.id]);
+
   function reset() {
+    requestId.current++;
+    setScanError(null);
     setItems(null);
     setDish(null);
     setPreview(null);
     if (inputRef.current) inputRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = "";
+    if (!file || pending.current || savePending.current || !user) return;
+    pending.current = true;
+    const scanId = ++requestId.current;
+    setScanError(null);
+    setPreview(null);
     setBusy(true);
     setItems(null);
     setDish(null);
     try {
-      const dataUrl = await compressImage(await fileToDataUrl(file));
+      const dataUrl = await prepareScanPhoto(file);
+      if (scanId !== requestId.current) return;
       setPreview(dataUrl);
       if (mode === "dish") {
         const found = await scanDish({ data: { imageDataUrl: dataUrl } });
+        if (scanId !== requestId.current) return;
         if (!found.is_food) {
           toast.info("That doesn't look like a dish", {
             description: "Try a clear photo of a plated meal.",
@@ -134,6 +134,7 @@ function ScanPage() {
         if (found.meal_type && MEAL_TYPES.includes(found.meal_type)) setMealType(found.meal_type);
       } else {
         const found = await scanKitchen({ data: { imageDataUrl: dataUrl } });
+        if (scanId !== requestId.current) return;
         setItems(found);
         if (found.length === 0) {
           toast.info("Didn't spot any ingredients", {
@@ -142,37 +143,27 @@ function ScanPage() {
         }
       }
     } catch (err) {
+      if (scanId !== requestId.current) return;
+      setScanError(err instanceof Error ? err.message : "Please try another photo.");
       toast.error("Couldn't scan that photo", {
         description: err instanceof Error ? err.message : undefined,
       });
     } finally {
-      setBusy(false);
+      if (scanId === requestId.current) {
+        pending.current = false;
+        setBusy(false);
+      }
     }
   }
 
   async function saveDishToPlanner() {
-    if (!dish || !user || saving) return;
+    if (!dish || !user || savePending.current) return;
+    savePending.current = true;
+    const saveId = requestId.current;
     setSaving(true);
     try {
-      const { error: planErr } = await firebaseData.from("meal_plans").insert({
-        user_id: user.id,
-        plan_date: planDate,
-        meal_type: mealType,
-        custom_name: dish.name,
-      });
-      if (planErr) throw planErr;
-      const { error: logErr } = await firebaseData.from("nutrition_logs").insert({
-        user_id: user.id,
-        name: dish.name,
-        meal_type: mealType,
-        logged_at: new Date(`${planDate}T12:00:00`).toISOString(),
-        calories: dish.calories ?? null,
-        protein_g: dish.protein_g ?? null,
-        carbs_g: dish.carbs_g ?? null,
-        fat_g: dish.fat_g ?? null,
-        servings: 1,
-      });
-      if (logErr) throw logErr;
+      await saveScannedDish(user.id, dish, planDate, mealType);
+      if (saveId !== requestId.current) return;
       queryClient.invalidateQueries({ queryKey: ["planner"] });
       toast.success(`${dish.name} added to ${mealType}`, {
         description: `${dish.calories ?? "–"} kcal logged`,
@@ -180,36 +171,34 @@ function ScanPage() {
       });
       reset();
     } catch (err) {
+      if (saveId !== requestId.current) return;
       toast.error("Couldn't save to planner", {
         description: err instanceof Error ? err.message : undefined,
       });
     } finally {
+      savePending.current = false;
       setSaving(false);
     }
   }
 
   async function addAllToPantry() {
-    if (!items || !user || saving) return;
+    if (!items?.length || !user || savePending.current) return;
+    savePending.current = true;
+    const saveId = requestId.current;
     setSaving(true);
     try {
-      const { error } = await firebaseData.from("pantry_items").insert(
-        items.map((i) => ({
-          user_id: user.id,
-          name: i.name,
-          quantity: i.quantity ?? null,
-          category: i.category ?? null,
-          source: "scan",
-        })),
-      );
-      if (error) throw error;
+      await saveScannedIngredients(user.id, items);
+      if (saveId !== requestId.current) return;
       queryClient.invalidateQueries({ queryKey: ["pantry"] });
       toast.success(`Added ${items.length} item${items.length === 1 ? "" : "s"} to your pantry`);
       reset();
     } catch (err) {
+      if (saveId !== requestId.current) return;
       toast.error("Couldn't save to pantry", {
         description: err instanceof Error ? err.message : undefined,
       });
     } finally {
+      savePending.current = false;
       setSaving(false);
     }
   }
@@ -247,6 +236,8 @@ function ScanPage() {
           <button
             key={m.id}
             type="button"
+            disabled={busy || saving}
+            aria-pressed={mode === m.id}
             onClick={() => {
               setMode(m.id);
               reset();
@@ -264,36 +255,67 @@ function ScanPage() {
       <input
         ref={inputRef}
         type="file"
+        aria-label="Take a food photo"
         accept="image/*"
         capture="environment"
+        disabled={busy || saving}
         className="hidden"
         onChange={handleFile}
       />
 
-      {!preview ? (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="mt-6 flex w-full flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-border bg-card py-16 text-center transition-colors hover:bg-muted"
-        >
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-ink text-background">
-            <Camera className="h-7 w-7" />
-          </span>
-          <span className="font-medium">Tap to scan now</span>
-          <span className="max-w-xs text-sm text-muted-foreground">
-            {mode === "dish"
-              ? "Snap a plated meal to identify it and get calories and macros."
-              : "Take or upload a photo of your ingredients or groceries."}
-          </span>
-        </button>
-      ) : (
+      <input
+        ref={galleryRef}
+        type="file"
+        aria-label="Choose a food photo"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        disabled={busy || saving}
+        onChange={handleFile}
+      />
+
+      {preview ? (
         <div className="mt-6 overflow-hidden rounded-3xl border border-border bg-card">
           <img src={preview} alt="Scanned food" className="max-h-64 w-full object-cover" />
         </div>
+      ) : (
+        <div className="mt-6 rounded-3xl border border-dashed border-border bg-card px-5 py-10 text-center">
+          <Camera className="mx-auto mb-4 h-8 w-8 text-primary" />
+          <p className="font-medium">Scan a photo of your food</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {mode === "dish"
+              ? "Photograph a plated meal to estimate its calories and macros."
+              : "Photograph your ingredients or groceries to add them to your pantry."}
+          </p>
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap justify-center gap-3">
+        <Button onClick={() => inputRef.current?.click()} disabled={busy || saving}>
+          <Camera className="mr-2 h-4 w-4" /> Take photo
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => galleryRef.current?.click()}
+          disabled={busy || saving}
+        >
+          <ImagePlus className="mr-2 h-4 w-4" /> Choose photo
+        </Button>
+      </div>
+      {scanError && (
+        <p role="alert" className="mt-4 text-center text-sm text-destructive">
+          {scanError}
+        </p>
+      )}
+      {items?.length === 0 && !busy && (
+        <p role="status" className="mt-4 text-center text-sm text-muted-foreground">
+          No ingredients found. Try a clearer, closer photo.
+        </p>
       )}
 
       {busy && (
-        <div className="mt-6 flex items-center justify-center gap-2 text-muted-foreground">
+        <div
+          role="status"
+          className="mt-6 flex items-center justify-center gap-2 text-muted-foreground"
+        >
           <Loader2 className="h-4 w-4 animate-spin" />
           {mode === "dish" ? "Identifying your dish…" : "Identifying ingredients…"}
         </div>
@@ -318,7 +340,7 @@ function ScanPage() {
             <Flame className="h-6 w-6" />
             <div>
               <div className="font-display text-2xl leading-none">{dish.calories ?? "–"}</div>
-              <div className="text-xs opacity-80">kcal per portion</div>
+              <div className="text-xs opacity-80">kcal per portion (estimate)</div>
             </div>
           </div>
 
@@ -399,7 +421,12 @@ function ScanPage() {
                 )}
                 Add to planner
               </Button>
-              <Button variant="secondary" className="rounded-full" onClick={reset}>
+              <Button
+                variant="secondary"
+                className="rounded-full"
+                disabled={saving}
+                onClick={reset}
+              >
                 <Camera className="mr-2 h-4 w-4" />
                 Scan again
               </Button>
@@ -433,7 +460,7 @@ function ScanPage() {
               )}
               Add all to pantry
             </Button>
-            <Button variant="secondary" className="rounded-full" onClick={reset}>
+            <Button variant="secondary" className="rounded-full" disabled={saving} onClick={reset}>
               <Camera className="mr-2 h-4 w-4" />
               Scan again
             </Button>

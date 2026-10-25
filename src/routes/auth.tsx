@@ -258,24 +258,28 @@ function AuthPage() {
       className={
         isHub
           ? "hub-auth flex flex-1 items-center justify-center px-4 py-10"
-          : "flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(157,204,153,0.16),_transparent_34%),linear-gradient(135deg,#f3f1eb_0%,#f6f4ef_28%,#f0efe9_100%)] px-4 py-10 text-foreground"
+          : "auth-shell flex min-h-screen items-center justify-center px-4 py-10 text-foreground"
       }
     >
-      <div className="grid w-full max-w-6xl overflow-hidden rounded-[32px] border border-black/5 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-[1.1fr_0.9fr]">
-        <div className="relative hidden min-h-[680px] overflow-hidden bg-[#1f2d1c] p-8 text-white md:flex md:flex-col md:justify-between">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(176,214,120,0.35),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.12),_transparent_26%)]" />
+      <div className="grid w-full max-w-6xl overflow-hidden rounded-[32px] border border-border bg-card/90 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-[1.1fr_0.9fr]">
+        <div className="relative hidden min-h-[680px] overflow-hidden bg-primary p-8 text-primary-foreground md:flex md:flex-col md:justify-between">
+          <div className="absolute inset-0 auth-hero-glow" />
           <div className="relative z-10 flex items-center gap-3">
-            <MealMateLogo className="text-white" imageClassName="size-11 rounded-xl" showName />
+            <MealMateLogo
+              className="text-primary-foreground"
+              imageClassName="size-11 rounded-xl"
+              showName
+            />
           </div>
 
           <div className="relative z-10 space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-emerald-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-current/15 bg-current/5 px-3 py-1 text-xs font-medium uppercase tracking-[0.22em] text-primary-foreground">
               Meal planning reimagined
             </div>
-            <h2 className="max-w-sm font-display text-4xl leading-tight text-white">
+            <h2 className="max-w-sm font-display text-4xl leading-tight text-primary-foreground">
               Make better meals feel effortless.
             </h2>
-            <p className="max-w-md text-base text-emerald-50/80">
+            <p className="max-w-md text-base text-primary-foreground/80">
               Save recipes, shop smarter, and turn everyday ingredients into dinner plans you’ll
               actually enjoy.
             </p>
@@ -287,9 +291,9 @@ function AuthPage() {
               ].map((item) => (
                 <div
                   key={item}
-                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90"
+                  className="flex items-center gap-3 rounded-2xl border border-current/10 bg-current/5 px-4 py-3 text-sm text-primary-foreground/90"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400/20 text-base text-emerald-200">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current/10 text-base text-primary-foreground">
                     ✓
                   </span>
                   {item}
@@ -298,7 +302,7 @@ function AuthPage() {
             </div>
           </div>
 
-          <div className="relative z-10 text-sm text-emerald-50/70">
+          <div className="relative z-10 text-sm text-primary-foreground/70">
             Fresh ideas for your kitchen, without the overwhelm.
           </div>
         </div>
@@ -312,15 +316,15 @@ function AuthPage() {
               <button
                 type="button"
                 onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                className="rounded-full border border-border bg-white/80 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-white"
+                className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted"
               >
                 {mode === "signin" ? "Create account" : "Sign in"}
               </button>
             </div>
 
-            <div className="rounded-[28px] border border-border/80 bg-white/80 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
+            <div className="rounded-[28px] border border-border/80 bg-card p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
               <div className="mb-6 text-left">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700/80">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
                   {mode === "signin" ? "Welcome back" : "Join MealMate"}
                 </p>
                 <h1 className="mt-3 font-display text-3xl text-foreground">
@@ -392,7 +396,7 @@ function AuthPage() {
 
                 <Button
                   type="submit"
-                  className="h-11 w-full rounded-2xl bg-[#1f2d1c] text-white hover:bg-[#243722]"
+                  className="h-11 w-full rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={busy}
                 >
                   {busy ? (

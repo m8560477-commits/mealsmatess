@@ -60,7 +60,7 @@ export function OnboardingLayout({
                 <ArrowLeft size={20} />
               </button>
             ) : (
-              <MealMateLogo imageClassName="size-9 rounded-xl" className="text-white" />
+              <MealMateLogo imageClassName="size-9 rounded-xl" className="text-foreground" />
             )}
             <span className="onboarding-step">{String(step + 1).padStart(2, "0")} / 07</span>
           </div>

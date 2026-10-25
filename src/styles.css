@@ -541,6 +541,7 @@ html.dark[data-mascot]:not([data-mascot="classic"]),
 html[data-mascot]:not([data-mascot="classic"]) .dark {
   --brand: var(--brand-dark);
   --primary: var(--brand-dark);
+  --primary-foreground: var(--background);
   --ring: var(--brand-dark);
 }
 html.theme-transition,
@@ -867,12 +868,25 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   letter-spacing: 0;
 }
 
-/* Immersive onboarding: scoped independently of the user's app theme. */
+/* Entry screens share the selected app palette in light and dark mode. */
+.auth-shell {
+  background: radial-gradient(
+    ellipse at top,
+    color-mix(in oklch, var(--primary) 12%, transparent),
+    transparent 65%
+  );
+}
+.auth-hero-glow {
+  background: radial-gradient(
+    ellipse at top left,
+    color-mix(in oklch, var(--primary-foreground) 18%, transparent),
+    transparent 65%
+  );
+}
 .onboarding-shell {
-  --onboarding-muted: #b9b4b1;
-  color-scheme: dark;
-  background: #08090c;
-  color: #faf9f7;
+  --onboarding-muted: var(--muted-foreground);
+  background: var(--background);
+  color: var(--foreground);
   width: 100%;
   min-height: 100dvh;
 }
@@ -905,7 +919,7 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #18191e;
+  background: var(--muted);
 }
 .onboarding-progress {
   display: flex;
@@ -915,11 +929,11 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
 .onboarding-progress span {
   height: 2px;
   flex: 1;
-  background: #303037;
+  background: var(--border);
   border-radius: 8px;
 }
 .onboarding-progress span[data-active="true"] {
-  background: #f5f0ea;
+  background: var(--primary);
 }
 .onboarding-content {
   flex: 1;
@@ -947,9 +961,12 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   height: 75%;
   border-radius: 50%;
   background:
-    radial-gradient(ellipse at 30% 65%, #8d50c53b, transparent 65%),
-    radial-gradient(ellipse at 75% 35%, #739eea30, transparent 60%),
-    radial-gradient(ellipse at 55% 85%, #c65b8030, transparent 65%);
+    radial-gradient(
+      ellipse at 30% 65%,
+      color-mix(in oklch, var(--primary) 22%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(ellipse at 75% 35%, var(--accent), transparent 60%);
   filter: blur(22px);
 }
 .onboarding-mia {
@@ -973,12 +990,13 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   border: 1px solid #ffffff25;
   border-radius: 30px;
   background: #111b;
+  color: white;
   padding: 10px;
   backdrop-filter: blur(12px);
   font-size: 12px;
 }
 .onboarding-eyebrow {
-  color: #c9bed7;
+  color: var(--primary);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1035,23 +1053,23 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
     transform 0.2s;
 }
 .onboarding-primary {
-  background: #f7f5f1;
-  color: #101114;
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 .onboarding-primary:hover {
-  background: #e4dfd8;
+  background: color-mix(in oklch, var(--primary) 90%, var(--background));
 }
 .onboarding-secondary {
-  background: #18191e;
-  border: 1px solid #34343c;
-  color: #faf9f7;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
 }
 .onboarding-text-button {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  color: #d7d2ce;
+  color: var(--foreground);
   font-size: 13px;
 }
 .onboarding-shell button:disabled {
@@ -1059,11 +1077,11 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   cursor: not-allowed;
 }
 .onboarding-shell :is(button, a):focus-visible {
-  outline: 2px solid #c9b5f5;
+  outline: 2px solid var(--ring);
   outline-offset: 4px;
 }
 .onboarding-legal {
-  color: #aaa5a2;
+  color: var(--muted-foreground);
   font-size: 10px;
   text-align: center;
   line-height: 1.8;
@@ -1076,16 +1094,16 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   padding-block: 8px;
 }
 .onboarding-error {
-  color: #ffb9b9;
+  color: var(--destructive);
   font-size: 13px;
   line-height: 1.5;
   text-align: center;
 }
 .onboarding-planner {
   width: min(100%, 300px);
-  border: 1px solid #ffffff20;
+  border: 1px solid var(--border);
   border-radius: 24px;
-  background: #191a20;
+  background: var(--card);
   padding: 16px;
   transform: rotate(-3deg);
   box-shadow: 0 16px 45px #0005;
@@ -1108,11 +1126,11 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   display: grid;
   place-items: center;
   font-size: 10px;
-  color: #bbb7bf;
+  color: var(--muted-foreground);
 }
 .onboarding-week span[data-selected="true"] {
-  background: #ece7f6;
-  color: #17131e;
+  background: var(--primary);
+  color: var(--primary-foreground);
   border-radius: 50%;
 }
 .onboarding-plan-photo {
@@ -1126,7 +1144,7 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   gap: 8px;
   margin-top: 12px;
   font-size: 10px;
-  color: #c1bdc7;
+  color: var(--muted-foreground);
   text-align: left;
 }
 .onboarding-bell {
@@ -1136,9 +1154,9 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   border-radius: 42px;
   display: grid;
   place-items: center;
-  background: #1d1d28;
-  border: 1px solid #c4b5fd40;
-  color: #e7e0f7;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--primary);
   transform: rotate(-9deg);
   box-shadow: 0 16px 50px #0006;
 }
@@ -1146,8 +1164,8 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
   position: absolute;
   bottom: 22px;
   right: 22px;
-  background: #e5dbf6;
-  color: #282032;
+  background: var(--primary);
+  color: var(--primary-foreground);
   border-radius: 50%;
   padding: 5px;
 }
@@ -1178,16 +1196,16 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
 .onboarding-chips button {
   min-height: 44px;
   border-radius: 999px;
-  border: 1px solid #3b3a43;
-  color: #d2ced6;
-  background: #18191e;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  background: var(--muted);
   padding: 10px 15px;
   font-size: 12px;
 }
 .onboarding-chips button[aria-pressed="true"] {
-  color: #131117;
-  background: #eee8f7;
-  border-color: #eee8f7;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-color: var(--primary);
 }
 @media (prefers-reduced-motion: no-preference) {
   .onboarding-scene {
