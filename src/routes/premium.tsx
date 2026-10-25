@@ -23,6 +23,7 @@ import { applyReferralCode, getMyReferral, redeemPromoCode } from "@/lib/premium
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { NativeBilling, useNativeBilling } from "@/components/native-billing";
 
 export const Route = createFileRoute("/premium")({
   head: () => ({
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/premium")({
 type Billing = "annual" | "monthly";
 
 function PremiumPage() {
+  const native = useNativeBilling();
   const { t } = useTranslation();
   const { user } = useSession();
   const { isPremium, tier, trialActive, entitlement } = usePremium();
@@ -121,7 +123,7 @@ function PremiumPage() {
           </h1>
           <p className="mt-2 max-w-md text-sm/relaxed text-white/90">
             Unlimited AI-powered recipes, meal plans, food scanning and nutrition insights for you
-            or your whole family.
+            {native ? "with your individual subscription." : "or your whole family."}
           </p>
           {isPremium && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1.5 text-xs font-semibold backdrop-blur">
@@ -135,26 +137,32 @@ function PremiumPage() {
         </div>
       </section>
 
-      <BillingToggle value={billing} onChange={setBilling} />
+      {native ? (
+        <NativeBilling />
+      ) : (
+        <>
+          <BillingToggle value={billing} onChange={setBilling} />
 
-      {/* Plan cards */}
-      <section className="mt-6 space-y-4">
-        <FreeCard onSelect={() => toast.success("You're on the Free plan.")} />
-        <PremiumHeroCard
-          billing={billing}
-          currency={currency}
-          onSelect={startTrial}
-          disabled={isPremium}
-        />
-        <FamilyCard
-          billing={billing}
-          currency={currency}
-          onSelect={startTrial}
-          disabled={isPremium}
-        />
-      </section>
+          {/* Plan cards */}
+          <section className="mt-6 space-y-4">
+            <FreeCard onSelect={() => toast.success("You're on the Free plan.")} />
+            <PremiumHeroCard
+              billing={billing}
+              currency={currency}
+              onSelect={startTrial}
+              disabled={isPremium}
+            />
+            <FamilyCard
+              billing={billing}
+              currency={currency}
+              onSelect={startTrial}
+              disabled={isPremium}
+            />
+          </section>
 
-      <TrustBadges />
+          <TrustBadges />
+        </>
+      )}
 
       {/* Promo + Referral */}
       <section className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -231,29 +239,32 @@ function PremiumPage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="mt-8">
-        <h2 className="mb-3 font-display text-xl font-bold">Frequently asked</h2>
-        <ul className="space-y-2">
-          {FAQ.map((f) => (
-            <li key={f.q} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-              <p className="font-semibold">{f.q}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{f.a}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {!native && (
+        <>
+          {/* FAQ */}
+          <section className="mt-8">
+            <h2 className="mb-3 font-display text-xl font-bold">Frequently asked</h2>
+            <ul className="space-y-2">
+              {FAQ.map((f) => (
+                <li key={f.q} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <p className="font-semibold">{f.q}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{f.a}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-      <p className="mt-6 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-        <Gift className="h-3 w-3" /> Purchases happen securely via Apple, Google or Paddle.
-      </p>
-      <p className="mt-1 text-center text-xs text-muted-foreground">
-        <Link to="/profile" className="underline">
-          Restore purchase
-        </Link>{" "}
-        · sign in on mobile to sync Premium
-      </p>
-
+          <p className="mt-6 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
+            <Gift className="h-3 w-3" /> Purchases happen securely via Apple, Google or Paddle.
+          </p>
+          <p className="mt-1 text-center text-xs text-muted-foreground">
+            <Link to="/profile" className="underline">
+              Restore purchase
+            </Link>{" "}
+            · sign in on mobile to sync Premium
+          </p>
+        </>
+      )}
       <PremiumAnimStyles />
     </main>
   );

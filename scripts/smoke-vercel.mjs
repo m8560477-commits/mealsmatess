@@ -22,6 +22,18 @@ try {
     catalogSource.match(/id: "([a-f0-9]+)",\s*name: "getRecipeCatalogEntry"/)?.[1],
   ];
   if (catalogFunctionIds.some((id) => !id)) throw new Error("Catalog function IDs are missing.");
+  const billingFile = serverFiles.find((name) => name.startsWith("revenuecat.functions-"));
+  if (!billingFile) throw new Error("Native billing functions are missing from the artifact.");
+  const billingSource = await readFile(join(artifact, "_ssr", billingFile), "utf8");
+  const billingFunctions = [
+    ["getNativeBillingConfig", "GET"],
+    ["prepareNativePurchase", "POST"],
+    ["refreshNativeAccess", "POST"],
+  ].map(([name, method]) => {
+    const id = billingSource.match(new RegExp('id: "([a-f0-9]+)",\\s*name: "' + name + '"'))?.[1];
+    if (!id) throw new Error("Missing billing function " + name);
+    return { id, method, name };
+  });
   const result = spawnSync(
     process.execPath,
     [
@@ -47,6 +59,11 @@ try {
           assert.equal(response.status, 401, 'Recipe catalog must require authentication');
           console.log('Recipe catalog function: 401');
         }
+        for (const { id, method, name } of JSON.parse(process.argv[3])) {
+          const response = await app.fetch(new Request('https://mealmate.test/_serverFn/' + id, { method }));
+          assert.equal(response.status, 401, name + ' must require authentication');
+          console.log(name + ': 401');
+        }
         const page = await app.fetch(new Request('https://mealmate.test/', {
           headers: { accept: 'text/html' },
         }));
@@ -58,6 +75,7 @@ try {
       `,
       join(artifact, "index.mjs"),
       JSON.stringify(catalogFunctionIds),
+      JSON.stringify(billingFunctions),
     ],
     {
       cwd: temporary,
