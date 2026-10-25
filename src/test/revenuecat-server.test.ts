@@ -241,6 +241,24 @@ describe("webhook verification", () => {
     expect((await post(request({}, "Bearer wrong"))).status).toBe(401);
     expect(f.fetch).not.toHaveBeenCalled();
   });
+  it("acknowledges authenticated dashboard tests with nullable purchase fields", async () => {
+    const event = {
+      type: "TEST",
+      environment: "SANDBOX",
+      product_id: null,
+      period_type: null,
+      price_in_purchased_currency: null,
+      currency: null,
+      purchased_at_ms: null,
+    };
+    expect((await post(request(event, "Bearer wrong"))).status).toBe(401);
+    const response = await post(request(event));
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("Ignored");
+    expect(f.fetch).not.toHaveBeenCalled();
+    expect(f.tables.size).toBe(0);
+    expect((await post(request({ ...event, type: "INITIAL_PURCHASE" }))).status).toBe(400);
+  });
   it("ignores sandbox and Test Store events", async () => {
     expect((await post(request({ environment: "SANDBOX" }))).status).toBe(200);
     expect((await post(request({ store: "TEST_STORE" }))).status).toBe(200);

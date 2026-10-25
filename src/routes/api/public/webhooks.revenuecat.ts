@@ -41,7 +41,12 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
           return new Response("Unauthorized", { status: 401 });
         let body;
         try {
-          body = eventSchema.parse(await request.json());
+          const payload: unknown = await request.json();
+          // Dashboard TEST events contain nullable purchase fields and never grant access.
+          // Authenticate above, then acknowledge them without provider/database work.
+          if (z.object({ event: z.object({ type: z.literal("TEST") }) }).safeParse(payload).success)
+            return new Response("Ignored", { status: 200 });
+          body = eventSchema.parse(payload);
         } catch {
           return new Response("Bad payload", { status: 400 });
         }
