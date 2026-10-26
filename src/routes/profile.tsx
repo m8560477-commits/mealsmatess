@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { firebaseData } from "@/lib/firebase-data";
+import { SocialLinks } from "@/components/social-links";
 import { SUPPORT_EMAIL_URL } from "@/lib/support";
 import { sendPasswordReset } from "@/lib/firebase";
 import {
@@ -343,18 +344,6 @@ function SettingsPage() {
 
   const aboutItems: Item[] = [
     { label: "About MealMate", description: "Version and credits", icon: Info, to: "/about" },
-    {
-      label: "Follow on Instagram",
-      description: "@mealmate.sp",
-      icon: Share2,
-      href: "https://www.instagram.com/mealmate.sp",
-    },
-    {
-      label: "Follow on TikTok",
-      description: "@mealmate.sp",
-      icon: Share2,
-      href: "https://www.tiktok.com/@mealmate.sp",
-    },
   ];
 
   const legalItems: Item[] = [
@@ -530,6 +519,9 @@ function SettingsPage() {
 
       <Section title="Help & Support" items={supportItems} />
       <Section title="About MealMate" items={aboutItems} />
+      <div className="mt-3">
+        <SocialLinks />
+      </div>
       <Section title="Terms & Privacy" items={legalItems} />
 
       <section className="mt-6 grid grid-cols-2 gap-3">

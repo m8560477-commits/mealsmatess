@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useSession, signOutUnified } from "@/hooks/use-session";
 import { CONSUMER_URL } from "@/lib/hub-surface";
+import { SocialLinks } from "@/components/social-links";
 import { Button } from "@/components/ui/button";
 
 export function HubShell({ children }: { children: ReactNode }) {
@@ -63,7 +64,8 @@ export function HubShell({ children }: { children: ReactNode }) {
       </div>
       <footer className="mx-auto flex max-w-6xl flex-wrap justify-between gap-4 px-5 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-xs text-muted-foreground sm:px-8">
         <p>MealMate Hub by Taz Technologies</p>
-        <div className="flex gap-5">
+        <SocialLinks />
+        <div className="flex items-center gap-5">
           <Link to="/legal/privacy" className="underline">
             Privacy
           </Link>
