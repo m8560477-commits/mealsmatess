@@ -783,6 +783,21 @@ summary {
 .footer-top nav a:hover {
   text-decoration: underline;
 }
+.footer-top .social-links {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.footer-top .social-links a {
+  gap: 7px;
+  min-height: 44px;
+}
+.social-links svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
 .footer-bottom {
   display: flex;
   justify-content: space-between;

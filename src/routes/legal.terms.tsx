@@ -46,6 +46,16 @@ function TermsPage() {
           <h2 className="font-display text-xl">Accounts</h2>
           <p>Keep your login credentials safe. We may suspend accounts that violate these terms.</p>
         </div>
+        <div>
+          <h2 className="font-display text-xl">Android subscriptions</h2>
+          <p>
+            Google Play bills the price and renewal period shown at checkout. Subscriptions renew
+            automatically until cancelled through Google Play. Introductory offers depend on store
+            eligibility. Uninstalling MealMate does not cancel a subscription. Restore purchases
+            while signed in to the original MealMate account. Individual subscriptions do not
+            include family sharing. Refunds follow Google Play's policies.
+          </p>
+        </div>
         <p className="text-xs text-muted-foreground">
           This is a summary and not a substitute for legal review.
         </p>

@@ -48,6 +48,15 @@ function PrivacyPage() {
           </p>
         </div>
         <div>
+          <h2 className="font-display text-xl">Subscription verification</h2>
+          <p>
+            We share your Firebase account identifier and purchase information with RevenueCat to
+            verify Google Play subscriptions and restore access. Google Play processes payment
+            details. MealMate stores verified subscription status, expiry, and billing events; it
+            does not receive your payment card details.
+          </p>
+        </div>
+        <div>
           <h2 className="font-display text-xl">Deletion</h2>
           <p>
             You can request deletion of your account and associated data at any time by contacting

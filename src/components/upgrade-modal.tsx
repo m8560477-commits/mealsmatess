@@ -12,6 +12,7 @@ import { Check, Crown, Leaf, Lock, RefreshCcw, Shield, Users, X, Zap, Gift } fro
 import { Button } from "@/components/ui/button";
 import { useCurrency, formatPrice, PRICES_USD } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import { NativeBilling, useNativeBilling } from "@/components/native-billing";
 
 type Ctx = { open: (reason?: string) => void; close: () => void };
 const UpgradeCtx = createContext<Ctx | null>(null);
@@ -60,6 +61,7 @@ export function useAutoPaywall(reason?: string, when = true) {
 }
 
 function PaywallSheet({ reason, onClose }: { reason?: string; onClose: () => void }) {
+  const native = useNativeBilling();
   const [billing, setBilling] = useState<"annual" | "monthly">("annual");
 
   // Escape to close.
@@ -99,25 +101,31 @@ function PaywallSheet({ reason, onClose }: { reason?: string; onClose: () => voi
 
         <div className="relative flex h-full flex-col overflow-y-auto px-5 pb-8 pt-8 sm:px-8">
           <PaywallHeader {...(reason ? { reason } : {})} />
-          <BillingToggle value={billing} onChange={setBilling} />
+          {native ? (
+            <NativeBilling />
+          ) : (
+            <>
+              <BillingToggle value={billing} onChange={setBilling} />
 
-          <div className="mt-5 space-y-3">
-            <FreeCard onSelect={onClose} />
-            <PremiumCard billing={billing} onClose={onClose} />
-            <FamilyCard billing={billing} onClose={onClose} />
-          </div>
+              <div className="mt-5 space-y-3">
+                <FreeCard onSelect={onClose} />
+                <PremiumCard billing={billing} onClose={onClose} />
+                <FamilyCard billing={billing} onClose={onClose} />
+              </div>
 
-          <TrustBadges />
+              <TrustBadges />
 
-          <p className="mt-4 text-center text-[11px] text-muted-foreground">
-            Purchases happen securely through Apple, Google or Paddle. Subscriptions auto-renew
-            until cancelled.
-          </p>
-          <p className="mt-1 text-center text-[11px] text-muted-foreground">
-            <Link to="/profile" onClick={onClose} className="underline">
-              Restore purchase
-            </Link>
-          </p>
+              <p className="mt-4 text-center text-[11px] text-muted-foreground">
+                Purchases happen securely through Apple, Google or Paddle. Subscriptions auto-renew
+                until cancelled.
+              </p>
+              <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                <Link to="/profile" onClick={onClose} className="underline">
+                  Restore purchase
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

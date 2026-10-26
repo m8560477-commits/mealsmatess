@@ -36,3 +36,6 @@ dist-ssr
 
 # Standalone official website build
 website/dist/
+
+# Vercel build output and local project metadata
+.vercel/
