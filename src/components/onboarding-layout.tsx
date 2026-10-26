@@ -46,7 +46,7 @@ export function OnboardingLayout({
   const copy = ONBOARDING_COPY[step]!;
   return (
     <main className="onboarding-shell" aria-busy={busy}>
-      <div className="onboarding-frame">
+      <div className="onboarding-frame" data-step={step}>
         <header className="onboarding-header">
           <div className="onboarding-brand-row">
             {onBack ? (
@@ -59,45 +59,48 @@ export function OnboardingLayout({
               >
                 <ArrowLeft size={20} />
               </button>
-            ) : (
-              <MealMateLogo imageClassName="size-9 rounded-xl" className="text-foreground" />
-            )}
-            <span className="onboarding-step">{String(step + 1).padStart(2, "0")} / 07</span>
+            ) : null}
+            <MealMateLogo imageClassName="size-8 rounded-lg" className="text-foreground" />
+            {step > 0 && <span className="onboarding-step">{step + 1} of 7</span>}
           </div>
-          <div
-            className="onboarding-progress"
-            role="progressbar"
-            aria-label="Onboarding progress"
-            aria-valuemin={0}
-            aria-valuemax={7}
-            aria-valuenow={step + 1}
-          >
-            {ONBOARDING_COPY.map((_, i) => (
-              <span key={i} data-active={i <= step} />
-            ))}
-          </div>
+          {step > 0 && (
+            <div
+              className="onboarding-progress"
+              role="progressbar"
+              aria-label="Onboarding progress"
+              aria-valuemin={0}
+              aria-valuemax={7}
+              aria-valuenow={step + 1}
+            >
+              {ONBOARDING_COPY.map((_, i) => (
+                <span key={i} data-active={i <= step} />
+              ))}
+            </div>
+          )}
         </header>
         <div className="onboarding-content" ref={content}>
           <section key={step} className="onboarding-scene">
             {step !== 4 && <OnboardingHero step={step} />}
-            <p className="onboarding-eyebrow">
-              {
-                [
-                  "A seat at your table",
-                  "Discover",
-                  "Plan & organise",
-                  "Meet your companion",
-                  "Your taste, your way",
-                  "On your terms",
-                  "Made for your everyday",
-                ][step]
-              }
-            </p>
-            <h1 ref={heading} tabIndex={-1} className="onboarding-title">
-              {copy[0]}
-            </h1>
-            <p className="onboarding-description">{copy[1]}</p>
-            {children}
+            <div className="onboarding-copy">
+              <p className="onboarding-eyebrow">
+                {
+                  [
+                    "A seat at your table",
+                    "Discover",
+                    "Plan & organise",
+                    "Meet your companion",
+                    "Your taste, your way",
+                    "On your terms",
+                    "Made for your everyday",
+                  ][step]
+                }
+              </p>
+              <h1 ref={heading} tabIndex={-1} className="onboarding-title">
+                {copy[0]}
+              </h1>
+              <p className="onboarding-description">{copy[1]}</p>
+              {children}
+            </div>
           </section>
         </div>
         <footer className="onboarding-actions">{actions}</footer>
@@ -109,7 +112,6 @@ export function OnboardingLayout({
 function OnboardingHero({ step }: { step: number }) {
   return (
     <div className={`onboarding-hero onboarding-hero-${step}`}>
-      <div className="onboarding-ambient" aria-hidden="true" />
       {step === 0 || step === 3 || step === 6 ? (
         <ChefMascot className="onboarding-mia" />
       ) : step === 1 ? (
