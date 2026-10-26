@@ -2,9 +2,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Camera, CalendarDays, Flame, Loader2, Plus, Utensils, ImagePlus } from "lucide-react";
+import { Camera, CalendarDays, Flame, Loader2, Plus, Utensils } from "lucide-react";
 import { scanKitchen, scanDish, type ScannedDish } from "@/lib/ai.functions";
 import { useSession } from "@/hooks/use-session";
+import { ScanPhotoPicker } from "@/components/scan-photo-picker";
 import { prepareScanPhoto } from "@/lib/scan-photo";
 import { saveScannedDish, saveScannedIngredients } from "@/lib/scan-save";
 import { Button } from "@/components/ui/button";
@@ -54,8 +55,6 @@ function ScanPage() {
   const { user, loading } = useSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
   const savePending = useRef(false);
   const requestId = useRef(0);
@@ -101,13 +100,9 @@ function ScanPage() {
     setItems(null);
     setDish(null);
     setPreview(null);
-    if (inputRef.current) inputRef.current.value = "";
-    if (galleryRef.current) galleryRef.current.value = "";
   }
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  async function handleFile(file: File) {
     if (!file || pending.current || savePending.current || !user) return;
     pending.current = true;
     const scanId = ++requestId.current;
@@ -252,27 +247,6 @@ function ScanPage() {
         ))}
       </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        aria-label="Take a food photo"
-        accept="image/*"
-        capture="environment"
-        disabled={busy || saving}
-        className="hidden"
-        onChange={handleFile}
-      />
-
-      <input
-        ref={galleryRef}
-        type="file"
-        aria-label="Choose a food photo"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
-        disabled={busy || saving}
-        onChange={handleFile}
-      />
-
       {preview ? (
         <div className="mt-6 overflow-hidden rounded-3xl border border-border bg-card">
           <img src={preview} alt="Scanned food" className="max-h-64 w-full object-cover" />
@@ -288,18 +262,11 @@ function ScanPage() {
           </p>
         </div>
       )}
-      <div className="mt-4 flex flex-wrap justify-center gap-3">
-        <Button onClick={() => inputRef.current?.click()} disabled={busy || saving}>
-          <Camera className="mr-2 h-4 w-4" /> Take photo
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => galleryRef.current?.click()}
-          disabled={busy || saving}
-        >
-          <ImagePlus className="mr-2 h-4 w-4" /> Choose photo
-        </Button>
-      </div>
+      <ScanPhotoPicker
+        key={user?.id ?? "signed-out"}
+        disabled={busy || saving || loading || !user}
+        onPhoto={(file) => void handleFile(file)}
+      />
       {scanError && (
         <p role="alert" className="mt-4 text-center text-sm text-destructive">
           {scanError}
