@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft, Mail, MessageCircle, ArrowUpRight } from "lucide-react";
 import { KaiSupport } from "@/components/kai-support";
-import { HELP_TOPICS, SUPPORT_EMAIL, SUPPORT_EMAIL_URL } from "@/lib/support";
+import {
+  CONTACT_EMAIL,
+  CONTACT_EMAIL_URL,
+  HELP_TOPICS,
+  SUPPORT_EMAIL,
+  SUPPORT_EMAIL_URL,
+} from "@/lib/support";
 
 export const Route = createFileRoute("/support")({
   head: () => ({
@@ -63,6 +69,12 @@ function SupportPage() {
           <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
         </a>
       </div>
+      <p className="mt-4 text-sm text-muted-foreground">
+        General enquiries:{" "}
+        <a href={CONTACT_EMAIL_URL} className="break-all underline underline-offset-4">
+          {CONTACT_EMAIL}
+        </a>
+      </p>
       <KaiSupport />
       <section className="mt-8" aria-labelledby="help-topics-heading">
         <h2 id="help-topics-heading" className="font-display text-2xl">

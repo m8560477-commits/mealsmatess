@@ -1,4 +1,6 @@
-export const SUPPORT_EMAIL = "support@mealmate.app";
+export const SUPPORT_EMAIL = "support@mealsmates.site";
+export const CONTACT_EMAIL = "contact@mealsmates.site";
+export const CONTACT_EMAIL_URL = `mailto:${CONTACT_EMAIL}?subject=MealMate%20general%20enquiry`;
 export const SUPPORT_EMAIL_URL = `mailto:${SUPPORT_EMAIL}?subject=MealMate%20support%20request`;
 
 type HelpLink = {
@@ -180,8 +182,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: "delete",
     question: "How do I delete my account?",
-    answer:
-      "Email support@mealmate.app from your account email to request deletion of your account and data. Our stated deletion timeframe is within 7 days. Kai cannot delete accounts or confirm that a deletion request has been received.",
+    answer: `Email ${SUPPORT_EMAIL} from your account email to request deletion of your account and data. Our stated deletion timeframe is within 7 days. Kai cannot delete accounts or confirm that a deletion request has been received.`,
     matches: [
       /\b(?:delete|deletion|erase|remove|close)\b.*\b(?:account|data|profile)\b/,
       /\bprivacy\b/,
