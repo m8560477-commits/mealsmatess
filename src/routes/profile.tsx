@@ -7,7 +7,7 @@ import {
   DollarSign,
   FileText,
   Globe,
-  HelpCircle,
+  MessageCircle,
   Info,
   Lock,
   LogOut,
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { firebaseData } from "@/lib/firebase-data";
+import { SUPPORT_EMAIL_URL } from "@/lib/support";
 import { sendPasswordReset } from "@/lib/firebase";
 import {
   getMyNotificationPreferences,
@@ -327,16 +328,16 @@ function SettingsPage() {
 
   const supportItems: Item[] = [
     {
-      label: "Help Center",
-      description: "Answers to common questions",
-      icon: HelpCircle,
+      label: "Talk to Kai",
+      description: "Automated support and help topics",
+      icon: MessageCircle,
       to: "/support",
     },
     {
-      label: "Contact support",
-      description: "Get in touch with the team",
+      label: "Email support",
+      description: "Get in touch with the MealMate team",
       icon: Mail,
-      href: "mailto:support@mealmate.app",
+      href: SUPPORT_EMAIL_URL,
     },
   ];
 

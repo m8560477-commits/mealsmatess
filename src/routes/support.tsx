@@ -1,93 +1,102 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronLeft, Mail } from "lucide-react";
+import { ChevronLeft, Mail, MessageCircle, ArrowUpRight } from "lucide-react";
+import { KaiSupport } from "@/components/kai-support";
+import { HELP_TOPICS, SUPPORT_EMAIL, SUPPORT_EMAIL_URL } from "@/lib/support";
 
 export const Route = createFileRoute("/support")({
   head: () => ({
     meta: [
-      { property: "og:title", content: "Support \u00b7 MealMate" },
-      { property: "og:description", content: "Help and answers for MealMate." },
+      { title: "Support · MealMate" },
+      {
+        name: "description",
+        content: "Ask Kai, your automated MealMate support assistant, or email our team.",
+      },
+      { property: "og:title", content: "Support · MealMate" },
+      { property: "og:description", content: "Get answers from Kai or contact MealMate support." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Support · MealMate" },
-      { name: "description", content: "Help and answers for MealMate." },
     ],
   }),
   component: SupportPage,
 });
 
-const FAQ = [
-  {
-    q: "How do I save a recipe?",
-    a: "Open any recipe and tap the heart. Saved recipes appear in your Cookbook.",
-  },
-  {
-    q: "How does the AI Recipe Generator work?",
-    a: "Describe a dish, cuisine, or what you have on hand and MealMate builds a full recipe with ingredients, steps, and an image.",
-  },
-  {
-    q: "How does the AI Food Scanner work?",
-    a: "Open Scan, point your camera at ingredients or a fridge shelf, and MealMate suggests recipes you can make.",
-  },
-  {
-    q: "How do referrals work?",
-    a: "Share your unique link from Premium → Referrals. When a friend upgrades to paid Premium, you both earn rewards.",
-  },
-  {
-    q: "How do promo codes work?",
-    a: "Enter the code on the Premium page. Valid codes add Premium days to your account instantly.",
-  },
-  {
-    q: "How do I upgrade to Premium?",
-    a: "Tap Premium in Settings or on any AI feature. You can pay monthly or annually and start with a free trial.",
-  },
-  {
-    q: "How do I cancel Premium?",
-    a: "Manage your subscription in the App Store or Play Store where you purchased it. Access continues until the end of the paid period.",
-  },
-  {
-    q: "How do I delete my account?",
-    a: "Email support@mealmate.app from your account email and we'll delete your data within 7 days.",
-  },
-  {
-    q: "Can I use MealMate offline?",
-    a: "You need a connection for AI features. Saved recipes are cached and readable offline.",
-  },
-];
-
 function SupportPage() {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:py-10">
       <Link
         to="/profile"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-10 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="size-4" />
         Back to settings
       </Link>
-      <h1 className="mt-4 font-display text-4xl">Help Center</h1>
+      <h1 className="mt-4 font-display text-4xl">How can we help?</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Answers to common questions. Still stuck? Reach out below.
+        Ask Kai for a quick answer, or get in touch with the MealMate team.
       </p>
-
-      <div className="mt-8 space-y-3">
-        {FAQ.map((item) => (
-          <details
-            key={item.q}
-            className="group rounded-2xl border border-border bg-card px-4 py-3 open:pb-4"
-          >
-            <summary className="cursor-pointer list-none text-sm font-medium">{item.q}</summary>
-            <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
-          </details>
-        ))}
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => document.getElementById("kai-question")?.focus()}
+          className="flex items-center gap-4 rounded-2xl border border-primary/30 bg-primary/10 p-5 text-left transition-colors hover:bg-primary/15"
+        >
+          <MessageCircle className="size-6 shrink-0 text-primary" aria-hidden="true" />
+          <span className="flex-1">
+            <span className="block font-semibold">Talk to Kai</span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Instant, automated answers about the app
+            </span>
+          </span>
+          <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+        </button>
+        <a
+          href={SUPPORT_EMAIL_URL}
+          className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 transition-colors hover:bg-muted"
+        >
+          <Mail className="size-6 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Email support</span>
+            <span className="mt-1 block break-all text-xs text-muted-foreground">
+              {SUPPORT_EMAIL}
+            </span>
+          </span>
+          <ArrowUpRight className="size-4 shrink-0" aria-hidden="true" />
+        </a>
       </div>
-
-      <a
-        href="mailto:support@mealmate.app"
-        className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-      >
-        <Mail className="h-4 w-4" />
-        Contact support
-      </a>
+      <KaiSupport />
+      <section className="mt-8" aria-labelledby="help-topics-heading">
+        <h2 id="help-topics-heading" className="font-display text-2xl">
+          Browse help topics
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Prefer to read? Find the same answers here.
+        </p>
+        <div className="mt-4 space-y-3">
+          {HELP_TOPICS.map((topic) => (
+            <details
+              key={topic.id}
+              className="rounded-2xl border border-border bg-card px-4 py-3 open:pb-4"
+            >
+              <summary className="cursor-pointer text-sm font-medium">{topic.question}</summary>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{topic.answer}</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {topic.links.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="text-sm font-medium underline underline-offset-4"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          ))}
+        </div>
+      </section>
+      <p className="mt-6 text-xs text-muted-foreground">
+        Email links open your email app. Your message is sent only when you send the draft.
+      </p>
     </main>
   );
 }
