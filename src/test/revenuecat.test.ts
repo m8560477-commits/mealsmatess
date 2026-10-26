@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { activeGrant, verifiedSubscription } from "@/lib/billing/revenuecat-policy";
-import { approvedOffer, offerPrice } from "@/lib/billing/revenuecat-offers";
+import { approvedOffer, offerPrice, hasSevenDayTrial } from "@/lib/billing/revenuecat-offers";
 import type { PurchasesPackage } from "@revenuecat/purchases-capacitor";
 const now = Date.parse("2026-10-25T12:00:00Z");
 const policy = {
@@ -138,5 +138,48 @@ describe("store offer filtering", () => {
       } as PurchasesPackage;
       expect(approvedOffer(changed, policy.productIds)).toBe(false);
     }
+  });
+});
+
+describe("seven-day acquisition offer", () => {
+  function trial(period = "P7D", unit = "DAY", value = 7, cycles = 1, amount = 0) {
+    const pkg = offer();
+    pkg.product.defaultOption!.pricingPhases.unshift({
+      recurrenceMode: 2,
+      billingCycleCount: cycles,
+      billingPeriod: { iso8601: period, unit, value },
+      price: { formatted: "R 0,00", currencyCode: "ZAR", amountMicros: amount },
+    } as NonNullable<typeof pkg.product.defaultOption>["pricingPhases"][number]);
+    return pkg;
+  }
+  it("accepts exactly seven free days followed by paid renewal", () => {
+    expect(hasSevenDayTrial(trial())).toBe(true);
+    expect(hasSevenDayTrial(trial("P1W", "WEEK", 1))).toBe(true);
+    expect(approvedOffer(trial(), policy.productIds)).toBe(true);
+  });
+  it("rejects immediate billing, mismatched terms, longer or paid introductory periods", () => {
+    expect(hasSevenDayTrial(offer())).toBe(false);
+    expect(hasSevenDayTrial(trial("P3D", "DAY", 3))).toBe(false);
+    expect(hasSevenDayTrial(trial("P7D", "DAY", 7, 2))).toBe(false);
+    expect(hasSevenDayTrial(trial("P7D", "DAY", 7, 1, 100))).toBe(false);
+    expect(hasSevenDayTrial(trial("P7D", "WEEK", 1))).toBe(false);
+    const freeForever = trial();
+    const option = freeForever.product.defaultOption!;
+    const paid = option.pricingPhases[1]!;
+    expect(
+      hasSevenDayTrial({
+        ...freeForever,
+        product: {
+          ...freeForever.product,
+          defaultOption: {
+            ...option,
+            pricingPhases: [
+              option.pricingPhases[0]!,
+              { ...paid, price: { ...paid.price, amountMicros: 0 } },
+            ],
+          },
+        },
+      }),
+    ).toBe(false);
   });
 });

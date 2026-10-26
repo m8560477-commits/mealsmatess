@@ -22,6 +22,27 @@ export function approvedOffer(pkg: PurchasesPackage, allowed: string[]) {
   );
 }
 
+/** Trial acquisition must match the advertised offer, rather than immediately charging. */
+export function hasSevenDayTrial(pkg: PurchasesPackage) {
+  const phases = pkg.product.defaultOption?.pricingPhases;
+  const first = phases?.[0];
+  if (!phases || phases.length < 2 || !first) return false;
+  const sevenDays =
+    (first.billingPeriod.iso8601 === "P7D" &&
+      first.billingPeriod.unit === "DAY" &&
+      first.billingPeriod.value === 7) ||
+    (first.billingPeriod.iso8601 === "P1W" &&
+      first.billingPeriod.unit === "WEEK" &&
+      first.billingPeriod.value === 1);
+  return (
+    first.price.amountMicros === 0 &&
+    first.recurrenceMode === 2 &&
+    first.billingCycleCount === 1 &&
+    sevenDays &&
+    phases.slice(1).every((phase) => phase.price.amountMicros > 0)
+  );
+}
+
 export function offerPrice(pkg: PurchasesPackage) {
   return pkg.product
     .defaultOption!.pricingPhases.map((phase) => {

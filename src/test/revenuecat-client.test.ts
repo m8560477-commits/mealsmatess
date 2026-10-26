@@ -37,6 +37,77 @@ beforeEach(() => {
   });
 });
 describe("native account operations", () => {
+  it("rejects immediate billing before preflight or the payment sheet", async () => {
+    const b = await import("@/lib/billing/revenuecat.client");
+    const paidOnly = {
+      packageType: "MONTHLY",
+      product: {
+        identifier: "premium:monthly",
+        defaultOption: {
+          pricingPhases: [
+            {
+              recurrenceMode: 1,
+              billingPeriod: { iso8601: "P1M" },
+              price: { formatted: "R 49,99", currencyCode: "ZAR", amountMicros: 49990000 },
+            },
+          ],
+        },
+      },
+    };
+    m.config.mockResolvedValue({
+      androidKey: "goog_synthetic",
+      offering: "default",
+      productIds: ["premium:monthly"],
+      environment: "PRODUCTION",
+    });
+    await expect(
+      b.nativeAction(
+        "alice",
+        paidOnly as unknown as import("@revenuecat/purchases-capacitor").PurchasesPackage,
+      ),
+    ).rejects.toThrow("7-day trial");
+    expect(m.preflight).not.toHaveBeenCalled();
+    expect(m.purchasePackage).not.toHaveBeenCalled();
+  });
+  it("opens checkout for a verified seven-day offer after server preflight", async () => {
+    const b = await import("@/lib/billing/revenuecat.client");
+    const pkg = {
+      packageType: "MONTHLY",
+      product: {
+        identifier: "premium:monthly",
+        defaultOption: {
+          pricingPhases: [
+            {
+              recurrenceMode: 2,
+              billingCycleCount: 1,
+              billingPeriod: { iso8601: "P7D", unit: "DAY", value: 7 },
+              price: { formatted: "R 0,00", currencyCode: "ZAR", amountMicros: 0 },
+            },
+            {
+              recurrenceMode: 1,
+              billingPeriod: { iso8601: "P1M" },
+              price: { formatted: "R 49,99", currencyCode: "ZAR", amountMicros: 49990000 },
+            },
+          ],
+        },
+      },
+    };
+    m.config.mockResolvedValue({
+      androidKey: "goog_synthetic",
+      offering: "default",
+      productIds: ["premium:monthly"],
+      environment: "PRODUCTION",
+    });
+    await b.nativeAction(
+      "alice",
+      pkg as unknown as import("@revenuecat/purchases-capacitor").PurchasesPackage,
+    );
+    expect(m.preflight).toHaveBeenCalledWith({
+      data: { productId: "premium:monthly", termsVersion: "2026-10-25" },
+    });
+    expect(m.purchasePackage).toHaveBeenCalledWith({ aPackage: pkg });
+    expect(m.refresh).toHaveBeenCalledOnce();
+  });
   it("binds Firebase UID and only returns server verification", async () => {
     const b = await import("@/lib/billing/revenuecat.client");
     m.refresh.mockResolvedValue({ active: false, sandbox: false });

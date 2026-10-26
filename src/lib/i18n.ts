@@ -99,14 +99,15 @@ export const en = {
     title: "MealMate Premium",
     tagline: "Cook without limits.",
     subtitle: "Unlimited AI chef, personalised recipes, and smarter meal plans.",
-    trialCta: "Start 3-Day Free Trial",
-    trialFinePrint: "No charge for 3 days. Cancel anytime before the trial ends.",
+    trialCta: "Start 7-Day Trial",
+    trialFinePrint:
+      "Payment details required. Cancel before the 7-day trial ends to avoid renewal charges.",
     plans: { monthly: "Monthly", annual: "Annual" },
     perMonth: "/month",
     perYear: "/year",
     bestValue: "Best value · Save {{pct}}%",
     justPerMonth: "Just {{price}}/mo",
-    threeDayTrial: "3-day free trial · cancel anytime",
+    threeDayTrial: "7-day trial · payment details required",
     youAreMember: "You're Premium",
     benefitsTitle: "What you get",
     benefits: {
@@ -168,7 +169,7 @@ export const en = {
     admin: "Admin dashboard",
     adminDesc: "Subscribers, promos, revenue (admin only)",
     premiumEntry: "MealMate Premium",
-    premiumEntryDesc: "Unlimited AI, recipes, meal plans · 3-day free trial",
+    premiumEntryDesc: "Unlimited AI, recipes, meal plans · 7-day trial · payment details required",
   },
   auth: {
     welcome: "Welcome to MealMate",

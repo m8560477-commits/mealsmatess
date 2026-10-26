@@ -6,7 +6,6 @@ import {
   Check,
   Crown,
   Gift,
-  Leaf,
   Loader2,
   Lock,
   RefreshCcw,
@@ -33,7 +32,7 @@ export const Route = createFileRoute("/premium")({
       {
         name: "description",
         content:
-          "Go Premium for unlimited AI Chef chats, unlimited recipe generation, meal plans, food scanning and advanced nutrition. Start a 3-day free trial.",
+          "Go Premium for unlimited AI Chef chats, unlimited recipe generation, meal plans, food scanning and advanced nutrition. Explore 7-day trials. Card details are required at checkout.",
       },
       { property: "og:title", content: "MealMate Premium" },
       {
@@ -105,8 +104,9 @@ function PremiumPage() {
       void navigate({ to: "/auth" });
       return;
     }
-    toast.info("Premium purchases open on the MealMate mobile app", {
-      description: "Sign in with the same account on iOS or Android to start your 3-day trial.",
+    toast.info("Complete trial setup in the MealMate Android app", {
+      description:
+        "A trial starts only after secure payment setup is completed. Website checkout is not available yet.",
     });
   }
 
@@ -145,7 +145,6 @@ function PremiumPage() {
 
           {/* Plan cards */}
           <section className="mt-6 space-y-4">
-            <FreeCard onSelect={() => toast.success("You're on the Free plan.")} />
             <PremiumHeroCard
               billing={billing}
               currency={currency}
@@ -160,6 +159,11 @@ function PremiumPage() {
             />
           </section>
 
+          <p className="mt-5 text-center text-sm text-muted-foreground">
+            Trials require payment details at checkout. Website checkout is not available yet. Open
+            the Android app to see eligible individual trial offers; Family checkout is not
+            available yet.
+          </p>
           <TrustBadges />
         </>
       )}
@@ -255,7 +259,8 @@ function PremiumPage() {
           </section>
 
           <p className="mt-6 flex items-center justify-center gap-1 text-center text-xs text-muted-foreground">
-            <Gift className="h-3 w-3" /> Purchases happen securely via Apple, Google or Paddle.
+            <Gift className="h-3 w-3" /> Android purchases are completed securely through Google
+            Play.
           </p>
           <p className="mt-1 text-center text-xs text-muted-foreground">
             <Link to="/profile" className="underline">
@@ -272,8 +277,8 @@ function PremiumPage() {
 
 const FAQ = [
   {
-    q: "How does the 3-day free trial work?",
-    a: "Start your trial and get full Premium access for 3 days. You're only charged when the trial ends. Cancel anytime before then and you won't be billed.",
+    q: "How does the 7-day trial work?",
+    a: "An eligible 7-day trial starts after you complete secure checkout with payment details. It renews at your selected plan's price unless cancelled before the trial ends. Availability and eligibility are confirmed at checkout. Website checkout is not available yet; Android offers are shown in Google Play.",
   },
   {
     q: "Can I cancel anytime?",
@@ -328,39 +333,6 @@ function BillingToggle({ value, onChange }: { value: Billing; onChange: (v: Bill
         </button>
       </div>
     </div>
-  );
-}
-
-function FreeCard({ onSelect }: { onSelect: () => void }) {
-  const features = [
-    "12 AI recipe searches / month",
-    "Basic Meal Planner",
-    "Grocery List",
-    "Basic Nutrition",
-    "Limited AI Chat",
-    "Tasteful sponsored cards in your feed",
-  ];
-  return (
-    <article className="rounded-[28px] border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-          <Leaf className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Free</p>
-          <p className="font-display text-3xl font-bold leading-none">$0</p>
-          <p className="text-xs text-muted-foreground">Perfect to get started.</p>
-        </div>
-      </div>
-      <FeatureList items={features} tone="muted" />
-      <Button
-        variant="outline"
-        onClick={onSelect}
-        className="mt-4 h-11 w-full rounded-2xl font-semibold"
-      >
-        Continue Free
-      </Button>
-    </article>
   );
 }
 
@@ -424,10 +396,11 @@ function PremiumHeroCard({
           disabled={disabled}
           className="mt-5 h-14 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-base font-bold text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50"
         >
-          Start 3-Day Free Trial
+          Start 7-Day Trial
         </Button>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          Cancel anytime. No charges during the free trial.
+          Card details required at checkout. Your plan renews at the price above after 7 days unless
+          cancelled.
         </p>
       </div>
     </article>
@@ -488,8 +461,12 @@ function FamilyCard({
         disabled={disabled}
         className="mt-4 h-12 w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-base font-bold text-white shadow-md hover:shadow-emerald-500/40"
       >
-        <Users className="mr-2 h-4 w-4" /> Choose Family
+        <Users className="mr-2 h-4 w-4" /> Start 7-Day Trial
       </Button>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        Card details required at checkout. Your plan renews at the price above after 7 days unless
+        cancelled.
+      </p>
     </article>
   );
 }
@@ -529,7 +506,7 @@ function TrustBadges() {
     { icon: Shield, label: "Cancel Anytime" },
     { icon: Lock, label: "Secure Payments" },
     { icon: Zap, label: "Instant Access" },
-    { icon: Gift, label: "3-Day Free Trial" },
+    { icon: Gift, label: "7-Day Trial" },
     { icon: RefreshCcw, label: "Auto-renews Until Cancelled" },
   ];
   return (

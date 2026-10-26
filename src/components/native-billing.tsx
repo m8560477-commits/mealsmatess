@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { PurchasesPackage } from "@revenuecat/purchases-capacitor";
 import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
-import { offerPrice } from "@/lib/billing/revenuecat-offers";
+import { offerPrice, hasSevenDayTrial } from "@/lib/billing/revenuecat-offers";
 
 const loadBilling = createClientOnlyFn(() => import("@/lib/billing/revenuecat.client"));
 export function useNativeBilling() {
@@ -40,7 +40,7 @@ function NativeBillingAccount({ uid }: { uid?: string }) {
       .then((b) => b.nativeOffers(uid))
       .then((result) => {
         if (!active) return;
-        setPackages(result.packages);
+        setPackages(result.packages.filter(hasSevenDayTrial));
         setSandbox(result.sandbox);
       })
       .catch((error) => {
@@ -106,7 +106,12 @@ function NativeBillingAccount({ uid }: { uid?: string }) {
       {loading ? (
         <p role="status">Loading store prices…</p>
       ) : (
-        !packages.length && <p>No subscriptions are available right now.</p>
+        !packages.length && (
+          <p>
+            No eligible 7-day trials are available right now. Restore purchases if you already
+            subscribe.
+          </p>
+        )
       )}
       <label className="flex gap-2 text-sm">
         <input
@@ -124,7 +129,7 @@ function NativeBillingAccount({ uid }: { uid?: string }) {
           <Link to="/legal/privacy" className="underline">
             Privacy Policy
           </Link>{" "}
-          and renewal prices below.
+          and the 7-day trial and renewal prices below.
         </span>
       </label>
       {packages.map((pkg) => (
@@ -132,16 +137,18 @@ function NativeBillingAccount({ uid }: { uid?: string }) {
           <h3 className="font-semibold">
             {pkg.packageType === "ANNUAL" ? "Annual Premium" : "Monthly Premium"}
           </h3>
+          <p className="text-sm font-medium">7-day trial · payment details required</p>
           <p className="text-sm">{offerPrice(pkg)}</p>
           <Button disabled={busy || loading || !accepted} onClick={() => void run(pkg)}>
-            Subscribe
+            Start 7-Day Trial
           </Button>
         </div>
       ))}
       <p className="text-sm text-muted-foreground">
-        Google Play confirms the final price and any eligible introductory offer. Subscriptions
-        renew automatically until cancelled in Google Play. Restore using the original MealMate
-        account. Family sharing is not included.
+        Google Play requires a payment method and confirms your trial eligibility and final price.
+        Add or confirm your payment details in Google Play to start the 7-day trial. Google Play
+        controls accepted payment methods. Subscriptions renew automatically until cancelled in
+        Google Play. Restore using the original MealMate account. Family sharing is not included.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={busy || loading} onClick={() => void run("restore")}>

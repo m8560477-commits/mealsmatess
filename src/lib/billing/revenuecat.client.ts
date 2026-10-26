@@ -6,7 +6,7 @@ import {
   prepareNativePurchase,
   refreshNativeAccess,
 } from "./revenuecat.functions";
-import { approvedOffer } from "./revenuecat-offers";
+import { approvedOffer, hasSevenDayTrial } from "./revenuecat-offers";
 import { BILLING_TERMS_VERSION } from "./revenuecat-policy";
 
 let tail: Promise<unknown> = Promise.resolve();
@@ -61,8 +61,8 @@ export function nativeOffers(uid: string) {
     const offerings = await Purchases.getOfferings();
     assertIdentity(uid);
     return {
-      packages: (offerings.all[config.offering]?.availablePackages ?? []).filter((p) =>
-        approvedOffer(p, config.productIds),
+      packages: (offerings.all[config.offering]?.availablePackages ?? []).filter(
+        (p) => approvedOffer(p, config.productIds) && hasSevenDayTrial(p),
       ),
       sandbox: config.environment === "SANDBOX",
     };
@@ -74,8 +74,8 @@ export function nativeAction(uid: string, action: "restore" | "refresh" | Purcha
     let completedStoreAction = false;
     try {
       if (typeof action !== "string") {
-        if (!approvedOffer(action, config.productIds))
-          throw new Error("This subscription is no longer available.");
+        if (!approvedOffer(action, config.productIds) || !hasSevenDayTrial(action))
+          throw new Error("An eligible 7-day trial is not available for this subscription.");
         await prepareNativePurchase({
           data: { productId: action.product.identifier, termsVersion: BILLING_TERMS_VERSION },
         });

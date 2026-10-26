@@ -26,6 +26,24 @@ and annual auto-renewing individual packages are displayed. Prepaid, installment
 lifetime and non-allowlisted packages are excluded. Do not allowlist family plans.
 Displayed prices and introductory phases come from the store.
 
+### Seven-day trial acquisition (2026-10-26)
+
+New trial purchases require the actual eligible Google Play option to begin with
+one zero-price seven-day (P7D) or one-week (P1W) phase, followed by paid phases.
+The client filters offers and rechecks this before opening the store sheet.
+This intentionally replaces acquisition through paid-only or differently sized
+introductory offers. Existing paid access, restore and refresh keep their existing
+server-verification contract. Configure the seven-day free-trial offer in Google
+Play and import it through RevenueCat; UI text does not create an offer.
+
+The Premium comparison page no longer lists the Free plan. This does not remove
+existing server-side free quotas or revoke existing grants. Both advertised plans
+show seven-day trial/payment requirements; website and Family checkout are not
+configured. No card details are collected in MealMate. Android payment methods
+are managed by Google Play and cannot be restricted to cards by this UI.
+RevenueCat Web Billing would require a connected payment provider and actual
+products with seven-day trials before website card checkout can be enabled.
+
 Upload a dedicated authorized Play service-account JSON in RevenueCat and connect
 Google developer notifications. Firebase Admin credentials are not Play credentials.
 Set restore behavior to **Keep with original App User ID**.

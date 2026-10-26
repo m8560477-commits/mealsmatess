@@ -23,9 +23,15 @@ const pkg = {
     defaultOption: {
       pricingPhases: [
         {
+          recurrenceMode: 2,
+          billingCycleCount: 1,
+          billingPeriod: { iso8601: "P7D", value: 7, unit: "DAY" },
+          price: { formatted: "R 0,00", currencyCode: "ZAR", amountMicros: 0 },
+        },
+        {
           recurrenceMode: 1,
-          billingPeriod: { value: 1, unit: "MONTH" },
-          price: { formatted: "R 49,99", currencyCode: "ZAR" },
+          billingPeriod: { iso8601: "P1M", value: 1, unit: "MONTH" },
+          price: { formatted: "R 49,99", currencyCode: "ZAR", amountMicros: 49990000 },
         },
       ],
     },
@@ -40,13 +46,23 @@ afterEach(cleanup);
 describe("native subscription UI", () => {
   it("requires consent before purchase and displays actual store currency", async () => {
     render(<NativeBilling />);
-    const buy = await screen.findByRole("button", { name: "Subscribe" });
+    const buy = await screen.findByRole("button", { name: "Start 7-Day Trial" });
     expect(buy).toBeDisabled();
     expect(screen.getByText(/R 49,99 ZAR/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(buy);
     await waitFor(() => expect(m.action).toHaveBeenCalledWith("alice", pkg));
     expect(await screen.findByText("Premium access confirmed.")).toBeInTheDocument();
+  });
+  it("does not advertise a trial or offer an immediate paid purchase when no seven-day offer is eligible", async () => {
+    const paidOnly = structuredClone(pkg);
+    paidOnly.product.defaultOption.pricingPhases.shift();
+    m.offers.mockResolvedValue({ packages: [paidOnly], sandbox: false });
+    render(<NativeBilling />);
+    await screen.findByText(/No eligible 7-day trials/);
+    expect(screen.queryByRole("button", { name: "Start 7-Day Trial" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore purchases" })).toBeEnabled();
+    expect(m.action).not.toHaveBeenCalled();
   });
   it("restores without requiring new consent", async () => {
     render(<NativeBilling />);
@@ -71,8 +87,8 @@ describe("native subscription UI", () => {
     expect(
       await screen.findByText("Mobile subscriptions are not configured yet."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Subscribe" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start 7-Day Trial" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reload plans" }));
-    expect(await screen.findByRole("button", { name: "Subscribe" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Start 7-Day Trial" })).toBeInTheDocument();
   });
 });
