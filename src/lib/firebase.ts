@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   getRedirectResult,
+  signInWithCredential,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -12,6 +13,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User,
+  type UserCredential,
 } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -146,7 +148,50 @@ export async function testFirestoreConnection() {
   }
 }
 
+// Google blocks sign-in inside embedded web views, so the Median Android/iOS app signs in with
+// its native Google plugin instead (Social Login > Google Sign-In in the Median app builder).
+// The plugin hands back a Google ID token, which Firebase accepts as a credential. The bridge
+// only exists inside a Median build that has the plugin enabled; everywhere else this is skipped.
+type MedianGoogleResponse = { idToken?: string; credential?: string; error?: string };
+type MedianBridge = {
+  socialLogin?: {
+    google?: {
+      login?: (options: { callback: (response: MedianGoogleResponse) => void }) => void;
+    };
+  };
+};
+
+function medianGoogleLogin() {
+  if (typeof window === "undefined") return undefined;
+  const login = (window as unknown as { median?: MedianBridge }).median?.socialLogin?.google?.login;
+  return typeof login === "function" ? login : undefined;
+}
+
+function signInWithMedianGoogle(login: NonNullable<ReturnType<typeof medianGoogleLogin>>) {
+  return new Promise<UserCredential>((resolve, reject) => {
+    login({
+      callback: (response) => {
+        const idToken = response?.idToken ?? response?.credential;
+        if (!idToken) {
+          // An empty response is a dismissed sheet; reuse the code the pages already stay quiet on.
+          reject(
+            response?.error
+              ? new Error(response.error)
+              : Object.assign(new Error("Google sign-in was cancelled."), {
+                  code: "auth/popup-closed-by-user",
+                }),
+          );
+          return;
+        }
+        signInWithCredential(auth, GoogleAuthProvider.credential(idToken)).then(resolve, reject);
+      },
+    });
+  });
+}
+
 export async function signInWithGoogle() {
+  const nativeLogin = medianGoogleLogin();
+  if (nativeLogin) return signInWithMedianGoogle(nativeLogin);
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {
