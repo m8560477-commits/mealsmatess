@@ -805,10 +805,6 @@ export async function verifyFirebaseIdToken(token: string) {
   return getServices().auth.verifyIdToken(token, true);
 }
 
-export async function createFirebaseCustomToken(uid: string) {
-  return getServices().auth.createCustomToken(uid);
-}
-
 export async function firebaseAuthUserExists(uid: string) {
   try {
     await getServices().auth.getUser(uid);
