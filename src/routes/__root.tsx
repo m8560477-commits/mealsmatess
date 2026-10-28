@@ -21,6 +21,7 @@ import { firebaseData } from "@/lib/firebase-data";
 import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
+import { NativeAuthListener } from "@/components/native-auth-listener";
 
 import { AuthGate } from "@/components/auth-gate";
 import { MascotThemeProvider } from "@/hooks/use-mascot-theme";
@@ -269,6 +270,7 @@ function RootComponent() {
                 )}
               </HubContext.Provider>
               <Toaster position="top-center" />
+              {!isHub && <NativeAuthListener />}
               {!isHub && <SplashScreen />}
             </UpgradeModalProvider>
           </LocaleProvider>

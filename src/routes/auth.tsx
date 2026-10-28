@@ -1,6 +1,6 @@
 import { useHubSurface } from "@/components/hub/hub-context";
 import { createFileRoute, useNavigate, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { MealMateLogo } from "@/components/mealmate-logo";
@@ -16,8 +16,10 @@ import {
   signInWithEmail as signInWithFirebaseEmail,
   signUpWithEmail as signUpWithFirebaseEmail,
   sendPasswordReset as sendFirebasePasswordReset,
+  signOutUser,
   db,
 } from "@/lib/firebase";
+import { createReturnLink, isNativeApp, startNativeSignup } from "@/lib/native-auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { sendEmailVerification } from "firebase/auth";
 
@@ -68,8 +70,20 @@ export const Route = createFileRoute("/auth")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>): { mode?: "signin" | "signup" } =>
-    s["mode"] === "signup" ? { mode: "signup" } : s["mode"] === "signin" ? { mode: "signin" } : {},
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { mode?: "signin" | "signup"; native_state?: string } => {
+    const mode = s["mode"] === "signup" ? "signup" : s["mode"] === "signin" ? "signin" : undefined;
+    // Set only when the page is opened by the Android app's in-app browser for sign-up.
+    const nativeState =
+      typeof s["native_state"] === "string" && /^[A-Za-z0-9_-]{32,128}$/.test(s["native_state"])
+        ? s["native_state"]
+        : undefined;
+    return {
+      ...(mode ? { mode } : {}),
+      ...(nativeState ? { native_state: nativeState } : {}),
+    };
+  },
   component: AuthLayout,
 });
 
@@ -121,6 +135,77 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // In-app browser (Chrome Custom Tab) sign-up: finish by handing the session back to the app.
+  const nativeState = search.native_state;
+  const inNativeTab = Boolean(nativeState);
+  // Detected after mount so the server-rendered page and the first client render match.
+  const [isNative, setIsNative] = useState(false);
+  useEffect(() => setIsNative(isNativeApp()), []);
+  const nativeSignup = !inNativeTab && mode === "signup" && isNative;
+  const [tabReady, setTabReady] = useState(!inNativeTab);
+  const [returnLink, setReturnLink] = useState<string | null>(null);
+  const handoffStarted = useRef(false);
+
+  // A fresh in-app browser tab starts signed out, so an account cached in the browser can never
+  // be handed to the app. Skipped after a Google redirect returns to this same tab session.
+  useEffect(() => {
+    if (!nativeState) return;
+    const flag = `mealmate:native-tab:${nativeState}`;
+    let alreadyStarted = false;
+    try {
+      alreadyStarted = sessionStorage.getItem(flag) === "1";
+      sessionStorage.setItem(flag, "1");
+    } catch {
+      // Without session storage we simply treat every load as the first one.
+    }
+    if (alreadyStarted) {
+      setTabReady(true);
+      return;
+    }
+    let active = true;
+    void signOutUser()
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setTabReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [nativeState]);
+
+  const afterAuth = useCallback(() => {
+    if (!nativeState) {
+      void navigate({ to: "/", replace: true });
+      return;
+    }
+    if (handoffStarted.current) return;
+    handoffStarted.current = true;
+    createReturnLink(nativeState)
+      .then((link) => {
+        setReturnLink(link);
+        // Chrome may block a script-triggered app launch; the button on the next screen covers that.
+        window.location.href = link;
+      })
+      .catch((error) => {
+        handoffStarted.current = false;
+        console.error("[Auth] Could not return to the app:", error);
+        toast.error(extractErrorMessage(error, "Couldn't return to the app. Please try again."));
+      });
+  }, [navigate, nativeState]);
+
+  async function openSecureSignup() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await startNativeSignup();
+    } catch (error) {
+      console.error("[Auth] Could not open the in-app browser:", error);
+      toast.error("Couldn't open the secure sign-up window. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     let active = true;
     void getRedirectResult(auth)
@@ -129,7 +214,7 @@ function AuthPage() {
         try {
           await ensureUserProfile(result.user);
           toast.success("Welcome to MealMate!");
-          navigate({ to: "/", replace: true });
+          afterAuth();
         } catch (error) {
           console.error("[Auth] Google redirect completion failed:", error);
           toast.error("Google sign-in completed, but your profile could not be loaded.");
@@ -143,11 +228,11 @@ function AuthPage() {
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, [afterAuth]);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/", replace: true });
-  }, [user, loading, navigate]);
+    if (!loading && user && tabReady) afterAuth();
+  }, [user, loading, tabReady, afterAuth]);
 
   async function signInWithGoogle() {
     if (busy) return;
@@ -161,7 +246,7 @@ function AuthPage() {
           console.warn("[Auth] Could not create Firestore profile:", dbErr);
         }
         toast.success("Welcome to MealMate!");
-        navigate({ to: "/", replace: true });
+        afterAuth();
         return;
       }
     } catch (error) {
@@ -197,7 +282,7 @@ function AuthPage() {
             }
             await sendEmailVerification(cred.user);
             toast.message("Check your inbox to verify your email and finish setting up MealMate.");
-            navigate({ to: "/", replace: true });
+            afterAuth();
             return;
           }
         } catch (fbErr: any) {
@@ -215,7 +300,7 @@ function AuthPage() {
           const cred = await signInWithFirebaseEmail(normalizedEmail, password);
           if (cred?.user) {
             toast.success("Welcome back!");
-            navigate({ to: "/", replace: true });
+            afterAuth();
             return;
           }
         } catch (fbErr: any) {
@@ -251,6 +336,26 @@ function AuthPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (returnLink) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-6 text-center">
+        <div className="max-w-sm space-y-4">
+          <MealMateLogo imageClassName="mx-auto size-14 rounded-2xl" showName={false} />
+          <h1 className="font-display text-3xl text-foreground">You’re all set</h1>
+          <p className="text-sm text-muted-foreground">
+            Your account is ready. Tap below to go back to MealMate.
+          </p>
+          <a
+            href={returnLink}
+            className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#1f2d1c] px-6 text-sm font-medium text-white hover:bg-[#243722]"
+          >
+            Open MealMate
+          </a>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -334,119 +439,140 @@ function AuthPage() {
                 </h1>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {mode === "signup" && (
+              {nativeSignup ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    We&apos;ll open a secure browser window to create your account, then bring you
+                    back here.
+                  </p>
+                  <Button
+                    type="button"
+                    className="h-11 w-full rounded-2xl bg-[#1f2d1c] text-white hover:bg-[#243722]"
+                    disabled={busy}
+                    onClick={() => void openSecureSignup()}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {mode === "signup" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name">Display name</Label>
+                      <Input
+                        id="name"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Chef Thabo"
+                        className="h-11 rounded-2xl border-border bg-background"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
-                    <Label htmlFor="name">Display name</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="name"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Chef Thabo"
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
                       className="h-11 rounded-2xl border-border bg-background"
                     />
                   </div>
-                )}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="h-11 rounded-2xl border-border bg-background"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        required
+                        minLength={6}
+                        autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-11 rounded-2xl border-border bg-background pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    {mode === "signup" && (
+                      <p className="text-xs text-muted-foreground">At least 6 characters.</p>
+                    )}
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={6}
-                      autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="h-11 rounded-2xl border-border bg-background pr-10"
-                    />
+                  <Button
+                    type="submit"
+                    className="h-11 w-full rounded-2xl bg-[#1f2d1c] text-white hover:bg-[#243722]"
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : mode === "signin" ? (
+                      "Sign in"
+                    ) : (
+                      "Create account"
+                    )}
+                  </Button>
+
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="h-px flex-1 bg-border" />
+                    or continue with
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full rounded-2xl border-border bg-background"
+                    disabled={busy}
+                    onClick={signInWithGoogle}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue with Google"}
+                  </Button>
+
+                  {mode === "signin" && (
                     <button
                       type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground"
+                      className="w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (!email) {
+                          toast.error("Enter your email first, then tap forgot password.");
+                          return;
+                        }
+                        setBusy(true);
+                        try {
+                          await sendFirebasePasswordReset(email.trim().toLowerCase());
+                          toast.success("Check your inbox for a reset link.");
+                        } catch (err) {
+                          toast.error(
+                            "Could not send the reset email. Please check the address and try again.",
+                          );
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      Forgot password?
                     </button>
-                  </div>
-                  {mode === "signup" && (
-                    <p className="text-xs text-muted-foreground">At least 6 characters.</p>
                   )}
-                </div>
-
-                <Button
-                  type="submit"
-                  className="h-11 w-full rounded-2xl bg-[#1f2d1c] text-white hover:bg-[#243722]"
-                  disabled={busy}
-                >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : mode === "signin" ? (
-                    "Sign in"
-                  ) : (
-                    "Create account"
-                  )}
-                </Button>
-
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="h-px flex-1 bg-border" />
-                  or continue with
-                  <span className="h-px flex-1 bg-border" />
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 w-full rounded-2xl border-border bg-background"
-                  disabled={busy}
-                  onClick={signInWithGoogle}
-                >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue with Google"}
-                </Button>
-
-                {mode === "signin" && (
-                  <button
-                    type="button"
-                    className="w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (!email) {
-                        toast.error("Enter your email first, then tap forgot password.");
-                        return;
-                      }
-                      setBusy(true);
-                      try {
-                        await sendFirebasePasswordReset(email.trim().toLowerCase());
-                        toast.success("Check your inbox for a reset link.");
-                      } catch (err) {
-                        toast.error(
-                          "Could not send the reset email. Please check the address and try again.",
-                        );
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    Forgot password?
-                  </button>
-                )}
-              </form>
+                </form>
+              )}
 
               <p className="mt-6 text-center text-sm text-muted-foreground">
                 {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
