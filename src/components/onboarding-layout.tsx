@@ -5,25 +5,38 @@ import { MealMateLogo } from "@/components/mealmate-logo";
 import { RecipeImage } from "@/components/recipe-image";
 
 const ONBOARDING_COPY = [
-  ["Discover. Plan. Eat. Enjoy.", "Your personal companion for better meals and easier dining."],
-  ["Find your next favourite.", "Discover recipes and meals that fit your taste."],
-  ["Make every meal count.", "Plan your week and organise your shopping in one place."],
   [
-    "Your food assistant, Mia.",
-    "Say “Hey Mia” for hands-free cooking help. Enable microphone access in the app; audio stays on your device and activated question text goes to Mia.",
+    "Discover. Plan. Eat. Enjoy.",
+    "Your companion for better meals, easier planning, and a little help from Mia.",
+  ],
+  ["Find your next favourite.", "Recipes and ideas that fit the way you actually cook."],
+  ["Make every meal count.", "Plan the week and keep shopping organised in one place."],
+  [
+    "Meet Mia, your kitchen companion.",
+    "Say “Hey Mia” for hands-free help. Mic is optional; audio stays on your device.",
   ],
   [
     "Make MealMate yours.",
-    "A little about your taste. Everything here is optional, and you can change it later.",
+    "Tell us a little about your taste. Everything is optional and easy to change later.",
   ],
   [
     "Stay in the loop.",
-    "Choose whether to receive useful MealMate product updates on this device.",
+    "Get useful product updates on this device — only if you want them.",
   ],
   [
-    "Your next great meal starts here.",
-    "Fresh inspiration. Easier planning. A little help from Mia. Welcome to your kitchen.",
+    "You’re ready to cook.",
+    "Fresh inspiration, simpler planning, and Mia when you need her. Welcome in.",
   ],
+] as const;
+
+const EYEBROWS = [
+  "Welcome",
+  "Discover",
+  "Plan & organise",
+  "Your companion",
+  "Your taste",
+  "Notifications",
+  "All set",
 ] as const;
 
 export function OnboardingLayout({
@@ -71,7 +84,7 @@ export function OnboardingLayout({
             className="onboarding-progress"
             role="progressbar"
             aria-label="Onboarding progress"
-            aria-valuemin={0}
+            aria-valuemin={1}
             aria-valuemax={7}
             aria-valuenow={step + 1}
           >
@@ -83,19 +96,7 @@ export function OnboardingLayout({
         <div className="onboarding-content" ref={content}>
           <section key={step} className="onboarding-scene">
             {step !== 4 && <OnboardingHero step={step} />}
-            <p className="onboarding-eyebrow">
-              {
-                [
-                  "A seat at your table",
-                  "Discover",
-                  "Plan & organise",
-                  "Meet your companion",
-                  "Your taste, your way",
-                  "On your terms",
-                  "Made for your everyday",
-                ][step]
-              }
-            </p>
+            <p className="onboarding-eyebrow">{EYEBROWS[step]}</p>
             <h1 ref={heading} tabIndex={-1} className="onboarding-title">
               {copy[0]}
             </h1>
@@ -114,7 +115,7 @@ function OnboardingHero({ step }: { step: number }) {
     <div className={`onboarding-hero onboarding-hero-${step}`}>
       <div className="onboarding-ambient" aria-hidden="true" />
       {step === 0 || step === 3 || step === 6 ? (
-        <ChefMascot className="onboarding-mia" />
+        <ChefMascot className="onboarding-mia" animate={step === 0 || step === 6} />
       ) : step === 1 ? (
         <div className="onboarding-food">
           <RecipeImage
@@ -122,14 +123,14 @@ function OnboardingHero({ step }: { step: number }) {
             size="card"
             priority
             sizes="320px"
-            className="h-full w-full rounded-[32px]"
+            className="h-full w-full rounded-[28px]"
           />
           <span className="onboarding-photo-caption">Fresh ideas. Real flavour.</span>
         </div>
       ) : step === 2 ? (
         <div className="onboarding-planner" aria-label="Meal planning illustration">
           <div className="onboarding-planner-heading">
-            <CalendarDays size={21} />
+            <CalendarDays size={20} />
             <span>A week of possibilities</span>
           </div>
           <div className="onboarding-week" aria-hidden="true">
@@ -149,14 +150,14 @@ function OnboardingHero({ step }: { step: number }) {
             />
           </div>
           <p>
-            <ShoppingBag size={17} /> From meal ideas to your shopping list
+            <ShoppingBag size={16} /> From meal ideas to your shopping list
           </p>
         </div>
       ) : (
         <div className="onboarding-bell" aria-hidden="true">
-          <Bell size={76} strokeWidth={1} />
+          <Bell size={72} strokeWidth={1.1} />
           <span>
-            <Check size={18} />
+            <Check size={16} />
           </span>
         </div>
       )}

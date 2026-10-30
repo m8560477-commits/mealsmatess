@@ -10,43 +10,43 @@ export const Route = createFileRoute("/welcome")({
   head: () => ({ meta: [{ title: "Welcome to MealMate" }] }),
   component: WelcomePage,
 });
+
 const steps = [
   {
-    label: "A WORLD OF FLAVOUR",
+    label: "Discover",
     title: "Your next favourite meal starts here.",
-    description: "Discover delicious recipes, from everyday favourites to something entirely new.",
+    description: "Explore recipes you will actually cook — everyday favourites and something new when you want it.",
     dish: "Greek chicken salad",
     icon: Utensils,
     detail: "Fresh inspiration, every day",
   },
   {
-    label: "LESS PLANNING. MORE LIVING.",
+    label: "Plan",
     title: "A delicious week, already planned.",
-    description:
-      "Bring your meals, recipes and grocery list together. Make dinner one less thing to think about.",
+    description: "Meals, recipes and groceries in one place so dinner is one less thing to think about.",
     dish: "Creamy chicken alfredo",
     icon: CalendarDays,
     detail: "Make space for what matters",
   },
   {
-    label: "A LITTLE RESOURCEFULNESS",
-    title: "Great meals begin with what you have.",
-    description:
-      "Put your pantry to work. Find inspiration in the ingredients you already have and make more of every shop.",
+    label: "Pantry",
+    title: "Cook with what you already have.",
+    description: "Turn ingredients on hand into dinner ideas and waste less of every shop.",
     dish: "Greek chicken salad",
     icon: Carrot,
-    detail: "Less waste. More possibility.",
+    detail: "Less waste. More possibility",
   },
   {
-    label: "MEET YOUR COOKING COMPANION",
-    title: "A little help from Mia. A lot more confidence.",
+    label: "Mia",
+    title: "A little help from Mia.",
     description:
-      "Enable hands-free Mia to say “Hey Mia” and get cooking help. Microphone access is optional; audio stays on your device and activated question text goes to Mia.",
+      "Say “Hey Mia” for hands-free cooking help. Microphone is optional; audio stays on your device.",
     dish: "Creamy chicken alfredo",
     icon: Sparkles,
     detail: "Good company in the kitchen",
   },
 ];
+
 function WelcomePage() {
   const navigate = useNavigate();
   const { user } = useSession();
@@ -59,7 +59,7 @@ function WelcomePage() {
       /* Storage is optional; access never depends on it. */
     }
   }, []);
-  const current = steps[step];
+  const current = steps[step]!;
   const Icon = current.icon;
   function next() {
     if (step === steps.length - 1) {
@@ -94,7 +94,7 @@ function WelcomePage() {
         <div className="intro-photo">
           <RecipeImage recipe={{ name: current.dish }} size="hero" priority />
           <div className="intro-photo-caption">
-            <Icon size={18} />
+            <Icon size={16} aria-hidden="true" />
             <span>{current.detail}</span>
           </div>
         </div>
@@ -117,14 +117,14 @@ function WelcomePage() {
             <span key={i} className={i <= step ? "complete" : ""} />
           ))}
         </div>
-        <button className="premium-primary" onClick={next}>
-          Continue
-          <ArrowRight size={19} />
+        <button type="button" className="premium-primary" onClick={next}>
+          {step === steps.length - 1 ? "Choose Premium" : "Continue"}
+          <ArrowRight size={18} aria-hidden="true" />
         </button>
         <p className="premium-terms">
           {step === steps.length - 1
-            ? "Choose your Premium plan next. Subscription required."
-            : "A little inspiration for your everyday."}
+            ? "Next: pick a plan. Subscription required to use MealMate."
+            : "A calmer way to decide what to cook."}
         </p>
         <p className="premium-legal">
           <Link to="/legal/terms">Terms</Link>
