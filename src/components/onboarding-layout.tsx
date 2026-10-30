@@ -8,7 +8,10 @@ const ONBOARDING_COPY = [
   ["Discover. Plan. Eat. Enjoy.", "Your personal companion for better meals and easier dining."],
   ["Find your next favourite.", "Discover recipes and meals that fit your taste."],
   ["Make every meal count.", "Plan your week and organise your shopping in one place."],
-  ["Your food assistant, Mia.", "Get help with recipes, ingredients, meal ideas and planning."],
+  [
+    "Your food assistant, Mia.",
+    "Say “Hey Mia” for hands-free cooking help. Enable microphone access in the app; audio stays on your device and activated question text goes to Mia.",
+  ],
   [
     "Make MealMate yours.",
     "A little about your taste. Everything here is optional, and you can change it later.",

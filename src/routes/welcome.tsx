@@ -41,7 +41,7 @@ const steps = [
     label: "MEET YOUR COOKING COMPANION",
     title: "A little help from Mia. A lot more confidence.",
     description:
-      "Ask your AI cooking companion for ideas, guidance and a helping hand in the kitchen.",
+      "Enable hands-free Mia to say “Hey Mia” and get cooking help. Microphone access is optional; audio stays on your device and activated question text goes to Mia.",
     dish: "Creamy chicken alfredo",
     icon: Sparkles,
     detail: "Good company in the kitchen",

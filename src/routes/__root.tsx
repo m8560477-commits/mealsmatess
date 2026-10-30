@@ -1,3 +1,4 @@
+import { MiaProvider } from "@/components/mia-provider";
 import { HubContext } from "@/components/hub/hub-context";
 import { HubShell } from "@/components/hub/hub-shell";
 import { isHubSurface } from "@/lib/hub-surface";
@@ -204,30 +205,32 @@ function RootComponent() {
                   </HubShell>
                 ) : (
                   <ConsumerAccessGate>
-                    <div
-                      className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
-                    >
-                      {showAppHeader && <AppHeader />}
-                      {/* The one scroll container. Header and nav are siblings, not children. */}
+                    <MiaProvider>
                       <div
-                        id="app-scroll"
-                        className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
+                        className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
                       >
+                        {showAppHeader && <AppHeader />}
+                        {/* The one scroll container. Header and nav are siblings, not children. */}
                         <div
-                          className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
+                          id="app-scroll"
+                          className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
                         >
-                          <AuthGate>
-                            <div
-                              key={pathname}
-                              className="page-enter motion-reveal flex flex-1 flex-col"
-                            >
-                              <Outlet />
-                            </div>
-                          </AuthGate>
+                          <div
+                            className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
+                          >
+                            <AuthGate>
+                              <div
+                                key={pathname}
+                                className="page-enter motion-reveal flex flex-1 flex-col"
+                              >
+                                <Outlet />
+                              </div>
+                            </AuthGate>
+                          </div>
                         </div>
+                        {isFlow ? null : <BottomNav />}
                       </div>
-                      {isFlow ? null : <BottomNav />}
-                    </div>
+                    </MiaProvider>
                   </ConsumerAccessGate>
                 )}
               </HubContext.Provider>

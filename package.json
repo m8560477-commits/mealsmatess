@@ -4,9 +4,9 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --host 0.0.0.0 --port 3000",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "dev": "node scripts/prepare-mia-voice.mjs && vite dev --host 0.0.0.0 --port 3000",
+    "build": "node scripts/prepare-mia-voice.mjs && vite build",
+    "build:dev": "node scripts/prepare-mia-voice.mjs && vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -14,13 +14,17 @@
     "test:watch": "vitest",
     "website:dev": "vite --config website/vite.config.ts",
     "website:build": "vite build --config website/vite.config.ts",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-mealmate-paywall --config firebase.rules-test.json \"node --test scripts/test-premium-rules.mjs\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-mealmate-paywall --config firebase.rules-test.json \"node --test scripts/test-premium-rules.mjs\"",
+    "voice:prepare": "node scripts/prepare-mia-voice.mjs",
+    "test:voice:browser": "node scripts/test-mia-voice-browser.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
   },
   "dependencies": {
+    "@capacitor-community/text-to-speech": "8.0.2",
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "8.1.2",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/ios": "^8.5.2",
@@ -86,6 +90,7 @@
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
+    "vosk-browser": "0.0.8",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -105,6 +110,7 @@
     "eslint-plugin-prettier": "^5.2.6",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "fflate": "0.8.2",
     "firebase-tools": "15.14.0",
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
