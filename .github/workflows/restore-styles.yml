@@ -1,0 +1,42 @@
+name: Restore styles.css
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore styles.css from commit 317e618
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            "https://raw.githubusercontent.com/m8560477-commits/mealsmatess/317e6181210a49a554f146531b5bbbcaa011b272/src/styles.css" \
+            -o src/styles.css
+          # Drop incomplete split leftovers if present
+          rm -f src/styles.p*.css src/styles.part*.css
+          test -s src/styles.css
+          wc -c src/styles.css
+          grep -q 'onboarding-shell' src/styles.css
+          grep -q 'mia-voice-panel' src/styles.css
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles.css
+          git add -u src/
+          if git diff --cached --quiet; then
+            echo "Nothing to commit — styles already restored."
+            exit 0
+          fi
+          git commit -m "Restore full styles.css from 317e618"
+          git push
