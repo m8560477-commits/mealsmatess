@@ -63,9 +63,24 @@ export function PremiumPaywall() {
         setStore(next);
         setSelected(next.plans.find((p) => p.kind === "yearly")?.kind ?? next.plans[0].kind);
       })
-      .catch(() => {
-        if (active)
-          setMessage("We couldn’t load subscription plans. Check your connection and try again.");
+      .catch((error) => {
+        if (!active) return;
+        const raw =
+          error instanceof Error
+            ? error.message
+            : typeof error === "string"
+              ? error
+              : "";
+        if (/unavailable|temporarily|not available|plans|not configured|REVENUECAT/i.test(raw))
+          setMessage(raw);
+        else if (/forbidden|401|403|unauthorized/i.test(raw))
+          setMessage("We couldn’t start checkout from this page. Refresh and try again.");
+        else if (!navigator.onLine)
+          setMessage("You’re offline. Connect to the internet and try again.");
+        else
+          setMessage(
+            "We couldn’t load subscription plans. Check your connection and try again. If this continues, confirm RevenueCat web billing is configured.",
+          );
       })
       .finally(() => {
         if (active) setLoading(false);
