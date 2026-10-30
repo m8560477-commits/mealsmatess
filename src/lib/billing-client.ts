@@ -53,7 +53,10 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
       await Purchases.logIn({ appUserID: identity.appUserId });
     nativeUser = identity.appUserId;
     const offerings = await Purchases.getOfferings();
-    const packages = offerings.all[identity.offering]?.availablePackages ?? [];
+    const packages =
+      offerings.all[identity.offering]?.availablePackages ??
+      offerings.current?.availablePackages ??
+      [];
     const plans = packages.flatMap((pkg): BillingPlan[] => {
       const product = pkg.product;
       const option = product.defaultOption;
@@ -78,7 +81,7 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
     return { plans, restore: () => Purchases.restorePurchases() };
   }
   if (!identity.webApiKey)
-    throw new Error("Subscriptions are temporarily unavailable. Please try again later.");
+    throw new Error("Web subscriptions are not configured (missing REVENUECAT_WEB_PUBLIC_KEY).");
   const { Purchases } = await import("@revenuecat/purchases-js");
   const sdk = webUser
     ? Purchases.getSharedInstance()
@@ -86,30 +89,32 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
   if (webUser && webUser !== identity.appUserId) await sdk.changeUser(identity.appUserId);
   webUser = identity.appUserId;
   const offerings = await sdk.getOfferings();
-  const plans = (offerings.all[identity.offering]?.availablePackages ?? []).flatMap(
-    (pkg): BillingPlan[] => {
-      const product = pkg.product;
-      if (product.introPricePhase) return [];
-      const iso = product.period
-        ? `P${product.period.number}${product.period.unit[0].toUpperCase()}`
-        : "";
-      const kind = planKind(pkg.identifier, product.identifier, iso);
-      if (!kind) return [];
-      return [
-        {
-          id: pkg.identifier,
-          kind,
-          price: product.price.formattedPrice,
-          period: periodLabel(iso),
-          trialDays: sevenDayTrial(
-            product.freeTrialPhase?.periodDuration,
-            !!product.introPricePhase,
-          ),
-          purchase: () => sdk.purchase({ rcPackage: pkg, skipSuccessPage: true }),
-        },
-      ];
-    },
-  );
+  const packages =
+    offerings.all[identity.offering]?.availablePackages ??
+    offerings.current?.availablePackages ??
+    [];
+  const plans = packages.flatMap((pkg): BillingPlan[] => {
+    const product = pkg.product;
+    if (product.introPricePhase) return [];
+    const iso = product.period
+      ? `P${product.period.number}${product.period.unit[0].toUpperCase()}`
+      : "";
+    const kind = planKind(pkg.identifier, product.identifier, iso);
+    if (!kind) return [];
+    return [
+      {
+        id: pkg.identifier,
+        kind,
+        price: product.price.formattedPrice,
+        period: periodLabel(iso),
+        trialDays: sevenDayTrial(
+          product.freeTrialPhase?.periodDuration,
+          !!product.introPricePhase,
+        ),
+        purchase: () => sdk.purchase({ rcPackage: pkg, skipSuccessPage: true }),
+      },
+    ];
+  });
   if (!plans.length)
     throw new Error("Subscription plans are temporarily unavailable. Please try again.");
   // Web purchases are restored by signing into the account that owns them.

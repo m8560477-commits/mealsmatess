@@ -119,7 +119,6 @@ export function parseRevenueCatAccess(
   )
     return denied();
 
-  // Both the entitlement and its underlying store transaction must still be valid.
   const expiry = (value: string | null | undefined) =>
     value === null ? Infinity : typeof value === "string" ? Date.parse(value) : NaN;
   const entitlementEnd = expiry(entitlement.expires_date);
@@ -153,7 +152,6 @@ export async function verifyRevenueCatCustomer(customerId: string): Promise<Prem
   const key = process.env["REVENUECAT_SECRET_API_KEY"];
   if (!key)
     throw new Error("Subscription verification is temporarily unavailable. Please try again.");
-  // Overrides are for synthetic local verification only, never production traffic.
   const production =
     process.env["VERCEL_ENV"] === "production" ||
     (process.env["NODE_ENV"] === "production" &&
@@ -179,8 +177,8 @@ export async function verifyRevenueCatCustomer(customerId: string): Promise<Prem
 
 /**
  * Billing claim cookies must only be used by first-party traffic.
- * Accept same-origin and same-site requests; also allow `none` when Origin matches
- * (typed navigations / some mobile webviews) so paywall session creation is not blocked.
+ * Accept same-origin and same-site; allow missing/none when Origin matches
+ * so paywall session creation is not blocked by typed navigations / webviews.
  */
 export function assertBillingOrigin(request: Request) {
   const site = (request.headers.get("sec-fetch-site") ?? "").toLowerCase();
@@ -191,7 +189,6 @@ export function assertBillingOrigin(request: Request) {
     throw new Response("Forbidden", { status: 403 });
   }
   if (site === "same-origin" || site === "same-site") return;
-  // site is "none" or missing — require Origin match when present
   if (origin && origin !== requestOrigin) {
     throw new Response("Forbidden", { status: 403 });
   }
@@ -239,7 +236,6 @@ export async function verifyAccountAccess(userId: string, token?: string): Promi
     if (session && (!session.owner || session.owner === userId)) {
       const purchased = await verifyRevenueCatCustomer(session.customerId);
       if (purchased.isPremium) {
-        // A checkout identity may belong to exactly one Firebase account, including races.
         await db.runTransaction(async (tx) => {
           const [claim, existing] = await Promise.all([tx.get(sessionRef(token)), tx.get(linkRef)]);
           const data = claim.data();
@@ -267,7 +263,7 @@ export async function verifyAccountAccess(userId: string, token?: string): Promi
       valid_until: Timestamp.fromMillis(access.verifiedUntil),
       source: "revenuecat",
       entitlement: ENTITLEMENT,
-      });
+    });
   return access;
 }
 export async function requireActivePremium(userId: string) {
