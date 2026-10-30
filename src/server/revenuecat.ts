@@ -177,11 +177,22 @@ export async function verifyRevenueCatCustomer(customerId: string): Promise<Prem
   );
 }
 
-/** Billing claim cookies must only be used by the page on this exact origin. */
+/**
+ * Billing claim cookies must only be used by first-party traffic.
+ * Accept same-origin and same-site requests; also allow `none` when Origin matches
+ * (typed navigations / some mobile webviews) so paywall session creation is not blocked.
+ */
 export function assertBillingOrigin(request: Request) {
-  const site = request.headers.get("sec-fetch-site");
+  const site = (request.headers.get("sec-fetch-site") ?? "").toLowerCase();
   const origin = request.headers.get("origin");
-  if (site ? site !== "same-origin" : origin !== new URL(request.url).origin) {
+  const requestOrigin = new URL(request.url).origin;
+
+  if (site === "cross-site") {
+    throw new Response("Forbidden", { status: 403 });
+  }
+  if (site === "same-origin" || site === "same-site") return;
+  // site is "none" or missing — require Origin match when present
+  if (origin && origin !== requestOrigin) {
     throw new Response("Forbidden", { status: 403 });
   }
 }
@@ -256,7 +267,7 @@ export async function verifyAccountAccess(userId: string, token?: string): Promi
       valid_until: Timestamp.fromMillis(access.verifiedUntil),
       source: "revenuecat",
       entitlement: ENTITLEMENT,
-    });
+      });
   return access;
 }
 export async function requireActivePremium(userId: string) {
