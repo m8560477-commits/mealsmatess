@@ -24,6 +24,22 @@ export async function authenticateApiRequest(request: Request) {
         response: Response.json({ error: "Sign in to continue." }, { status: 401 }),
       } as const;
     }
+    try {
+      const { requireActivePremium } = await import("@/server/revenuecat");
+      await requireActivePremium(decoded.uid);
+    } catch (error) {
+      return {
+        response: Response.json(
+          {
+            error:
+              error instanceof Response && error.status === 402
+                ? "An active Premium subscription is required."
+                : "Subscription verification is temporarily unavailable.",
+          },
+          { status: error instanceof Response && error.status === 402 ? 402 : 503 },
+        ),
+      } as const;
+    }
     return {
       user: {
         userId: decoded.uid,

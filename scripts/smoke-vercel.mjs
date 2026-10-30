@@ -22,6 +22,13 @@ try {
     catalogSource.match(/id: "([a-f0-9]+)",\s*name: "getRecipeCatalogEntry"/)?.[1],
   ];
   if (catalogFunctionIds.some((id) => !id)) throw new Error("Catalog function IDs are missing.");
+  const billingFile = serverFiles.find((name) => name.startsWith("billing.functions-"));
+  if (!billingFile) throw new Error("Billing functions are missing from the server artifact.");
+  const billingSource = await readFile(join(artifact, "_ssr", billingFile), "utf8");
+  const purchaseSessionId = billingSource.match(
+    /id: "([a-f0-9]+)",\s*name: "createPurchaseSession"/,
+  )?.[1];
+  if (!purchaseSessionId) throw new Error("Purchase session function ID is missing.");
   const result = spawnSync(
     process.execPath,
     [
@@ -47,6 +54,13 @@ try {
           assert.equal(response.status, 401, 'Recipe catalog must require authentication');
           console.log('Recipe catalog function: 401');
         }
+        for (const site of ['cross-site', 'same-site']) {
+          const response = await app.fetch(new Request('https://mealmate.test/_serverFn/' + process.argv[3], {
+            method: 'POST', headers: { 'sec-fetch-site': site, origin: 'https://hub.mealmate.test' },
+          }));
+          assert.equal(response.status, 403, 'Billing claims must reject ' + site + ' requests');
+          console.log('Purchase session ' + site + ': 403');
+        }
         const page = await app.fetch(new Request('https://mealmate.test/', {
           headers: { accept: 'text/html' },
         }));
@@ -58,6 +72,7 @@ try {
       `,
       join(artifact, "index.mjs"),
       JSON.stringify(catalogFunctionIds),
+      purchaseSessionId,
     ],
     {
       cwd: temporary,

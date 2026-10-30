@@ -1,94 +1,137 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Loader2, Mail } from "lucide-react";
-import { toast } from "sonner";
-import { OnboardingLayout } from "@/components/onboarding-layout";
-import { auth, getRedirectResult, signInWithGoogle } from "@/lib/firebase";
+import { useEffect, useState } from "react";
+import { ArrowRight, CalendarDays, Carrot, Sparkles, Utensils } from "lucide-react";
+import { RecipeImage } from "@/components/recipe-image";
+import { completeIntro } from "@/lib/billing.functions";
 import { useSession } from "@/hooks/use-session";
+import { markTourSeen } from "@/lib/preferences";
 
 export const Route = createFileRoute("/welcome")({
   head: () => ({ meta: [{ title: "Welcome to MealMate" }] }),
   component: WelcomePage,
 });
-
+const steps = [
+  {
+    label: "A WORLD OF FLAVOUR",
+    title: "Your next favourite meal starts here.",
+    description: "Discover delicious recipes, from everyday favourites to something entirely new.",
+    dish: "Greek chicken salad",
+    icon: Utensils,
+    detail: "Fresh inspiration, every day",
+  },
+  {
+    label: "LESS PLANNING. MORE LIVING.",
+    title: "A delicious week, already planned.",
+    description:
+      "Bring your meals, recipes and grocery list together. Make dinner one less thing to think about.",
+    dish: "Creamy chicken alfredo",
+    icon: CalendarDays,
+    detail: "Make space for what matters",
+  },
+  {
+    label: "A LITTLE RESOURCEFULNESS",
+    title: "Great meals begin with what you have.",
+    description:
+      "Put your pantry to work. Find inspiration in the ingredients you already have and make more of every shop.",
+    dish: "Greek chicken salad",
+    icon: Carrot,
+    detail: "Less waste. More possibility.",
+  },
+  {
+    label: "MEET YOUR COOKING COMPANION",
+    title: "A little help from Mia. A lot more confidence.",
+    description:
+      "Ask your AI cooking companion for ideas, guidance and a helping hand in the kitchen.",
+    dish: "Creamy chicken alfredo",
+    icon: Sparkles,
+    detail: "Good company in the kitchen",
+  },
+];
 function WelcomePage() {
   const navigate = useNavigate();
-  const { user, loading } = useSession();
-  const [busy, setBusy] = useState(false);
-  const pending = useRef(false);
+  const { user } = useSession();
+  const [step, setStep] = useState(0);
   useEffect(() => {
-    void getRedirectResult(auth).catch(() =>
-      toast.error("Google sign-in could not finish. Please try email."),
-    );
-  }, []);
-  // The root onboarding guard checks the signed-in profile and selects home or onboarding.
-  async function google() {
-    if (pending.current) return;
-    pending.current = true;
-    setBusy(true);
     try {
-      await signInWithGoogle();
+      const saved = Number(localStorage.getItem("mealmate.intro-step.v2"));
+      if (Number.isInteger(saved) && saved >= 0 && saved < steps.length) setStep(saved);
     } catch {
-      toast.error("Google sign-in could not finish. Please try again or use email.");
-    } finally {
-      pending.current = false;
-      setBusy(false);
+      /* Storage is optional; access never depends on it. */
+    }
+  }, []);
+  const current = steps[step];
+  const Icon = current.icon;
+  function next() {
+    if (step === steps.length - 1) {
+      markTourSeen();
+      if (user) void completeIntro().catch(() => undefined);
+      try {
+        localStorage.removeItem("mealmate.intro-step.v2");
+      } catch {
+        /* optional */
+      }
+      void navigate({ to: "/premium", replace: true });
+    } else {
+      setStep(step + 1);
+      try {
+        localStorage.setItem("mealmate.intro-step.v2", String(step + 1));
+      } catch {
+        /* optional */
+      }
     }
   }
   return (
-    <OnboardingLayout
-      step={0}
-      busy={busy}
-      actions={
-        <>
-          {user ? (
-            <button
-              className="onboarding-primary"
-              disabled={loading || busy}
-              onClick={() => void navigate({ to: "/", replace: true })}
-            >
-              Continue
-            </button>
-          ) : (
-            <>
-              <button
-                className="onboarding-primary"
-                onClick={() => void google()}
-                disabled={busy || loading}
-              >
-                {busy ? (
-                  <Loader2 className="animate-spin" size={20} />
-                ) : (
-                  <span aria-hidden="true" className="font-bold">
-                    G
-                  </span>
-                )}{" "}
-                Continue with Google
-              </button>
-              <Link
-                to="/auth"
-                search={{ mode: "signin" }}
-                className={`onboarding-secondary ${busy ? "pointer-events-none opacity-50" : ""}`}
-                aria-disabled={busy}
-              >
-                <Mail size={18} /> Sign in with email
-              </Link>
-              <Link
-                to="/auth"
-                search={{ mode: "signup" }}
-                className={`onboarding-text-button ${busy ? "pointer-events-none opacity-50" : ""}`}
-                aria-disabled={busy}
-              >
-                Create an account
-              </Link>
-            </>
-          )}
-          <p className="onboarding-legal">
-            By continuing, you agree to our <Link to="/legal/terms">Terms</Link> and{" "}
-            <Link to="/legal/privacy">Privacy Policy</Link>.
-          </p>
-        </>
-      }
-    />
+    <main className="premium-flow premium-intro">
+      <header className="intro-header">
+        <span>
+          MealMate<span className="intro-brand-dot">.</span>
+        </span>
+        <span className="intro-count">
+          {step + 1} / {steps.length}
+        </span>
+      </header>
+      <section key={step} className="intro-step">
+        <div className="intro-photo">
+          <RecipeImage recipe={{ name: current.dish }} size="hero" priority />
+          <div className="intro-photo-caption">
+            <Icon size={18} />
+            <span>{current.detail}</span>
+          </div>
+        </div>
+        <div className="intro-copy" aria-live="polite">
+          <p className="premium-eyebrow">{current.label}</p>
+          <h1>{current.title}</h1>
+          <p className="premium-description">{current.description}</p>
+        </div>
+      </section>
+      <footer className="intro-footer">
+        <div
+          role="progressbar"
+          aria-label="Onboarding progress"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={step + 1}
+          className="intro-progress"
+        >
+          {steps.map((_, i) => (
+            <span key={i} className={i <= step ? "complete" : ""} />
+          ))}
+        </div>
+        <button className="premium-primary" onClick={next}>
+          Continue
+          <ArrowRight size={19} />
+        </button>
+        <p className="premium-terms">
+          {step === steps.length - 1
+            ? "Choose your Premium plan next. Subscription required."
+            : "A little inspiration for your everyday."}
+        </p>
+        <p className="premium-legal">
+          <Link to="/legal/terms">Terms</Link>
+          <span>·</span>
+          <Link to="/legal/privacy">Privacy</Link>
+        </p>
+      </footer>
+    </main>
   );
 }

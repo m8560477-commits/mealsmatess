@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { requirePremium } from "@/lib/premium-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { RecipeIdSchema } from "@/lib/recipe-id";
 import { requestRecipeImage } from "@/lib/recipe-image-request.server";
@@ -34,7 +34,7 @@ async function assertCanEdit(userId: string, createdBy: string | null) {
  * Uses a cached verified photo, otherwise finds and stores a matching photo.
  */
 export const ensureRecipeImage = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const { data: accessible, error } = await context.firebase
@@ -47,7 +47,7 @@ export const ensureRecipeImage = createServerFn({ method: "POST" })
   });
 
 export const getImageAlternatives = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => IdSchema.parse(v))
   .handler(async ({ data, context }) => {
     const srv = await import("@/lib/recipe-images.server");
@@ -79,7 +79,7 @@ const ChooseSchema = z.object({
 });
 
 export const chooseRecipeImage = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => ChooseSchema.parse(v))
   .handler(async ({ data, context }) => {
     const srv = await import("@/lib/recipe-images.server");
@@ -103,7 +103,7 @@ export const chooseRecipeImage = createServerFn({ method: "POST" })
 
 /** Kept for compatibility; bulk generation is disabled by user preference. */
 export const backfillRecipeImages = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) =>
     z.object({ batchSize: z.number().int().min(1).max(10).default(5) }).parse(v ?? {}),
   )

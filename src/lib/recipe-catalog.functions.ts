@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { requirePremium } from "@/lib/premium-middleware";
 import { filterRecipeCatalog, recipeCatalogRecord } from "@/lib/recipe-catalog";
 
 export const listRecipeCatalog = createServerFn({ method: "GET" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((input: unknown) =>
     z
       .object({
@@ -28,7 +28,7 @@ export const listRecipeCatalog = createServerFn({ method: "GET" })
   });
 
 export const getRecipeCatalogEntry = createServerFn({ method: "GET" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((input: unknown) => z.object({ slug: z.string().trim().min(1).max(300) }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.firebase

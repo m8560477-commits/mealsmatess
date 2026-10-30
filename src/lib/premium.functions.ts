@@ -1,9 +1,11 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
-// Free-tier limits — enforced server-side before any AI work
+const loadPremiumService = createServerOnlyFn(() => import("@/server/revenuecat"));
+
+// Historical allowance labels retained for usage UI; access now requires verified Premium.
 export const FREE_LIMITS = {
   ai_chat: { max: 10, period: "day" as const, label: "AI Chef chats" },
   recipe_gen: { max: 5, period: "day" as const, label: "recipe generations" },
@@ -11,45 +13,12 @@ export const FREE_LIMITS = {
 };
 export type FeatureKey = keyof typeof FREE_LIMITS;
 
-function periodKey(period: "day" | "month"): string {
-  const d = new Date();
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  if (period === "month") return `${yyyy}-${mm}`;
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 // ---------- Entitlement ----------
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireFirebaseAuth])
   .handler(async ({ context }) => {
-    const { firebaseAdmin } = await loadFirebaseAdmin();
-    const { data: sub } = await firebaseAdmin
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", context.userId)
-      .in("status", ["trialing", "active", "in_grace"])
-      .order("period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-
-    const now = Date.now();
-    const active =
-      !!sub &&
-      (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-
-    return {
-      isPremium: active,
-      tier: (sub?.tier ?? "free") as string,
-      status: (sub?.status ?? "expired") as string,
-      trialActive: active && sub?.status === "trialing",
-      periodEnd: sub?.period_end ?? null,
-      trialEnd: sub?.trial_end ?? null,
-      store: sub?.store ?? null,
-      autoRenew: sub?.auto_renew ?? false,
-      isManual: sub?.is_manual ?? false,
-    };
+    const { verifyAccountAccess } = await loadPremiumService();
+    return verifyAccountAccess(context.userId);
   });
 
 // ---------- Usage ----------
@@ -116,48 +85,9 @@ export async function enforceAndIncrement(
   userId: string,
   feature: FeatureKey,
 ): Promise<{ allowed: boolean; remaining: number; premium: boolean }> {
-  const { firebaseAdmin } = await loadFirebaseAdmin();
-  // Premium check
-  const { data: sub } = await firebaseAdmin
-    .from("subscriptions")
-    .select("status,tier,period_end")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  const now = Date.now();
-  const isPremium =
-    !!sub &&
-    (sub.tier === "lifetime" || !sub.period_end || new Date(sub.period_end).getTime() > now);
-  if (isPremium) return { allowed: true, remaining: Infinity, premium: true };
-
-  const cfg = FREE_LIMITS[feature];
-  const pk = periodKey(cfg.period);
-  const { data: existing } = await firebaseAdmin
-    .from("usage_limits")
-    .select("count")
-    .eq("user_id", userId)
-    .eq("feature_key", feature)
-    .eq("period_key", pk)
-    .maybeSingle();
-
-  const current = existing?.count ?? 0;
-  if (current >= cfg.max) return { allowed: false, remaining: 0, premium: false };
-
-  await firebaseAdmin.from("usage_limits").upsert(
-    {
-      user_id: userId,
-      feature,
-      feature_key: feature,
-      period_start: new Date().toISOString(),
-      period_key: pk,
-      count: current + 1,
-    },
-    { onConflict: "user_id,feature_key,period_key" },
-  );
-  return { allowed: true, remaining: cfg.max - current - 1, premium: false };
+  const { requireActivePremium } = await loadPremiumService();
+  await requireActivePremium(userId);
+  return { allowed: true, remaining: Infinity, premium: true };
 }
 
 // ---------- Referral ----------

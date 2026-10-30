@@ -1,21 +1,38 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/hooks/use-session";
-import { getMyEntitlement, getMyUsage } from "@/lib/premium.functions";
+import { getMyUsage } from "@/lib/premium.functions";
+
+import { verifyMyPremium } from "@/lib/billing.functions";
+import { useEffect, useState } from "react";
 
 export function usePremium() {
   const { user } = useSession();
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const query = useQuery({
     queryKey: ["entitlement", user?.id ?? "anon"],
-    queryFn: () => getMyEntitlement(),
+    queryFn: () => verifyMyPremium(),
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: "always",
+    retry: false,
   });
   return {
-    isPremium: query.data?.isPremium ?? false,
+    isPremium:
+      !!user &&
+      !query.isError &&
+      !!query.data?.isPremium &&
+      query.data.verifiedUntil > Math.max(now, Date.now()),
     tier: query.data?.tier ?? "free",
     trialActive: query.data?.trialActive ?? false,
     entitlement: query.data,
-    loading: query.isLoading,
+    loading: !!user && query.isPending,
+    error: query.error,
+    retry: query.refetch,
   };
 }
 

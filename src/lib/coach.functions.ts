@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { generateAiText } from "@/lib/ai-engine.server";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { requirePremium } from "@/lib/premium-middleware";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
 const MessageSchema = z.object({
@@ -78,7 +78,7 @@ async function callChat(
 }
 
 export const nutritionCoach = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => InputSchema.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
@@ -128,7 +128,7 @@ export const nutritionCoach = createServerFn({ method: "POST" })
   });
 
 export const getCoachContext = createServerFn({ method: "GET" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .handler(async ({ context }) => {
     const { data: savedProfile } = await context.firebase
       .from("profiles")
