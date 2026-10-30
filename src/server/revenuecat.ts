@@ -2,7 +2,10 @@ import { randomBytes, createHash } from "node:crypto";
 import { Timestamp } from "firebase-admin/firestore";
 import { getFirebaseAdminFirestore } from "@/server/firebase-admin";
 
+/** Primary entitlement identifier in the app and new RC config. */
 export const ENTITLEMENT = "premium";
+/** Legacy identifier still attached on older MealMate RC products. */
+export const ENTITLEMENT_ALIASES = ["premium", "MealMate Pro"] as const;
 export const OFFERING = "default";
 const SESSION_DAYS = 90;
 const LEASE_MS = 5 * 60_000;
@@ -58,13 +61,25 @@ type Subscriber = {
   >;
 };
 
+function pickEntitlement(subscriber: Subscriber) {
+  const map = subscriber.entitlements ?? {};
+  for (const key of ENTITLEMENT_ALIASES) {
+    if (map[key]?.product_identifier) return map[key]!;
+  }
+  // Fall back to any active-looking entitlement if identifiers drifted.
+  for (const value of Object.values(map)) {
+    if (value?.product_identifier) return value;
+  }
+  return undefined;
+}
+
 /** Only the server's authenticated RevenueCat response is accepted as purchase evidence. */
 export function parseRevenueCatAccess(
   subscriber: Subscriber,
   now = Date.now(),
   allowSandbox = false,
 ): PremiumAccess {
-  const entitlement = subscriber.entitlements?.[ENTITLEMENT];
+  const entitlement = pickEntitlement(subscriber);
   if (
     !entitlement?.product_identifier ||
     typeof entitlement.purchase_date !== "string" ||
@@ -81,6 +96,7 @@ export function parseRevenueCatAccess(
     "promotional",
     "rc_billing",
     "paddle",
+    "test_store",
   ]);
   if (!subscription && entitlement.expires_date === null) {
     const purchase = subscriber.non_subscriptions?.[product]?.find((transaction) => {

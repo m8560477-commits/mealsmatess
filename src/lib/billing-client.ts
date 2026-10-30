@@ -14,12 +14,18 @@ export type BillingPlan = {
 export type BillingStore = { plans: BillingPlan[]; restore: () => Promise<unknown> };
 
 export function planKind(identifier: string, product: string, period: string): PlanKind | null {
-  if (/(?:^|[_.-])family(?:$|[_.-])/i.test(`${identifier}_${product}`)) return "family";
-  if (period === "P1Y") return "yearly";
-  if (period === "P1M") return "monthly";
+  const key = `${identifier}_${product}`.toLowerCase();
+  if (/(?:^|[_.-])family(?:$|[_.-])/.test(key)) return "family";
+  // Lifetime / one-time maps to the third paywall slot until a family product exists.
+  if (/(?:^|[_.-])lifetime(?:$|[_.-])/.test(key) || period === "") {
+    if (/lifetime|forever|one.?time/.test(key)) return "family";
+  }
+  if (period === "P1Y" || /(?:^|[_.-])(?:annual|yearly)(?:$|[_.-])/.test(key)) return "yearly";
+  if (period === "P1M" || /(?:^|[_.-])monthly(?:$|[_.-])/.test(key)) return "monthly";
   return null;
 }
 export function periodLabel(iso: string): string {
+  if (!iso) return "once";
   const match = /^P(\d+)([DWMY])$/.exec(iso);
   if (!match) return "billing period";
   const unit = ({ D: "day", W: "week", M: "month", Y: "year" } as Record<string, string>)[match[2]];
@@ -35,7 +41,6 @@ export function purchaseWasCancelled(error: unknown): boolean {
 }
 let nativeUser: string | null = null;
 let webUser: string | null = null;
-// Serialize SDK identity changes so stale UI loads cannot race a sign-in.
 let queue: Promise<unknown> = Promise.resolve();
 export function loadBillingStore(identity: Identity): Promise<BillingStore> {
   const task = queue.catch(() => undefined).then(() => configureStore(identity));
@@ -60,7 +65,6 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
     const plans = packages.flatMap((pkg): BillingPlan[] => {
       const product = pkg.product;
       const option = product.defaultOption;
-      // Installment and prepaid contracts have different terms; this paywall offers recurring plans only.
       if (!option || option.isPrepaid || option.installmentsInfo || option.introPhase) return [];
       const iso = option.billingPeriod?.iso8601 ?? product.subscriptionPeriod ?? "";
       const kind = planKind(pkg.identifier, product.identifier, iso);
@@ -81,7 +85,9 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
     return { plans, restore: () => Purchases.restorePurchases() };
   }
   if (!identity.webApiKey)
-    throw new Error("Web subscriptions are not configured (missing REVENUECAT_WEB_PUBLIC_KEY).");
+    throw new Error(
+      "Web subscriptions are not configured. Add REVENUECAT_WEB_PUBLIC_KEY (Web Billing or Test Store public key) in Vercel.",
+    );
   const { Purchases } = await import("@revenuecat/purchases-js");
   const sdk = webUser
     ? Purchases.getSharedInstance()
@@ -117,6 +123,5 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
   });
   if (!plans.length)
     throw new Error("Subscription plans are temporarily unavailable. Please try again.");
-  // Web purchases are restored by signing into the account that owns them.
   return { plans, restore: () => sdk.getCustomerInfo() };
 }
