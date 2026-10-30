@@ -1,0 +1,60 @@
+name: Patch paywall error messages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve catch messaging
+        run: |
+          set -euo pipefail
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("src/components/premium-paywall.tsx")
+          t = p.read_text()
+          old = '''      .catch(() => {
+        if (active)
+          setMessage("We couldn\u2019t load subscription plans. Check your connection and try again.");
+      })'''
+          # file may use unicode apostrophe
+          import re
+          pat = re.compile(
+              r"\.catch\(\(\) => \{\s*if \(active\)\s*setMessage\(\"[^\"]+\"\);\s*\}\)",
+              re.M,
+          )
+          new = '''.catch((error) => {
+        if (!active) return;
+        const raw =
+          error instanceof Error
+            ? error.message
+            : typeof error === "string"
+              ? error
+              : "";
+        if (/unavailable|temporarily|not available|plans/i.test(raw)) setMessage(raw);
+        else if (/forbidden|401|403|unauthorized/i.test(raw))
+          setMessage("We couldn\u2019t start checkout from this page. Refresh and try again.");
+        else if (!navigator.onLine)
+          setMessage("You\u2019re offline. Connect to the internet and try again.");
+        else
+          setMessage(
+            "We couldn\u2019t load subscription plans. Check your connection and try again. If this continues, confirm RevenueCat web billing is configured.",
+          );
+      })'''
+          t2, n = pat.subn(new, t, count=1)
+          if n != 1:
+              raise SystemExit(f"pattern match count={n}")
+          p.write_text(t2)
+          print("patched")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/premium-paywall.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Surface clearer paywall plan-load errors"
+          git push
