@@ -33,7 +33,12 @@ const denied = (): PremiumAccess => ({
 type Subscriber = {
   entitlements?: Record<
     string,
-    { expires_date?: string | null; purchase_date?: string; product_identifier?: string }
+    {
+      expires_date?: string | null;
+      purchase_date?: string;
+      product_identifier?: string;
+      grace_period_expires_date?: string | null;
+    }
   >;
   subscriptions?: Record<
     string,
@@ -41,11 +46,16 @@ type Subscriber = {
       period_type?: string;
       store?: string;
       is_sandbox?: boolean;
+      expires_date?: string | null;
+      refunded_at?: string | null;
       unsubscribe_detected_at?: string | null;
       grace_period_expires_date?: string | null;
     }
   >;
-  non_subscriptions?: Record<string, { is_sandbox?: boolean }[]>;
+  non_subscriptions?: Record<
+    string,
+    { is_sandbox?: boolean; store?: string; purchase_date?: string; refunded_at?: string | null }[]
+  >;
 };
 
 /** Only the server's authenticated RevenueCat response is accepted as purchase evidence. */
@@ -57,20 +67,72 @@ export function parseRevenueCatAccess(
   const entitlement = subscriber.entitlements?.[ENTITLEMENT];
   if (
     !entitlement?.product_identifier ||
-    !entitlement.purchase_date ||
+    typeof entitlement.purchase_date !== "string" ||
     Date.parse(entitlement.purchase_date) > now ||
     !Number.isFinite(Date.parse(entitlement.purchase_date))
   )
     return denied();
   const product = entitlement.product_identifier;
   const subscription = subscriber.subscriptions?.[product];
-  const transactions = subscriber.non_subscriptions?.[product] ?? [];
-  if (!allowSandbox && (subscription?.is_sandbox || transactions.some((t) => t.is_sandbox)))
+  const supportedStores = new Set([
+    "play_store",
+    "app_store",
+    "stripe",
+    "promotional",
+    "rc_billing",
+    "paddle",
+  ]);
+  if (!subscription && entitlement.expires_date === null) {
+    const purchase = subscriber.non_subscriptions?.[product]?.find((transaction) => {
+      const purchasedAt = Date.parse(transaction.purchase_date ?? "");
+      return (
+        typeof transaction.store === "string" &&
+        supportedStores.has(transaction.store.toLowerCase()) &&
+        typeof transaction.is_sandbox === "boolean" &&
+        (allowSandbox || !transaction.is_sandbox) &&
+        transaction.refunded_at == null &&
+        Number.isFinite(purchasedAt) &&
+        purchasedAt <= now
+      );
+    });
+    if (!purchase) return denied();
+    return {
+      isPremium: true,
+      tier: product,
+      status: "active",
+      trialActive: false,
+      periodEnd: null,
+      trialEnd: null,
+      store: purchase.store ?? null,
+      autoRenew: false,
+      isManual: false,
+      verifiedUntil: now + LEASE_MS,
+    };
+  }
+  if (
+    !subscription ||
+    typeof subscription.store !== "string" ||
+    !supportedStores.has(subscription.store.toLowerCase()) ||
+    typeof subscription.is_sandbox !== "boolean" ||
+    (!allowSandbox && subscription.is_sandbox) ||
+    subscription.refunded_at != null
+  )
     return denied();
-  const expires =
-    entitlement.expires_date === null ? Infinity : Date.parse(entitlement.expires_date ?? "");
-  const grace = Date.parse(subscription?.grace_period_expires_date ?? "");
-  const effectiveEnd = Math.max(expires, Number.isFinite(grace) ? grace : 0);
+
+  // Both the entitlement and its underlying store transaction must still be valid.
+  const expiry = (value: string | null | undefined) =>
+    value === null ? Infinity : typeof value === "string" ? Date.parse(value) : NaN;
+  const entitlementEnd = expiry(entitlement.expires_date);
+  const subscriptionEnd = expiry(subscription.expires_date);
+  if (Number.isNaN(entitlementEnd) || Number.isNaN(subscriptionEnd)) return denied();
+  const regularEnd = Math.min(entitlementEnd, subscriptionEnd);
+  const entitlementGrace = Date.parse(entitlement.grace_period_expires_date ?? "");
+  const subscriptionGrace = Date.parse(subscription.grace_period_expires_date ?? "");
+  const grace =
+    Number.isFinite(entitlementGrace) && Number.isFinite(subscriptionGrace)
+      ? Math.min(entitlementGrace, subscriptionGrace)
+      : 0;
+  const effectiveEnd = Math.max(regularEnd, grace);
   if (!(effectiveEnd > now)) return denied();
   const trial = subscription?.period_type?.toLowerCase() === "trial";
   return {

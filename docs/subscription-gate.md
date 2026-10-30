@@ -28,7 +28,15 @@ Use the existing RevenueCat project for **both** Android and Web Billing. Do not
 
 The service account also needs its existing Firestore/Auth permissions. Retain the Firebase project, database, Google client and official-domain configuration from the existing deployment. No credentials were available in this sandbox, and no store or Firebase console settings were altered by this patch.
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:5a4b4b259195cfe36039a93e849fc370053ff088d9debe44caa8796925d0bbcf -->
+
 In offering `default`, attach the existing monthly and annual recurring packages, plus a custom package named `family` (or a package/product identifier with a separated `family` segment). All products must grant `premium`. Family is a store plan choice; this patch does not invent household seats or change existing sharing rules. Configure restore/transfer policy in RevenueCat for the intended account ownership behavior.
+
+The live Android billing documentation specifies entitlement `MealMate Pro`, a product allowlist and Firebase UID ownership. This draft specifies entitlement `premium` and also supports checkout before sign-in. Do not assume those entitlements or identities are interchangeable: inspect the existing RevenueCat project, preserve verified subscriber and webhook history, confirm product mappings and test restoration before rollout. The live billing verifier and transactional webhook contain additional checks that must be reconciled with this draft.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 Only standard recurring plans are rendered. Google Play prepaid/installment options and offers with intermediate paid introductory phases are excluded because they require different contract disclosures. Monthly/yearly products with no intro discount and an eligible seven-day free phase show **7 days free, then the live renewal price and billing period**. Ineligible users see Subscribe and the regular price. The native purchase uses the exact displayed eligible subscription option. Never hardcode trial eligibility, price, currency or a product receipt.
 
@@ -66,7 +74,13 @@ I've set up prototype Security Rules to keep the data in Firestore safe. They ar
 
 ## Deployment sequence and verification
 
-1. Reconcile the source: Vercel currently deploys newer `tazzy-max/mealsmatess` work; this connected repository is `tazlol0909-maker/mealsmatess`. Apply this patch on top of the current production source before rollout. Publishing this older snapshot directly would replace newer work.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:55029d3ae67e7399ff17ecfac0cad83724aef6457c98eb469fd9c2905d09916b -->
+
+1. Reconcile the source: Vercel last showed commit `88cf5bc`, whose former name `tazzy-max/mealsmatess` resolves to this same GitHub repository, `tazlol0909-maker/mealsmatess` (ID `1414342874`). That production branch contains newer billing, scanner, support and onboarding changes absent from this draft. A merge trial exposed conflicting billing and webhook implementations; resolve and test them before rollout. Publishing this older snapshot directly would replace newer work.
+
+<!-- /coderabbit-ai-generated:v1 -->
 2. Configure the existing RevenueCat keys and Firebase Admin identity in the correct Vercel project/environment. Verify that the three intended store packages and eligible seven-day offer exist.
 3. Review and deploy the updated Firestore rules with the server/UI rollout. Missing access records deny protected direct SDK reads; do not publish these rules alone against the old app. Use a maintenance window or coordinated cutover to avoid locking existing subscribers out of catalog/personal data.
 4. Deploy the reconciled Consumer app to the existing `mealsmates.site` project and release a wrapper built after `bunx cap sync android`. Preserve Hub project attachments, DNS and all existing subdomains.

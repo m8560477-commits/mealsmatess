@@ -52,7 +52,13 @@ In Firebase Console, confirm Google remains enabled and inspect its existing web
 
 The only variable added during this task is **Production** `MEALMATE_APP_URL=https://mealsmates.site`. Existing Firebase, Admin, AI, Blob and subscription configuration remains intact. The saved authDomain value was not changed; fresh deployed assets confirm the Firebase helper domain above.
 
-Current live source is `tazzy-max/mealsmatess`, commit `88cf5bc`, deployment `mealsmates-3rrgcw6k7-tazzy3.vercel.app`. This differs from the connected task repository `tazlol0909-maker/mealsmatess`. Preserve current production code: redeploy the existing Current production deployment through Vercel to activate the URL variable. Do not deploy this checkout over it without source reconciliation.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:ae42334de2ba7f9a1e0f6301e9a182a02f7bf7454e330d35348b8437651f7910 -->
+
+The most recently inspected live source is commit `88cf5bc`, deployment `mealsmates-3rrgcw6k7-tazzy3.vercel.app`. GitHub resolves the displayed former source name `tazzy-max/mealsmatess` to this same repository, `tazlol0909-maker/mealsmatess` (repository ID `1414342874`). The production commit contains newer work absent from this task branch. Preserve that work: redeploy the existing Current production deployment through Vercel to activate the URL variable, and reconcile this branch with the live commit before publishing its app changes.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 The redeploy dialog was prepared for the same Current source and Production environment. Vercel requires email reauthentication before submission; no new build started and the URL variable remains pending activation. Complete verification, redeploy, wait for Ready/current Production, and repeat live checks.
 

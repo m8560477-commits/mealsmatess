@@ -40,7 +40,12 @@ const future = new Date(now + 86400_000).toISOString();
 function subscriber(expires: string | null = future, sandbox = false) {
   return {
     entitlements: {
-      premium: { product_identifier: "monthly", purchase_date: purchased, expires_date: expires },
+      premium: {
+        product_identifier: "monthly",
+        purchase_date: purchased,
+        expires_date: expires,
+        grace_period_expires_date: null as string | null,
+      },
     },
     subscriptions: {
       monthly: {
@@ -48,6 +53,9 @@ function subscriber(expires: string | null = future, sandbox = false) {
         is_sandbox: sandbox,
         store: "play_store",
         unsubscribe_detected_at: null as string | null,
+        expires_date: expires,
+        refunded_at: null as string | null,
+        grace_period_expires_date: null as string | null,
       },
     },
   };
@@ -93,6 +101,125 @@ describe("RevenueCat authority", () => {
     expect(
       parseRevenueCatAccess(subscriber(new Date(now + 1000).toISOString()), now).verifiedUntil,
     ).toBe(now + 1000);
+  });
+  it("requires matching, unrefunded store evidence and a known purchase environment", () => {
+    const data = subscriber();
+    expect(parseRevenueCatAccess({ ...data, subscriptions: {} }, now).isPremium).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          subscriptions: { monthly: { ...data.subscriptions.monthly, refunded_at: purchased } },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          subscriptions: { monthly: { ...data.subscriptions.monthly, store: "unknown" } },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          subscriptions: {
+            monthly: { ...data.subscriptions.monthly, store: 42 as unknown as string },
+          },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          subscriptions: {
+            monthly: { ...data.subscriptions.monthly, refunded_at: false as unknown as string },
+          },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          subscriptions: { monthly: { ...data.subscriptions.monthly, is_sandbox: undefined } },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          subscriptions: { monthly: { ...data.subscriptions.monthly, expires_date: purchased } },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+  });
+  it("preserves lifetime entitlements only when the matching transaction is verified", () => {
+    const lifetime = subscriber(null);
+    const transaction = {
+      store: "play_store",
+      is_sandbox: false,
+      purchase_date: purchased,
+      refunded_at: null as string | null,
+    };
+    const withTransaction = {
+      ...lifetime,
+      subscriptions: {},
+      non_subscriptions: { monthly: [transaction] },
+    };
+    expect(parseRevenueCatAccess(withTransaction, now)).toMatchObject({
+      isPremium: true,
+      periodEnd: null,
+      autoRenew: false,
+    });
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...withTransaction,
+          non_subscriptions: { monthly: [{ ...transaction, refunded_at: purchased }] },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...withTransaction,
+          non_subscriptions: { monthly: [{ ...transaction, is_sandbox: true }] },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+  });
+  it("requires both entitlement and subscription to agree on a grace period", () => {
+    const ended = subscriber(purchased);
+    const onlySubscriptionGrace = {
+      ...ended,
+      subscriptions: {
+        monthly: { ...ended.subscriptions.monthly, grace_period_expires_date: future },
+      },
+    };
+    expect(parseRevenueCatAccess(onlySubscriptionGrace, now).isPremium).toBe(false);
+    const sharedGrace = {
+      ...onlySubscriptionGrace,
+      entitlements: {
+        premium: { ...ended.entitlements.premium, grace_period_expires_date: future },
+      },
+    };
+    expect(parseRevenueCatAccess(sharedGrace, now)).toMatchObject({
+      isPremium: true,
+      periodEnd: future,
+    });
   });
   it("fails closed on unavailable, malformed or missing server configuration", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
