@@ -1,0 +1,26 @@
+name: Wire onboarding style overrides
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import override at end of styles.css
+        run: |
+          set -euo pipefail
+          if grep -q 'styles-onboarding-override.css' src/styles.css; then
+            echo "Already wired"
+            exit 0
+          fi
+          printf '\n@import "./styles-onboarding-override.css";\n' >> src/styles.css
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles.css
+          git commit -m "Wire onboarding redesign overrides into styles.css"
+          git push
