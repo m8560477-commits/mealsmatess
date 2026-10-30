@@ -9,7 +9,9 @@
  * Fonts are loaded via <link> in src/routes/__root.tsx (never @import here).
  */
 
-@import "./styles.part0.css";
-@import "./styles.part1.css";
-@import "./styles.part2.css";
-@import "./styles.part3.css";
+@import "./styles.p0.css";
+@import "./styles.p1.css";
+@import "./styles.p2.css";
+@import "./styles.p3.css";
+@import "./styles.p4.css";
+@import "./styles.p5.css";
