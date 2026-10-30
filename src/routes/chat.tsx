@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Crown, Loader2, Send, Eye } from "lucide-react";
+import { Crown, Loader2, Eye } from "lucide-react";
 import { ChefMascot } from "@/components/chef-mascot";
 import { CookingInput } from "@/components/cooking-input";
-import { postAuthenticatedAi } from "@/lib/ai-api";
-import { generateVisualExplanation, type VisualExplanation } from "@/lib/visual.functions";
+import { useMia } from "@/hooks/use-mia";
 // Heavy media player (images + audio narration) — only loaded when a visual answer exists.
 const VisualExplainer = lazy(() =>
   import("@/components/visual-explainer").then((m) => ({ default: m.VisualExplainer })),
@@ -43,96 +42,29 @@ const SUGGESTIONS = [
   "What pairs well with bunny chow?",
 ];
 
-type Turn = {
-  question: string;
-  answer: string;
-  visual?: VisualExplanation;
-  error?: string;
-  visualLoading?: boolean;
-  visualError?: string;
-};
-
 function ChatPage() {
   const { isPremium } = usePremium();
   const { q } = Route.useSearch();
   const [question, setQuestion] = useState(q ?? "");
   const endRef = useRef<HTMLDivElement>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [busy, setBusy] = useState(false);
+  const mia = useMia();
+  const { turns, busy } = mia;
   const [visualMode, setVisualMode] = useState(false);
   useEffect(() => {
     if (turns.length) endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns, busy]);
 
-  function patch(i: number, next: Partial<Turn>) {
-    setTurns((t) => t.map((turn, idx) => (idx === i ? { ...turn, ...next } : turn)));
-  }
-
-  async function getAnswer(text: string, previousTurns: Turn[]) {
-    const messages = previousTurns
-      .filter((turn) => turn.answer.trim() && !turn.error)
-      .slice(-10)
-      .flatMap((turn) => [
-        { role: "user" as const, content: turn.question.slice(0, 4_000) },
-        { role: "assistant" as const, content: turn.answer.slice(0, 4_000) },
-      ]);
-    messages.push({ role: "user", content: text });
-    while (
-      messages.length > 1 &&
-      messages.reduce((total, item) => total + item.content.length, 0) > 16_000
-    ) {
-      messages.splice(0, 2);
-    }
-    const { reply } = await postAuthenticatedAi<{ reply: string }>("/api/mia", { messages });
-    if (!reply?.trim()) throw new Error("Mia returned an empty response. Please try again.");
-    return reply;
-  }
-
-  async function ask(q: string) {
-    const text = q.trim();
-    if (!text || busy) return;
-    setBusy(true);
+  async function ask(question: string) {
+    if (!question.trim() || busy) return;
     setQuestion("");
-    const wantsVisual = isPremium && visualMode;
-    const index = turns.length;
-    setTurns((t) => [...t, { question: text, answer: "", visualLoading: wantsVisual }]);
-
-    const visualPromise = wantsVisual
-      ? generateVisualExplanation({ data: { prompt: text, scenes: 4, narration: true } })
-          .then((visual) => patch(index, { visual, visualLoading: false }))
-          .catch((err: unknown) =>
-            patch(index, {
-              visualLoading: false,
-              visualError: err instanceof Error ? err.message : "Visual generation failed",
-            }),
-          )
-      : Promise.resolve();
-
+    mia.endConversation();
     try {
-      patch(index, { answer: await getAnswer(text, turns) });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Mia is unavailable. Please try again.";
-      patch(index, { answer: "", error: message });
-      toast.error("Couldn't answer that", { description: message });
-    } finally {
-      setBusy(false);
-      void visualPromise;
-    }
-  }
-
-  async function retryAnswer(index: number) {
-    const turn = turns[index];
-    if (!turn || busy) return;
-    setBusy(true);
-    patch(index, { answer: "", error: undefined });
-    try {
-      patch(index, { answer: await getAnswer(turn.question, turns.slice(0, index)) });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Mia is unavailable. Please try again.";
-      patch(index, { error: message });
-      toast.error("Couldn't answer that", { description: message });
-    } finally {
-      setBusy(false);
+      await mia.ask(question, { visual: isPremium && visualMode });
+    } catch (error) {
+      toast.error("Couldn't answer that", {
+        description:
+          error instanceof Error ? error.message : "Mia is unavailable. Please try again.",
+      });
     }
   }
 
@@ -184,8 +116,8 @@ function ChatPage() {
           </div>
         )}
 
-        {turns.map((t, i) => (
-          <div key={i} className="space-y-3">
+        {turns.map((t) => (
+          <div key={t.id} className="space-y-3">
             <p className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
               {t.question}
             </p>
@@ -203,7 +135,7 @@ function ChatPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => void retryAnswer(i)}
+                  onClick={() => void mia.retry(t.id)}
                   disabled={busy}
                 >
                   Try again

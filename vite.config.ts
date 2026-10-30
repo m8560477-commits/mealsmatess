@@ -53,6 +53,14 @@ export default defineConfig(({ command }) => ({
       ? [
           nitro({
             preset: process.env["NITRO_PRESET"] || "vercel",
+            // Serve Firebase's helpers on the app origin before enabling a
+            // custom authDomain; redirects cannot replace this transparent proxy.
+            routeRules: {
+              "/__/auth/**": {
+                proxy: "https://mealmate-d2e53.firebaseapp.com/__/auth/**",
+                headers: { "cache-control": "no-store" },
+              },
+            },
             // Keep Firestore's CommonJS runtime and module-relative assets intact.
             // Bundle Firebase Auth so jwks-rsa's ESM dependency works on Vercel.
             traceDeps: ["@google-cloud/firestore*"],

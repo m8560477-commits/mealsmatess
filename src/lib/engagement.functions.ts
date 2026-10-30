@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { requirePremium } from "@/lib/premium-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 
 // Track a recipe view (upsert recently_viewed)
 export const trackRecipeView = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const firebase = context.firebase;
@@ -20,7 +20,7 @@ export const trackRecipeView = createServerFn({ method: "POST" })
   });
 
 export const listRecentlyViewed = createServerFn({ method: "GET" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .handler(async ({ context }) => {
     const firebase = context.firebase;
     const { data: views, error } = await firebase
@@ -46,7 +46,7 @@ export const listRecentlyViewed = createServerFn({ method: "GET" })
 
 // Ratings
 export const rateRecipe = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) =>
     z
       .object({
@@ -73,7 +73,7 @@ export const rateRecipe = createServerFn({ method: "POST" })
   });
 
 export const listRecipeRatings = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => z.object({ recipeId: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();

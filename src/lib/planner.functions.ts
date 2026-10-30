@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireAiCredit } from "@/lib/ai-credits.server";
 import { generateAiObject } from "@/lib/ai-engine.server";
 import { z } from "zod";
-import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { requirePremium } from "@/lib/premium-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit, trackEvent } from "@/lib/security.server";
 
@@ -46,7 +46,7 @@ type MealSuggestion = {
 
 // AI Meal Planner v2 — uses profile (goal, allergies, budget, dietary_preferences)
 export const generatePersonalizedPlan = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => PlanInput.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
@@ -159,7 +159,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
 // Auto-generate grocery list from planned meals in a date range
 export const buildGroceryFromPlan = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => z.object({ from: z.string(), to: z.string() }).parse(v))
   .handler(async ({ data, context }) => {
     const firebase = context.firebase;
@@ -226,7 +226,7 @@ type ShopMeal = {
 };
 
 export const aiPlanAndShop = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => PlanAndShopInput.parse(v))
   .handler(async ({ data, context }) => {
     await requireAiCredit(context.userId);
@@ -419,7 +419,7 @@ Days: 1..${data.days}. One entry per meal per day.`;
 
 // Ingredient substitution suggestions
 export const suggestSubstitutions = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) =>
     z
       .object({ ingredient: z.string().min(1).max(120), context: z.string().max(300).optional() })

@@ -10,7 +10,15 @@ import { toast } from "sonner";
 
 // MealMate requires an account: onboarding first, then sign-up, then the app.
 // Only these routes are reachable without a signed-in, verified user.
-const PUBLIC_PREFIXES = ["/auth", "/welcome", "/reset-password", "/legal", "/about", "/support"];
+const PUBLIC_PREFIXES = [
+  "/auth",
+  "/premium",
+  "/welcome",
+  "/reset-password",
+  "/legal",
+  "/about",
+  "/support",
+];
 
 // Inactive sessions are signed out after this window.
 const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
@@ -93,7 +101,7 @@ function SignInPrompt() {
         <p className="mt-1 text-sm text-muted-foreground">
           {isHub
             ? "Sign in with your MealMate account to manage your restaurant, menu and orders."
-            : "Create your free MealMate account to unlock your personalised recipes, meal plans and restaurant picks."}
+            : "Sign in to your MealMate account to continue with your subscription."}
         </p>
         <Button className="mt-6 w-full" onClick={() => navigate({ to: "/auth" })}>
           Create account or sign in

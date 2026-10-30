@@ -372,6 +372,14 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
   private async execute(): Promise<DbResult<any>> {
     try {
       const { db } = getServices();
+      if (
+        this.userId &&
+        (USER_SUBCOLLECTIONS[this.table] ||
+          ["recipes", "recipe_ratings", "recently_viewed"].includes(this.table))
+      ) {
+        const { requireActivePremium } = await import("@/server/revenuecat");
+        await requireActivePremium(this.userId);
+      }
       const collectionRef = collectionFor(db, this.table);
       if (this.action === "insert") return await this.insertRows(db);
       if (this.action === "upsert") return await this.upsertRows(collectionRef);
@@ -519,20 +527,9 @@ function startOfUtcMonth(date = new Date()) {
 }
 
 async function premiumActive(userId: string) {
-  const { data } = await firebaseAdmin
-    .from("subscriptions")
-    .select("tier,status,period_end")
-    .eq("user_id", userId)
-    .in("status", ["trialing", "active", "in_grace"])
-    .order("period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (
-    !!data &&
-    (data.tier === "lifetime" ||
-      !data.period_end ||
-      new Date(data.period_end).getTime() > Date.now())
-  );
+  if (!userId) return false;
+  const { verifyAccountAccess } = await import("@/server/revenuecat");
+  return (await verifyAccountAccess(userId)).isPremium;
 }
 
 async function runRpc(name: string, args: Record<string, unknown>): Promise<DbResult<any>> {
@@ -571,39 +568,9 @@ async function runRpc(name: string, args: Record<string, unknown>): Promise<DbRe
           data: { allowed: false, reason: "daily", resets_at: startOfUtcDay().toISOString() },
           error: null,
         };
-      if (await premiumActive(userId))
-        return { data: { allowed: true, premium: true }, error: null };
-      const feature = name === "consume_ai_credit" ? "ai_chat" : "recipe_image";
-      const limit = name === "consume_ai_credit" ? 10 : 3;
-      const start = startOfUtcDay();
-      const periodKey = start.toISOString().slice(0, 10);
-      const ref = db.collection("usage_limits").doc(`${userId}_${feature}_${periodKey}`);
-      const result = await db.runTransaction(async (transaction) => {
-        const snap = await transaction.get(ref);
-        const count = Number(snap.data()?.count ?? 0);
-        if (count >= limit)
-          return {
-            allowed: false,
-            max: limit,
-            reason: "daily",
-            resets_at: new Date(start.getTime() + 86_400_000).toISOString(),
-          };
-        transaction.set(
-          ref,
-          {
-            id: ref.id,
-            user_id: userId,
-            feature_key: feature,
-            feature,
-            period_key: periodKey,
-            period_start: start.toISOString(),
-            count: count + 1,
-          },
-          { merge: true },
-        );
-        return { allowed: true, max: limit, remaining: limit - count - 1, premium: false };
-      });
-      return { data: result, error: null };
+      const { requireActivePremium } = await import("@/server/revenuecat");
+      await requireActivePremium(userId);
+      return { data: { allowed: true, premium: true }, error: null };
     }
     case "increment_dish_search": {
       const dish = String(args["_name"] ?? "")

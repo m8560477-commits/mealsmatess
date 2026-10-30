@@ -4,7 +4,7 @@ import { generateAiObject } from "@/lib/ai-engine.server";
 import { curatedRecipeImageUrl } from "@/lib/recipe-image";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { requireFirebaseAuth } from "@/lib/firebase-auth-middleware";
+import { requirePremium } from "@/lib/premium-middleware";
 import { loadFirebaseAdmin } from "@/lib/firebase-admin-access";
 import { enforceRateLimit } from "@/lib/security.server";
 
@@ -113,7 +113,7 @@ function imageUrlFor(name: string) {
 }
 
 export const importRecipeFromUrl = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) =>
     z
       .object({
@@ -198,7 +198,7 @@ export const importRecipeFromUrl = createServerFn({ method: "POST" })
   });
 
 export const updateRecipeBasics = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) =>
     z
       .object({
@@ -227,7 +227,7 @@ export const updateRecipeBasics = createServerFn({ method: "POST" })
   });
 
 export const deleteImportedRecipe = createServerFn({ method: "POST" })
-  .middleware([requireFirebaseAuth])
+  .middleware([requirePremium])
   .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .handler(async ({ data, context }) => {
     const { firebaseAdmin } = await loadFirebaseAdmin();

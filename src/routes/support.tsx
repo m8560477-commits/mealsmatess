@@ -38,7 +38,7 @@ const FAQ = [
   },
   {
     q: "How do I upgrade to Premium?",
-    a: "Tap Premium in Settings or on any AI feature. You can pay monthly or annually and start with a free trial.",
+    a: "Visit the Premium page to see available plans and pricing. Trial eligibility and terms are confirmed at checkout.",
   },
   {
     q: "How do I cancel Premium?",

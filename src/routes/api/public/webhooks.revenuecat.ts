@@ -99,8 +99,23 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
           return new Response("Bad payload", { status: 400 });
         }
 
-        const { firebaseAdmin, firebaseAuthUserExists } = await import("@/server/firebase-admin");
-        const userId = evt.app_user_id;
+        const { firebaseAdmin, firebaseAuthUserExists, getFirebaseAdminFirestore } =
+          await import("@/server/firebase-admin");
+        let userId = evt.app_user_id;
+        if (/^mm_[a-f0-9]{48}$/.test(userId)) {
+          const links = await getFirebaseAdminFirestore()
+            .collection("billing_links")
+            .where("customerId", "==", userId)
+            .limit(1)
+            .get();
+          // Keep the event retryable until checkout is linked to a Firebase account.
+          if (links.empty)
+            return new Response("Account linking pending", {
+              status: 503,
+              headers: { "Retry-After": "60" },
+            });
+          userId = links.docs[0].id;
+        }
         if (!(await firebaseAuthUserExists(userId))) {
           return new Response("Unknown Firebase user", { status: 400 });
         }
@@ -155,7 +170,7 @@ export const Route = createFileRoute("/api/public/webhooks/revenuecat")({
             TRIAL_TYPES.has(evt.type) && evt.period_type === "TRIAL" ? "trialing" : "active";
           const patch = {
             user_id: userId,
-            rc_app_user_id: userId,
+            rc_app_user_id: evt.app_user_id,
             product_id: evt.product_id ?? null,
             tier,
             status,

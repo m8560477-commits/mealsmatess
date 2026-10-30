@@ -1,0 +1,11 @@
+{
+  "generatedBy": "coderabbitai",
+  "purpose": "Synthetic test speech only; no personal audio",
+  "source": "Google public text-to-speech endpoint, en voice, generated 2026-10-30",
+  "processing": "ffmpeg resampled mono 16000 Hz, padded 2 seconds, embedded provenance comment",
+  "phrases": {
+    "wake": "Hey Mia, what can I cook with chicken and rice?",
+    "followup": "I have chicken, rice and tomatoes.",
+    "negative": "The chicken and rice are in the kitchen."
+  }
+}

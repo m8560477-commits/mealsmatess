@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   text: vi.fn(),
   image: vi.fn(),
   readRecipe: vi.fn(),
+  readPantry: vi.fn(),
 }));
 vi.mock("@/server/authenticated-api", () => ({ authenticateApiRequest: mocks.auth }));
 vi.mock("@/lib/ai-credits.server", async (original) => ({
@@ -38,11 +39,16 @@ beforeEach(() => {
     user: {
       userId: "synthetic-user",
       firebase: {
-        from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mocks.readRecipe }) }) }),
+        from: () => ({
+          select: () => ({
+            eq: () => ({ maybeSingle: mocks.readRecipe, limit: mocks.readPantry }),
+          }),
+        }),
       },
     },
   });
   mocks.readRecipe.mockResolvedValue({ data: { id: "firebaseRecipe123" }, error: null });
+  mocks.readPantry.mockResolvedValue({ data: [{ name: "rice", quantity: "1 cup" }], error: null });
   mocks.credit.mockResolvedValue(undefined);
   mocks.rateLimit.mockResolvedValue(undefined);
   mocks.text.mockResolvedValue("Use oat milk with lemon juice.");
@@ -81,6 +87,25 @@ describe("Mia API", () => {
     expect(instructions).toContain("peanuts");
     expect(instructions).toContain("Vegan");
     expect(instructions).toContain("Save money");
+  });
+
+  it("uses the authenticated pantry and current step for a spoken conversation", async () => {
+    const recipe = { name: "Tomato rice", steps: ["Wash rice", "Add tomatoes"], step: 1 };
+    const response = await miaPost(request({ message: "What next?", voice: true, recipe }));
+    expect(response.status).toBe(200);
+    expect(mocks.readPantry).toHaveBeenCalledOnce();
+    const instructions = mocks.text.mock.calls[0]?.[0].instructions;
+    expect(instructions).toContain('"name":"rice"');
+    expect(instructions).toContain('"step":1');
+    expect(instructions).toContain("one step at a time");
+  });
+
+  it("rejects out-of-range cooking steps before generating a reply", async () => {
+    const response = await miaPost(
+      request({ message: "Next", voice: true, recipe: { name: "Rice", steps: ["Boil"], step: 3 } }),
+    );
+    expect(response.status).toBe(400);
+    expect(mocks.text).not.toHaveBeenCalled();
   });
 
   it("rejects malformed conversations before spending credits", async () => {

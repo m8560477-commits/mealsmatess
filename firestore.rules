@@ -12,6 +12,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Server-only RevenueCat verification lease; clients cannot mint or extend it.
+    // premium_access/{uid}: source, entitlement, valid_until (Timestamp, at most 5 minutes).
+    function hasPremium() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/premium_access/$(request.auth.uid))
+        && get(/databases/$(database)/documents/premium_access/$(request.auth.uid)).data.source == 'revenuecat'
+        && get(/databases/$(database)/documents/premium_access/$(request.auth.uid)).data.entitlement == 'premium'
+        && get(/databases/$(database)/documents/premium_access/$(request.auth.uid)).data.valid_until is timestamp
+        && get(/databases/$(database)/documents/premium_access/$(request.auth.uid)).data.valid_until > request.time;
+    }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
@@ -117,26 +128,26 @@ service cloud.firestore {
       }
 
       match /{collectionName}/{itemId} {
-        allow read: if isOwner(uid)
+        allow read: if isOwner(uid) && hasPremium()
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs'];
-        allow create: if isOwner(uid)
+        allow create: if isOwner(uid) && hasPremium()
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs']
           && validOwnedItem(collectionName, uid, itemId);
-        allow update: if isOwner(uid)
+        allow update: if isOwner(uid) && hasPremium()
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs']
           && validOwnedItem(collectionName, uid, itemId)
           && safeOwnedItemUpdate(collectionName)
           && request.resource.data.user_id == resource.data.user_id
           && request.resource.data.id == resource.data.id
           && request.resource.data.created_at == resource.data.created_at;
-        allow delete: if isOwner(uid)
+        allow delete: if isOwner(uid) && hasPremium()
           && collectionName in ['favorites', 'grocery', 'pantry', 'mealPlans', 'nutritionLogs'];
       }
     }
 
-    // Authenticated users can browse the catalog; writes are server-only.
+    // Verified subscribers can browse the catalog; writes are server-only.
     match /recipes/{recipeId} {
-      allow read: if isSignedIn();
+      allow read: if hasPremium();
       allow write: if false;
     }
     match /announcements/{announcementId} {

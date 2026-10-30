@@ -1,3 +1,4 @@
+import { MiaProvider } from "@/components/mia-provider";
 import { HubContext } from "@/components/hub/hub-context";
 import { HubShell } from "@/components/hub/hub-shell";
 import { isHubSurface } from "@/lib/hub-surface";
@@ -17,7 +18,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { firebaseData } from "@/lib/firebase-data";
 import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
@@ -29,8 +29,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/components/locale-provider";
 import { UpgradeModalProvider } from "@/components/upgrade-modal";
-import { hasSeenTour } from "@/lib/preferences";
-import { useSession } from "@/hooks/use-session";
+import { ConsumerAccessGate } from "@/components/consumer-access-gate";
 import { useShellMetrics } from "@/hooks/use-shell-metrics";
 
 function NotFoundComponent() {
@@ -174,51 +173,14 @@ function RootComponent() {
   const { queryClient, isHub } = Route.useRouteContext();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user, loading: sessionLoading } = useSession();
-  const userId = user?.id;
   const isMarketplace = pathname === "/restaurants" || pathname.startsWith("/restaurant/");
   const isFlow =
-    pathname === "/welcome" || pathname === "/onboarding" || pathname.startsWith("/auth");
+    pathname === "/welcome" ||
+    pathname === "/premium" ||
+    pathname === "/onboarding" ||
+    pathname.startsWith("/auth");
   const showAppHeader = !isHub && pathname !== "/" && !isMarketplace && !isFlow;
   useShellMetrics(showAppHeader ? "with-header" : "no-header");
-
-  // First open (signed out): welcome + tour. Signed in without onboarding: personal setup.
-  useEffect(() => {
-    if (isHub || sessionLoading || userId || pathname !== "/") return;
-    if (!hasSeenTour()) void router.navigate({ to: "/welcome", replace: true });
-  }, [pathname, router, userId, sessionLoading, isHub]);
-
-  useEffect(() => {
-    if (
-      isHub ||
-      !userId ||
-      pathname === "/onboarding" ||
-      pathname.startsWith("/auth") ||
-      pathname.startsWith("/legal/") ||
-      pathname === "/reset-password"
-    )
-      return;
-    let active = true;
-    firebaseData
-      .from("profiles")
-      .select("onboarding_completed")
-      .eq("id", userId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[onboarding] status check failed", error);
-          return;
-        }
-        if (active && !data?.onboarding_completed) {
-          void router.navigate({ to: "/onboarding", replace: true });
-        } else if (active && pathname === "/welcome") {
-          void router.navigate({ to: "/", replace: true });
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [userId, pathname, router, isHub]);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
@@ -242,30 +204,34 @@ function RootComponent() {
                     </AuthGate>
                   </HubShell>
                 ) : (
-                  <div
-                    className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
-                  >
-                    {showAppHeader && <AppHeader />}
-                    {/* The one scroll container. Header and nav are siblings, not children. */}
-                    <div
-                      id="app-scroll"
-                      className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
-                    >
+                  <ConsumerAccessGate>
+                    <MiaProvider>
                       <div
-                        className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
+                        className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
                       >
-                        <AuthGate>
+                        {showAppHeader && <AppHeader />}
+                        {/* The one scroll container. Header and nav are siblings, not children. */}
+                        <div
+                          id="app-scroll"
+                          className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
+                        >
                           <div
-                            key={pathname}
-                            className="page-enter motion-reveal flex flex-1 flex-col"
+                            className={`mx-auto flex min-h-full w-full flex-col ${isFlow ? "" : pathname === "/admin" ? "max-w-6xl" : "max-w-3xl"}`}
                           >
-                            <Outlet />
+                            <AuthGate>
+                              <div
+                                key={pathname}
+                                className="page-enter motion-reveal flex flex-1 flex-col"
+                              >
+                                <Outlet />
+                              </div>
+                            </AuthGate>
                           </div>
-                        </AuthGate>
+                        </div>
+                        {isFlow ? null : <BottomNav />}
                       </div>
-                    </div>
-                    {isFlow ? null : <BottomNav />}
-                  </div>
+                    </MiaProvider>
+                  </ConsumerAccessGate>
                 )}
               </HubContext.Provider>
               <Toaster position="top-center" />

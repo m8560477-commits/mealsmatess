@@ -1,4 +1,5 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
+import { isHubSurface } from "@/lib/hub-surface";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachFirebaseAuth } from "@/lib/firebase-auth-attacher";
@@ -29,7 +30,9 @@ const errorMiddleware = createMiddleware().server(async ({ next, request, handle
 // Add hardening headers (HSTS, XFO, XCTO, Referrer-Policy, Permissions-Policy, CSP)
 // to every server response. CSP is intentionally permissive for third-party image hosts
 // (Lovable recipe assets, Firebase Storage, Unsplash) and the AI gateway.
-const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
+const securityHeadersMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const url = new URL(request.url);
+  const consumerVoice = !isHubSurface(url.hostname, url.pathname);
   const result = await next();
   // `next()` may return a Response OR a framework result object (e.g. { response, context }).
   // Only attach headers when we actually have a Response — never wrap the framework result,
@@ -47,13 +50,17 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
     h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     h.set("X-Content-Type-Options", "nosniff");
     h.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    h.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=(self)");
+    h.set(
+      "Permissions-Policy",
+      `camera=(self), microphone=${consumerVoice ? "(self)" : "()"}, geolocation=(), payment=(self)`,
+    );
     h.set(
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com",
-        "frame-src 'self' https://mealmate-d2e53.firebaseapp.com https://accounts.google.com",
+        ...(consumerVoice ? ["worker-src 'self' blob:"] : []),
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://js.stripe.com https://cdn.paddle.com https://sdk.revenuecat-static.com",
+        "frame-src 'self' https://mealmate-d2e53.firebaseapp.com https://accounts.google.com https://js.stripe.com https://hooks.stripe.com https://*.paddle.com https://*.revenuecat.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOptionalMia } from "@/hooks/use-mia";
 import { ChevronLeft, ChevronRight, X, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +14,16 @@ export function CookingMode({
   onClose: () => void;
   onComplete?: () => void;
 }) {
+  const mia = useOptionalMia();
+  const setRecipe = mia?.setRecipe;
   const [i, setI] = useState(0);
+  useEffect(() => {
+    setRecipe?.(
+      { name, steps: steps.slice(0, 40).map((step) => step.slice(0, 1000)), step: i },
+      setI,
+    );
+    return () => setRecipe?.(null);
+  }, [name, steps, i, setRecipe]);
   const [seconds, setSeconds] = useState<number | null>(null);
 
   useEffect(() => {
