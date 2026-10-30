@@ -299,7 +299,7 @@ function SettingsPage() {
     },
     {
       label: "MealMate Premium",
-      description: "Unlimited AI, recipes, meal plans · 3-day free trial",
+      description: "AI, recipes and meal plans · View subscription plans",
       icon: Star,
       to: "/premium",
     },
