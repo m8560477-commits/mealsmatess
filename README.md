@@ -4,7 +4,13 @@ Continue working on my existing MealMate GitHub project. Do not create a new pro
 
 This project was built with [Lovable](https://lovable.dev).
 
-**Live app**: https://mealsmates.lovable.app
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:f97706128d6948a179bd74d4b0c4acc7c5a5435797be3ec6d2823e813a19db20 -->
+
+**Live app**: https://mealsmates.site
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ## Build with Lovable
 
@@ -27,8 +33,16 @@ npm run dev
 
 ## Vercel deployment
 
-The production app is https://mealsmates-khaki.vercel.app. The Vite build uses
-Nitro's Vercel preset.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:7e06f302c527216d07f6dc199813e4d2bb883454fe12363181d4d9415f887904 -->
+
+The production Consumer app is **https://mealsmates.site**. The Vite build uses
+Nitro's Vercel preset. Domain attachment, Firebase/Google callback settings, Hub
+preservation, and Android release checks are documented in
+[Production domain setup](docs/production-domain.md).
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 The announcement processor runs once daily at midnight UTC (`0 0 * * *`),
 compatible with Vercel Hobby. Scheduled announcements are delivered on the next

@@ -11,7 +11,20 @@ MealMate is configured for the Firebase project `mealmate-d2e53`. The browser ap
 - `VITE_FIREBASE_MEASUREMENT_ID` (optional; Analytics is not required)
 - `VITE_FIREBASE_FIRESTORE_DATABASE_ID` (optional; omit for the default database)
 
-Add the same values to Vercel Development, Preview, and Production environments. These are Firebase Web App values and are safe to expose in a client bundle; never add a service-account JSON, private key, or admin credential to any `VITE_` variable.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:ad83e435c3efe8ded60017add545977aa8dbe38393bee0f1833b3483c062f98b -->
+
+Use the existing Firebase Web App configuration in Development, Preview, and Production.
+The production notification base URL is `MEALMATE_APP_URL=https://mealsmates.site`
+(server-only). Change Production's `VITE_FIREBASE_AUTH_DOMAIN` to `mealsmates.site`
+only after completing the proxy and Google callback steps in
+[Production domain setup](docs/production-domain.md). Keep Development/Preview
+auth settings and all existing authorized domains available for their own flows.
+
+Firebase Web App values are safe to expose in a client bundle; never add a service-account JSON, private key, or admin credential to any `VITE_` variable.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 The server also requires `FIREBASE_SERVICE_ACCOUNT_JSON` in Vercel Development, Preview, and Production. Set it to the Firebase Admin service-account JSON for project `mealmate-d2e53` as an encrypted server-only variable. It must be valid JSON with `project_id`, `client_email`, and `private_key`; do not prefix it with `VITE_`.
 
