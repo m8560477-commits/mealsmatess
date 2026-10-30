@@ -1673,3 +1673,5 @@ html[data-mascot]:not([data-mascot="classic"]) #app-scroll .marketplace-dark.bg-
 html[data-mia-controls="visible"] #app-scroll {
   padding-top: calc(var(--app-header-h, 0px) + var(--mia-controls-h, 50px) + 16px);
 }
+
+@import "./styles-onboarding-override.css";
