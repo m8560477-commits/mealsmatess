@@ -1,0 +1,279 @@
+/* Premium paywall redesign — dark editorial, leaf accents */
+.paywall-redesign.premium-flow,
+.paywall-redesign {
+  color-scheme: dark;
+  color: #f6f5f2;
+  background: #070809;
+  min-height: 100dvh;
+}
+.paywall-redesign.paywall {
+  max-width: 440px;
+  margin: 0 auto;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.paywall-redesign .paywall-photo {
+  height: clamp(160px, 28dvh, 220px);
+  overflow: hidden;
+  position: relative;
+  border-radius: 0 0 28px 28px;
+}
+.paywall-redesign .paywall-photo > div {
+  width: 100%;
+  height: 100%;
+  transform: none;
+}
+.paywall-redesign .paywall-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.paywall-redesign .paywall-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 35%, #070809 100%);
+}
+.paywall-redesign .paywall-photo-badge {
+  position: absolute;
+  z-index: 1;
+  left: 16px;
+  bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #0c0e12cc;
+  border: 1px solid #ffffff18;
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ebe8e2;
+}
+.paywall-redesign .paywall-content {
+  position: relative;
+  margin-top: -24px;
+  padding: 0 22px 8px;
+}
+.paywall-redesign .premium-eyebrow {
+  color: #6fbf4a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.paywall-redesign h1 {
+  font-size: clamp(30px, 7vw, 40px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  margin: 10px 0 0;
+  color: #f6f5f2;
+}
+.paywall-redesign h1 span {
+  color: #9ad66f;
+}
+.paywall-redesign .premium-description {
+  color: #9a9aa3;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.paywall-redesign .premium-benefits {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0 20px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: #d5d4d8;
+}
+.paywall-redesign .premium-benefits li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paywall-redesign .benefit-check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #6fbf4a22;
+  color: #9ad66f;
+  flex-shrink: 0;
+}
+.paywall-redesign .premium-plans {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+.paywall-redesign .premium-plan {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  border: 1px solid #2a2e38;
+  border-radius: 18px;
+  padding: 16px;
+  cursor: pointer;
+  background: #12141a;
+  color: #f6f5f2;
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    box-shadow 0.18s;
+}
+.paywall-redesign .premium-plan.selected {
+  border: 1.5px solid #6fbf4a;
+  padding: 15.5px;
+  background: #0f1610;
+  box-shadow: 0 0 0 1px #6fbf4a33, 0 12px 32px #0006;
+}
+.paywall-redesign .premium-plan input {
+  grid-row: 1 / 3;
+  width: 16px;
+  height: 16px;
+  accent-color: #6fbf4a;
+}
+.paywall-redesign .plan-name {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.paywall-redesign .plan-price {
+  font-size: 15px;
+  font-weight: 700;
+}
+.paywall-redesign .plan-price small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9a9aa3;
+}
+.paywall-redesign .plan-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, #9ad66f, #6fbf4a);
+  color: #0b1208;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+.paywall-redesign .plan-trial {
+  grid-column: 2;
+  font-size: 11px;
+  color: #9ad66f;
+  margin-top: 2px;
+}
+.paywall-redesign .premium-plan.unavailable {
+  opacity: 0.45;
+  cursor: default;
+}
+.paywall-redesign .premium-notice {
+  background: #1a1d26;
+  color: #d5d4d8;
+  border: 1px solid #2a2e38;
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+.paywall-redesign .premium-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  border-radius: 999px;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #f3efe6;
+  color: #101114;
+  border: 1px solid #f3efe6;
+  box-shadow: 0 10px 28px #00000050;
+}
+.paywall-redesign .premium-primary:hover:not(:disabled) {
+  background: #fff;
+  transform: translateY(-1px);
+}
+.paywall-redesign .premium-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  background: #12141a;
+  border: 1px solid #2a2e38;
+  color: #f6f5f2;
+  font-weight: 600;
+}
+.paywall-redesign .premium-terms {
+  color: #8a8a93;
+  font-size: 11px;
+  line-height: 1.65;
+  text-align: center;
+  margin-top: 14px;
+}
+.paywall-redesign .premium-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  justify-content: center;
+  margin: 20px 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.paywall-redesign .premium-recovery button,
+.paywall-redesign .premium-recovery a {
+  color: #c8c7cc;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.paywall-redesign .premium-recovery button:hover,
+.paywall-redesign .premium-recovery a:hover {
+  color: #f6f5f2;
+}
+.paywall-redesign .premium-assurance {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  align-items: center;
+  color: #7a7a84;
+  font-size: 11px;
+}
+.paywall-redesign .premium-legal {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 11px;
+  color: #7a7a84;
+  margin-top: 12px;
+}
+.paywall-redesign .premium-legal a {
+  color: #b8b8c0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.paywall-redesign button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.paywall-redesign :is(button, a, label):focus-visible {
+  outline: 2px solid #6fbf4a;
+  outline-offset: 3px;
+}

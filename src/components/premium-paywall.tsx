@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
 import { createPurchaseSession, verifyCheckout, verifyMyPremium } from "@/lib/billing.functions";
 import {
@@ -11,6 +11,13 @@ import {
   type PlanKind,
 } from "@/lib/billing-client";
 import { RecipeImage } from "@/components/recipe-image";
+
+const BENEFITS = [
+  "Recipes you’ll actually cook",
+  "A calmer week of meal plans",
+  "Dinner ideas from what’s in the pantry",
+  "Mia — hands-free help in the kitchen",
+] as const;
 
 export function PremiumPaywall() {
   const { user, loading: sessionLoading } = useSession();
@@ -112,27 +119,30 @@ export function PremiumPaywall() {
   }
   const plan = store?.plans.find((p) => p.kind === selected);
   return (
-    <main className="premium-flow paywall">
+    <main className="premium-flow paywall paywall-redesign">
       <div className="paywall-photo" aria-hidden="true">
         <RecipeImage recipe={{ name: "Creamy chicken alfredo" }} size="hero" priority />
+        <div className="paywall-photo-badge">
+          <Sparkles size={14} aria-hidden="true" />
+          <span>Premium access</span>
+        </div>
       </div>
       <section className="paywall-content">
-        <p className="premium-eyebrow">MEALMATE PREMIUM</p>
+        <p className="premium-eyebrow">MealMate Premium</p>
         <h1>
           Good food.
           <br />
-          <span>Every single day.</span>
+          <span>Every day.</span>
         </h1>
-        <p className="premium-description">Make room for more delicious possibilities.</p>
+        <p className="premium-description">
+          Unlock planning, pantry ideas, and Mia — everything in one calm place.
+        </p>
         <ul className="premium-benefits">
-          {[
-            "Discover recipes you’ll love",
-            "Plan your week with less effort",
-            "Turn what’s in your pantry into dinner",
-            "Cook with Mia, your AI companion",
-          ].map((benefit) => (
+          {BENEFITS.map((benefit) => (
             <li key={benefit}>
-              <Check size={17} aria-hidden="true" />
+              <span className="benefit-check" aria-hidden="true">
+                <Check size={14} strokeWidth={2.5} />
+              </span>
               {benefit}
             </li>
           ))}
@@ -155,8 +165,8 @@ export function PremiumPaywall() {
                   onChange={() => setSelected(kind)}
                 />
                 <span className="plan-name">
-                  {kind[0].toUpperCase() + kind.slice(1)}{" "}
-                  {kind === "yearly" && option && <span className="plan-badge">Recommended</span>}
+                  {kind[0].toUpperCase() + kind.slice(1)}
+                  {kind === "yearly" && option && <span className="plan-badge">Best value</span>}
                 </span>
                 <span className="plan-price">
                   {loading ? (
@@ -191,6 +201,7 @@ export function PremiumPaywall() {
         )}
         {!store && !loading && (
           <button
+            type="button"
             className="premium-secondary"
             onClick={() => setAttempt((n) => n + 1)}
             disabled={busy || !online}
@@ -200,6 +211,7 @@ export function PremiumPaywall() {
         )}
         {pendingVerification ? (
           <button
+            type="button"
             className="premium-primary"
             disabled={busy || !online}
             onClick={() => void perform("verify")}
@@ -208,6 +220,7 @@ export function PremiumPaywall() {
           </button>
         ) : (
           <button
+            type="button"
             className="premium-primary"
             disabled={loading || busy || !online || !plan}
             onClick={() => void perform("purchase")}
@@ -217,7 +230,7 @@ export function PremiumPaywall() {
             ) : (
               <>
                 {plan?.trialDays === 7 ? "Start 7-day free trial" : "Subscribe"}
-                <ArrowRight size={18} />
+                <ArrowRight size={18} aria-hidden="true" />
               </>
             )}
           </button>
@@ -232,8 +245,8 @@ export function PremiumPaywall() {
           </p>
         )}
         <div className="premium-recovery">
-          <button onClick={() => void perform("restore")} disabled={busy || loading || !online}>
-            Restore Purchases
+          <button type="button" onClick={() => void perform("restore")} disabled={busy || loading || !online}>
+            Restore purchases
           </button>
           {!userId && (
             <Link to="/auth" search={{ mode: "signin" }}>
@@ -242,7 +255,7 @@ export function PremiumPaywall() {
           )}
         </div>
         <p className="premium-assurance">
-          <ShieldCheck size={14} /> Secure checkout · Access after subscription confirmation
+          <ShieldCheck size={14} aria-hidden="true" /> Secure checkout · Access after confirmation
         </p>
         <p className="premium-legal">
           <Link to="/legal/terms">Terms</Link>
