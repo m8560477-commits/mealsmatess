@@ -31,9 +31,14 @@ function OnboardingPage() {
   return user ? <PersonalOnboarding key={user.id} userId={user.id} /> : null;
 }
 
+/** Seven screens (0–6) matching OnboardingLayout copy and progress. */
+const LAST_STEP = 6;
+const PREFS_STEP = 4;
+const NOTIFY_STEP = 5;
+
 function PersonalOnboarding({ userId }: { userId: string }) {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [prefs, setPrefs] = useState<FoodPreferences>(EMPTY_PREFERENCES);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +67,7 @@ function PersonalOnboarding({ userId }: { userId: string }) {
         }
         const draft = readOnboardingDraft(userId);
         setPrefs(draft?.preferences ?? remote ?? EMPTY_PREFERENCES);
-        setStep(draft?.step ?? 1);
+        setStep(draft?.step ?? 0);
         setReady(true);
       })
       .catch(() => {
@@ -93,11 +98,11 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   }
   async function next() {
     await run(async () => {
-      if (step === 4) {
+      if (step === PREFS_STEP) {
         const { updated_at: _timestamp, ...data } = prefs;
         await saveMyPreferences({ data: { ...data, onboarding_completed: false } });
       }
-      setStep(Math.min(6, step + 1));
+      setStep(Math.min(LAST_STEP, step + 1));
     });
   }
   async function finish() {
@@ -123,7 +128,7 @@ function PersonalOnboarding({ userId }: { userId: string }) {
       });
       await registerMyPushToken({ data: { token } });
       toast.success("Notifications enabled on this device.");
-      setStep(6);
+      setStep(LAST_STEP);
     });
   }
   if (!ready)
@@ -151,7 +156,7 @@ function PersonalOnboarding({ userId }: { userId: string }) {
       step={step}
       busy={busy}
       onBack={
-        step > 1
+        step > 0
           ? () => {
               setError(null);
               setStep(step - 1);
@@ -165,7 +170,7 @@ function PersonalOnboarding({ userId }: { userId: string }) {
               {error}
             </p>
           )}
-          {step === 5 ? (
+          {step === NOTIFY_STEP ? (
             <>
               <button
                 className="onboarding-primary"
@@ -179,7 +184,7 @@ function PersonalOnboarding({ userId }: { userId: string }) {
                 disabled={busy}
                 onClick={() => {
                   setError(null);
-                  setStep(6);
+                  setStep(LAST_STEP);
                 }}
               >
                 Not now
@@ -189,10 +194,10 @@ function PersonalOnboarding({ userId }: { userId: string }) {
             <button
               className="onboarding-primary"
               disabled={busy}
-              onClick={() => void (step === 6 ? finish() : next())}
+              onClick={() => void (step === LAST_STEP ? finish() : next())}
             >
               {busy && <Loader2 size={19} className="animate-spin" />}
-              {step === 6 ? "Get started" : step === 4 ? "Continue" : "Next"}
+              {step === LAST_STEP ? "Get started" : step === PREFS_STEP ? "Continue" : "Next"}
             </button>
           )}
         </>
@@ -208,8 +213,10 @@ function PersonalOnboarding({ userId }: { userId: string }) {
           Bring your ingredients and questions. Mia helps you decide what to cook.
         </p>
       )}
-      {step === 4 && <PreferenceChoices preferences={prefs} onChange={setPrefs} disabled={busy} />}
-      {step === 5 && (
+      {step === PREFS_STEP && (
+        <PreferenceChoices preferences={prefs} onChange={setPrefs} disabled={busy} />
+      )}
+      {step === NOTIFY_STEP && (
         <p className="onboarding-note">
           {pushSupported
             ? "We’ll ask for your device’s permission next. You can change your choice in Settings."
