@@ -1,54 +1,71 @@
 <!-- coderabbit-ai-generated:v1 -->
 
-<!-- coderabbit-ai-generated-section:v1:6878ac9d5e8b62e45b740013c3d64d61e5ac2f02c25beac61b6d62af9a2264a4 -->
+<!-- coderabbit-ai-generated-section:v1:025fe993987ed4b49941c86bcd01512c3e6f1965055cc4568690920ad8902272 -->
 
 # MealMate production domain
 
-Consumer's official origin is **https://mealsmates.site** in the existing `mealsmates` Vercel project. Keep the existing Firebase project `mealmate-d2e53`, users, database, Blob attachment and server credentials.
+Consumer's official production origin is **https://mealsmates.site** in the existing `mealsmates` Vercel project. Preserve Firebase project `mealmate-d2e53`, users, database, existing app code, and all service credentials.
 
 ## Host boundaries
 
-| Host | Purpose | Routing |
+| Host | Project and routing |
+| --- | --- |
+| `mealsmates.site` | `mealsmates`, direct Production |
+| `www.mealsmates.site` | `mealsmates`, permanent 308 redirect to apex, preserving path/query |
+| `hub.mealsmates.site` | `mealsmates`, direct Production; retain hostname |
+| `partner.mealsmates.site`, `partners.mealsmates.site` | Separate `mealmate-hub`; preserve attachments and DNS |
+| `discover.mealsmates.site` | Separate `mealmate-website`; preserve |
+| `admin.mealsmates.site` | Separate `mealmate-admin`; preserve |
+
+The user's latest explicit domain checklist changes the earlier instruction to preserve the `www` Hub attachment. On 2026-10-30, exactly `www.mealsmates.site` was moved from `mealmate-hub` to `mealsmates`, with a Vercel domain-level 308 redirect to `mealsmates.site`. The other attachments remain intact. The separate typo hostname `www.mealsmate.site` was not changed.
+
+The repository's `vercel.json` also contains a redirect for the documented former Consumer hostname `mealsmates-khaki.vercel.app`; that source patch has not been deployed. An unattached Vercel hostname returns 404 before repository rules run. Domain-level redirects are Vercel account settings and apply independently of that file.
+
+## DNS and HTTPS
+
+Authoritative nameservers are `ashton.ns.cloudflare.com` and `brenna.ns.cloudflare.com`. Preserve these and all unrelated zone records. Vercel reports a Cloudflare proxy on the apex; the public apex A records are `104.21.92.230` and `172.67.199.100`. These are observed Cloudflare addresses, not recommended Vercel origin addresses.
+
+For `www`, the project's DNS panel specifies:
+
+| Type | Name | Required target |
 | --- | --- | --- |
-| `mealsmates.site` | Consumer | Production app directly |
-| `www.mealsmates.site`, `partner.mealsmates.site`, `partners.mealsmates.site` | Existing separate Hub | Preserve `mealmate-hub` project attachments and routes |
-| `mealsmates-khaki.vercel.app` | Documented former Consumer address | Permanent redirect to Consumer when attached to this project |
-| `hub.mealsmates.site` | Shared Firebase Hub | Direct Production alias in `mealsmates`; retain hostname |
-| `discover.mealsmates.site` | Public website | Separate `mealmate-website` project |
-| `admin.mealsmates.site` | Separate admin application | Preserve its project attachment and DNS |
+| CNAME | `www` | `204900adb0666974.vercel-dns-017.com.` |
 
-`vercel.json` redirects only the documented former Consumer Vercel hostname; preview hosts and all custom subdomains do not match. Account inspection supersedes the proposed partner-domain cutover in `docs/hub-deployment.md`: this task preserves the separate Hub attachments. An unattached Vercel hostname returns Vercel's 404 before repository rules can run. Domain attachments and DNS are account settings and cannot be changed by committing this file.
+Vercel also reports conflicting public AAAA answers `2606:4700:3031::ac43:c764` and `2606:4700:3036::6815:5ce6`. Inspect the actual Cloudflare zone first: proxied records can generate those answers. Configure only the requested hosts using the current Vercel recommendations; use DNS-only where required and remove explicit conflicting records only after inspection. Do not delete wildcard, Hub, mail, verification or other records. The apex panel currently reports Proxy Detected without exposing a required origin A value; do not invent one.
 
-## Production rollout
+DNS edits remain pending Cloudflare login. Current HTTPS works with certificate verification enabled. Vercel's domain overview shows managed certificates with automatic renewal and expiration January 20, 2027. No certificate upload or nameserver migration is needed.
 
-1. In the existing `mealsmates` project, confirm `mealsmates.site` targets Production directly. Keep `hub.mealsmates.site` on this project and preserve the other projects' attachments, including `www`, `partner`, and `partners` on `mealmate-hub`. Do not move the apex to the website project or change wildcard DNS. Check the documented former Vercel hostname belongs to this project before attaching it for its redirect.
-2. Deploy the Firebase helper proxy first, keeping the existing `VITE_FIREBASE_AUTH_DOMAIN=mealmate-d2e53.firebaseapp.com`. Nitro's `/__/auth/**` route rule forwards helper GET/POST requests transparently to the same Firebase project's helpers. Verify `/__/auth/handler`, `/__/auth/iframe`, and their scripts on `https://mealsmates.site` return Firebase helper content, with query parameters and request bodies preserved. They must not render MealMate's page or redirect to the Firebase hostname.
-3. In Firebase Authentication > Settings > Authorized domains, **add** any missing `mealsmates.site`, `partner.mealsmates.site`, and `hub.mealsmates.site`. Entries are hostnames, without a scheme, slash or port. Preserve the entire existing list, including Firebase defaults, localhost, older deployment hosts and other applications.
-4. In Google Cloud > Google Auth Platform > Clients, select the existing **web** OAuth client used by this Firebase project's Google provider. Add `https://mealsmates.site` to its authorized JavaScript origins and `https://mealsmates.site/__/auth/handler` to its authorized redirect URIs. Retain `https://mealmate-d2e53.firebaseapp.com/__/auth/handler` and all callbacks used by Hub, previews or other apps. `/auth/callback` is an app route, not Firebase's Google OAuth handler. Confirm the Google provider remains enabled in Firebase.
-5. Set **Production only** `VITE_FIREBASE_AUTH_DOMAIN=mealsmates.site` and server-only `MEALMATE_APP_URL=https://mealsmates.site`. Keep all other Firebase Web App values, Firebase Admin identity, AI, Blob and subscription variables intact. Redeploy: Vite embeds public settings at build time. Do not overwrite Vercel's system `VERCEL_URL` or production-deployment variables.
-6. Verify Consumer email/password login, password reset, Google popup and popup-blocked redirect completion. The `hub.mealsmates.site` interface shares the compiled Firebase config, so test its Google popup and redirect fallback before promoting this configuration. Check the separately deployed Hub domains independently; preserve their authentication settings. Hub sessions remain origin scoped; do not assume Consumer login signs a browser into Hub. If cross-origin redirect fallback fails, keep the prior working authDomain while arranging a separately verified Hub auth configuration.
-7. Confirm all rows in the host table, including deep paths and query strings. Check server endpoints return their normal JSON responses and notification links use the official origin. Do not create synthetic production records.
+## Firebase and Google OAuth
 
-The Firebase proxy follows [Firebase's redirect guidance, option 3](https://firebase.google.com/docs/auth/web/redirect-best-practices#option-3-proxy-auth-requests-to-firebaseappcom). The existing popup-first sign-in remains in place. The authDomain migration requires verification for each app origin; changing the domain string alone does not validate a Google sign-in flow.
+Fresh public Firebase configuration confirms the existing `authDomain` is `mealmate-d2e53.firebaseapp.com`. Desktop Google sign-in from the official origin reaches Google's sign-in page using:
 
-## Android release verification
+- Existing web client: `57742324875-siq9p57rm30bpf644b19q4bb6k4ipphn.apps.googleusercontent.com`.
+- Observed redirect URI: **`https://mealmate-d2e53.firebaseapp.com/__/auth/handler`**.
 
-`capacitor.config.ts` loads `https://mealsmates.site`. Run `bunx cap sync android` before building the next Android artifact; an already installed APK still contains its old server URL until updated. Keep the package ID `com.taztechnologies.mealmate` and existing signing identity.
+Preserve this verified callback and Firebase authDomain. A custom application domain does not itself require changing the Firebase helper domain. Do not add an invented `/auth/callback` OAuth handler or switch helpers without a separately verified migration. The earlier custom-helper proxy patch in this branch remains undeployed and is not required for the verified current popup initiation.
 
-Verify Chrome on a real Android device: open the official origin, tap Google sign-in, complete account selection, return to MealMate, reload, and confirm the session and existing account data. Repeat with popup blocking to exercise redirect completion.
+Firebase already authorizes `mealsmates.site` and retains its Firebase defaults and existing partner/admin/deployment hosts. `www.mealsmates.site` is absent and must be added to satisfy the checklist. `hub.mealsmates.site` is also absent; reconcile its existing sign-in requirements while preserving the complete authorized-domain list.
 
-Also verify the installed app separately if it is part of the release. This checkout uses Firebase's **web** popup/redirect flow inside a Capacitor WebView, with no native Google sign-in plugin. Inspect the newer live source and any Median wrapper release separately before changing its native sign-in integration. An updated URL does not prove Google accepts that embedded browser. If Google rejects it, use a supported native Google credential flow with the existing Firebase project; do not bypass Google's embedded-browser restrictions. Native OAuth configuration must match the Android package and the release signing certificate, which is separate from the web callback configuration.
+In Firebase Console, confirm Google remains enabled and inspect its existing web client. In Google Cloud, inspect that same client, verify authorized JavaScript origins for `https://mealsmates.site` and `https://www.mealsmates.site`, and retain the observed Firebase redirect URI plus other working callbacks. Firebase/Google Cloud console inspection and writes remain blocked by Google login. Reaching Google's account form proves initiation, not completed account selection or session restoration.
 
-## Inspection and pending rollout on 2026-10-30
+## Production environment and deployment
 
-- Initial public probes: Consumer HTTPS 200; `www` returned a 307 to Consumer. Vercel places `www` on the separate Hub project; its attachment is preserved. Later deep-path probes returned 403, so path/query preservation remains unverified.
-- Hub and discover: HTTPS 200. `partner.mealsmates.site` fails DNS resolution from this sandbox. Existing `partners` and `admin` respond on their own hostnames.
-- Documented former Vercel hostname: 404; another existing Vercel alias requires Vercel login.
-- Public Firebase config authorizes Consumer and `partner`, `partners`, and `admin`; `hub.mealsmates.site` is missing. The deployed authDomain is still `mealmate-d2e53.firebaseapp.com`.
-- Authenticated Vercel inspection: `mealsmates.site` and `hub.mealsmates.site` are valid Production domains in `mealsmates`. `partner` remains on `mealmate-hub` with invalid DNS; `www` and `partners` are also on that project with proxy detection. No domain attachments or DNS were changed.
-- Added `MEALMATE_APP_URL=https://mealsmates.site` to Vercel **Production** as a Config variable. Vercel confirmed success; activation requires a new deployment. The saved authDomain requires email re-verification to reveal and was not changed.
-- Current production is newer than this checkout: displayed commit `88cf5bc` in `tazzy-max/mealsmatess`, while this task's connected checkout is `tazlol0909-maker/mealsmatess` at `93c5c6020b6e42bbfba43740848cd4e1518b55ef`. Reconcile the source repository and preserve newer changes before deploying.
-- Public checks do not establish successful sign-in. Firebase/Google Cloud needs an authenticated session; no authorized-domain or OAuth-client change was made. Redeployment, callback migration and Android account sign-in remain pending.
+The only variable added during this task is **Production** `MEALMATE_APP_URL=https://mealsmates.site`. Existing Firebase, Admin, AI, Blob and subscription configuration remains intact. The saved authDomain value was not changed; fresh deployed assets confirm the Firebase helper domain above.
+
+Current live source is `tazzy-max/mealsmatess`, commit `88cf5bc`, deployment `mealsmates-3rrgcw6k7-tazzy3.vercel.app`. This differs from the connected task repository `tazlol0909-maker/mealsmatess`. Preserve current production code: redeploy the existing Current production deployment through Vercel to activate the URL variable. Do not deploy this checkout over it without source reconciliation.
+
+The redeploy dialog was prepared for the same Current source and Production environment. Vercel requires email reauthentication before submission; no new build started and the URL variable remains pending activation. Complete verification, redeploy, wait for Ready/current Production, and repeat live checks.
+
+## Observed tests on 2026-10-30
+
+- Apex HTTPS 200 with valid TLS; HTTP redirects to HTTPS once.
+- `www` now returns 308 to apex; `/auth?domain_check=final` reaches the same path/query with HTTPS 200 after one redirect. HTTP `www` reaches it after two redirects; no loop observed on those paths.
+- Cloud Chromium desktop loads the existing login UI and Google account form with the verified client/callback. Full login, missing-state and account-return checks remain pending an authorized test account.
+- `hub`, `partners` and `discover` return HTTPS 200 on their own hostnames; `admin` reaches its login page. These checks prove reachability, not complete feature coverage.
+- `partner.mealsmates.site` fails DNS resolution, as it did before this change. Its attachment/DNS was not changed.
+- No Android device is connected to this sandbox. Android Chrome and the installed Google Play application's account-selection-and-return tests remain blocked; a successful debug build from the prior task does not establish store sign-in.
+
+The Capacitor source in this branch loads the official origin and keeps package `com.taztechnologies.mealmate`. An installed Play/Median wrapper may differ from this source; inspect the actual installed package/version and release signing configuration before changing native OAuth. Do not bypass Google's embedded-browser restrictions. Test the installed Play version separately from a browser or debug APK.
 
 
 <!-- /coderabbit-ai-generated:v1 -->
