@@ -8,6 +8,31 @@ export const ENTITLEMENT = "premium";
 export const ENTITLEMENT_ALIASES = ["premium", "MealMate Pro"] as const;
 export const OFFERING = "default";
 
+export type PremiumAccess = {
+  isPremium: boolean;
+  tier: string;
+  status: string;
+  trialActive: boolean;
+  periodEnd: string | null;
+  trialEnd: string | null;
+  store: string | null;
+  autoRenew: boolean;
+  isManual: boolean;
+  verifiedUntil: number;
+};
+const denied = (): PremiumAccess => ({
+  isPremium: false,
+  tier: "free",
+  status: "expired",
+  trialActive: false,
+  periodEnd: null,
+  trialEnd: null,
+  store: null,
+  autoRenew: false,
+  isManual: false,
+  verifiedUntil: 0,
+});
+
 /** Accounts that always receive premium without payment (owner / VIP). */
 export const FREE_PREMIUM_EMAILS = new Set(
   (process.env["FREE_PREMIUM_EMAILS"] ?? "tatendamkhwanazi6@gmail.com")
@@ -84,30 +109,6 @@ export async function premiumForUserEmail(email?: string | null): Promise<Premiu
 
 const SESSION_DAYS = 90;
 const LEASE_MS = 5 * 60_000;
-export type PremiumAccess = {
-  isPremium: boolean;
-  tier: string;
-  status: string;
-  trialActive: boolean;
-  periodEnd: string | null;
-  trialEnd: string | null;
-  store: string | null;
-  autoRenew: boolean;
-  isManual: boolean;
-  verifiedUntil: number;
-};
-const denied = (): PremiumAccess => ({
-  isPremium: false,
-  tier: "free",
-  status: "expired",
-  trialActive: false,
-  periodEnd: null,
-  trialEnd: null,
-  store: null,
-  autoRenew: false,
-  isManual: false,
-  verifiedUntil: 0,
-});
 type Subscriber = {
   entitlements?: Record<
     string,
@@ -265,11 +266,6 @@ export async function verifyRevenueCatCustomer(customerId: string): Promise<Prem
   );
 }
 
-/**
- * Billing claim cookies must only be used by first-party traffic.
- * Accept same-origin and same-site; allow missing/none when Origin matches
- * so paywall session creation is not blocked by typed navigations / webviews.
- */
 export function assertBillingOrigin(request: Request) {
   const site = (request.headers.get("sec-fetch-site") ?? "").toLowerCase();
   const origin = request.headers.get("origin");
