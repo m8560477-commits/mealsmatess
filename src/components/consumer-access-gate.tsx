@@ -8,9 +8,16 @@ import { completeIntro, getIntroCompletion } from "@/lib/billing.functions";
 import { getMyPreferences } from "@/lib/preferences.functions";
 
 function isPublicConsumerPath(path: string) {
-  return ["/welcome", "/premium", "/auth", "/reset-password", "/legal", "/support", "/about"].some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-  );
+  return [
+    "/welcome",
+    "/onboarding",
+    "/premium",
+    "/auth",
+    "/reset-password",
+    "/legal",
+    "/support",
+    "/about",
+  ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 /** Guard the entire Consumer shell. Protected children never mount before verification. */
 export function ConsumerAccessGate({ children }: { children: ReactNode }) {
@@ -48,9 +55,10 @@ export function ConsumerAccessGate({ children }: { children: ReactNode }) {
     if (userId && access.error) return;
     if (userId && access.isPremium) return;
     if (userId && preferences.isPending) return;
-    const complete = hasSeenTour() || preferences.data;
-    if (complete) markTourSeen();
-    void navigate({ to: complete ? "/premium" : "/welcome", replace: true });
+    // Entry sequence: auth (AuthGate) → onboarding → paywall → app
+    const onboardingDone = !!(preferences.data || hasSeenTour());
+    if (onboardingDone) markTourSeen();
+    void navigate({ to: onboardingDone ? "/premium" : "/onboarding", replace: true });
   }, [
     loading,
     online,

@@ -8,7 +8,7 @@ import { reload, sendEmailVerification } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-// MealMate requires an account: onboarding first, then sign-up, then the app.
+// MealMate entry: auth → onboarding → paywall → app.
 // Only these routes are reachable without a signed-in, verified user.
 const PUBLIC_PREFIXES = [
   "/auth",
@@ -79,7 +79,7 @@ export function AuthGate({
   }
 
   if (!user) {
-    return <SignInPrompt />;
+    return <RedirectToAuth />;
   }
 
   // Email verification enforcement: block until confirmed_at or emailVerified is set.
@@ -89,6 +89,18 @@ export function AuthGate({
   }
 
   return <>{children}</>;
+}
+
+function RedirectToAuth() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    void navigate({ to: "/auth", replace: true });
+  }, [navigate]);
+  return (
+    <main className="flex flex-1 items-center justify-center py-24">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </main>
+  );
 }
 
 function SignInPrompt() {
@@ -145,20 +157,22 @@ function VerifyEmailPrompt({ email }: { email: string }) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600">
           <MailWarning className="h-6 w-6" />
-        </span>
-        <h1 className="mt-4 font-display text-2xl">Verify your email</h1>
+        </div>
+        <h1 className="font-display text-2xl">Verify your email</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          We sent a verification link to{" "}
-          <span className="font-medium text-foreground">{email}</span>. Click it to unlock MealMate.
+          We sent a link to <span className="font-medium text-foreground">{email}</span>. Open it,
+          then come back here.
         </p>
         <div className="mt-6 flex flex-col gap-2">
-          <Button onClick={confirmVerification}>I&apos;ve verified my email</Button>
-          <Button variant="outline" onClick={resend}>
+          <Button className="w-full" onClick={() => void confirmVerification()}>
+            I verified my email
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => void resend()}>
             Resend verification email
           </Button>
-          <Button variant="outline" onClick={signOut}>
+          <Button variant="ghost" className="w-full" onClick={() => void signOut()}>
             Use a different account
           </Button>
         </div>
