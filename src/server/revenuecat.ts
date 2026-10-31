@@ -7,6 +7,81 @@ export const ENTITLEMENT = "premium";
 /** Legacy identifier still attached on older MealMate RC products. */
 export const ENTITLEMENT_ALIASES = ["premium", "MealMate Pro"] as const;
 export const OFFERING = "default";
+
+/** Accounts that always receive premium without payment (owner / VIP). */
+export const FREE_PREMIUM_EMAILS = new Set(
+  (process.env["FREE_PREMIUM_EMAILS"] ?? "tatendamkhwanazi6@gmail.com")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+/** Promo codes that grant lifetime premium (lowercase). Includes the free email as a code. */
+export const LIFETIME_PROMO_CODES = new Set(
+  (process.env["LIFETIME_PROMO_CODES"] ?? "tatendamkhwanazi6@gmail.com,miafree,owner")
+    .split(",")
+    .map((c) => c.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+function lifetimePremium(): PremiumAccess {
+  return {
+    isPremium: true,
+    tier: "promo",
+    status: "active",
+    trialActive: false,
+    periodEnd: null,
+    trialEnd: null,
+    store: "promotional",
+    autoRenew: false,
+    isManual: true,
+    verifiedUntil: Date.now() + 365 * 86400_000,
+  };
+}
+
+export async function readManualPremium(userId: string): Promise<PremiumAccess | null> {
+  const db = getFirebaseAdminFirestore();
+  const snap = await db.collection("premium_grants").doc(userId).get();
+  const data = snap.data();
+  if (!data || data.active === false) return null;
+  const until = Number(data.valid_until_ms ?? 0);
+  if (Number.isFinite(until) && until > 0 && until <= Date.now()) return null;
+  return lifetimePremium();
+}
+
+export async function grantManualPremium(
+  userId: string,
+  reason: string,
+  email?: string | null,
+): Promise<PremiumAccess> {
+  const db = getFirebaseAdminFirestore();
+  const access = lifetimePremium();
+  await db.collection("premium_grants").doc(userId).set(
+    {
+      active: true,
+      reason,
+      email: email ?? null,
+      source: "promo",
+      granted_at: Date.now(),
+      valid_until_ms: null,
+    },
+    { merge: true },
+  );
+  await db.collection("premium_access").doc(userId).set({
+    valid_until: Timestamp.fromMillis(access.verifiedUntil),
+    source: "promo",
+    entitlement: ENTITLEMENT,
+    reason,
+  });
+  return access;
+}
+
+export async function premiumForUserEmail(email?: string | null): Promise<PremiumAccess | null> {
+  if (!email) return null;
+  if (FREE_PREMIUM_EMAILS.has(email.trim().toLowerCase())) return lifetimePremium();
+  return null;
+}
+
 const SESSION_DAYS = 90;
 const LEASE_MS = 5 * 60_000;
 export type PremiumAccess = {
@@ -66,7 +141,6 @@ function pickEntitlement(subscriber: Subscriber) {
   for (const key of ENTITLEMENT_ALIASES) {
     if (map[key]?.product_identifier) return map[key]!;
   }
-  // Fall back to any active-looking entitlement if identifiers drifted.
   for (const value of Object.values(map)) {
     if (value?.product_identifier) return value;
   }
@@ -244,6 +318,20 @@ export async function verifyPurchaseSession(token?: string) {
 
 export async function verifyAccountAccess(userId: string, token?: string): Promise<PremiumAccess> {
   const db = getFirebaseAdminFirestore();
+  const manual = await readManualPremium(userId);
+  if (manual?.isPremium) return manual;
+  try {
+    getFirebaseAdminFirestore();
+    const { getAuth } = await import("firebase-admin/auth");
+    const authUser = await getAuth().getUser(userId);
+    const byEmail = await premiumForUserEmail(authUser.email);
+    if (byEmail?.isPremium) {
+      await grantManualPremium(userId, "free_email", authUser.email);
+      return byEmail;
+    }
+  } catch {
+    // Auth lookup optional; continue to RevenueCat.
+  }
   const linkRef = db.collection("billing_links").doc(userId);
   const link = await linkRef.get();
   let access = await verifyRevenueCatCustomer(String(link.data()?.customerId ?? userId));
@@ -277,7 +365,7 @@ export async function verifyAccountAccess(userId: string, token?: string): Promi
     .doc(userId)
     .set({
       valid_until: Timestamp.fromMillis(access.verifiedUntil),
-      source: "revenuecat",
+      source: access.isManual ? "promo" : "revenuecat",
       entitlement: ENTITLEMENT,
     });
   return access;
