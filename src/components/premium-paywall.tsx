@@ -3,7 +3,12 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
-import { createPurchaseSession, verifyCheckout, verifyMyPremium } from "@/lib/billing.functions";
+import {
+  createPurchaseSession,
+  redeemPromoCode,
+  verifyCheckout,
+  verifyMyPremium,
+} from "@/lib/billing.functions";
 import {
   loadBillingStore,
   purchaseWasCancelled,
@@ -31,6 +36,8 @@ export function PremiumPaywall() {
   const [message, setMessage] = useState("");
   const [pendingVerification, setPendingVerification] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
   const lock = useRef(false);
   const userId = user?.id;
   useEffect(() => {
@@ -66,11 +73,7 @@ export function PremiumPaywall() {
       .catch((error) => {
         if (!active) return;
         const raw =
-          error instanceof Error
-            ? error.message
-            : typeof error === "string"
-              ? error
-              : "";
+          error instanceof Error ? error.message : typeof error === "string" ? error : "";
         if (/unavailable|temporarily|not available|plans|not configured|REVENUECAT/i.test(raw))
           setMessage(raw);
         else if (/forbidden|401|403|unauthorized/i.test(raw))
@@ -105,6 +108,33 @@ export function PremiumPaywall() {
       "Your subscription isn’t confirmed yet. If you just purchased, check access again. You won’t be charged by checking.",
     );
   }
+
+  async function applyPromo() {
+    if (!userId) {
+      setMessage("Sign in first, then enter your promo code.");
+      return;
+    }
+    if (!promoCode.trim() || promoBusy || lock.current) return;
+    lock.current = true;
+    setPromoBusy(true);
+    setMessage("");
+    try {
+      const access = await redeemPromoCode({ data: { code: promoCode.trim() } });
+      if (access.isPremium) {
+        await queryClient.invalidateQueries({ queryKey: ["entitlement"] });
+        setMessage("Promo applied — Premium is unlocked.");
+        await navigate({ to: "/", replace: true });
+        return;
+      }
+      setMessage("Promo could not be applied. Try again.");
+    } catch {
+      setMessage("That promo code is not valid, or you need to sign in and try again.");
+    } finally {
+      lock.current = false;
+      setPromoBusy(false);
+    }
+  }
+
   async function perform(action: "purchase" | "restore" | "verify") {
     if (lock.current || !online) return;
     lock.current = true;
@@ -259,6 +289,47 @@ export function PremiumPaywall() {
             settings. Trial eligibility and final taxes are confirmed at checkout.
           </p>
         )}
+        <div className="premium-promo">
+          <label className="premium-promo-label" htmlFor="promo-code">
+            Have a promo code?
+          </label>
+          <div className="premium-promo-row">
+            <input
+              id="promo-code"
+              type="text"
+              className="premium-promo-input"
+              placeholder="Enter code"
+              value={promoCode}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              disabled={busy || promoBusy || !online}
+              onChange={(e) => setPromoCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void applyPromo();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="premium-promo-apply"
+              disabled={busy || promoBusy || !online || !promoCode.trim()}
+              onClick={() => void applyPromo()}
+            >
+              {promoBusy ? <Loader2 className="animate-spin" size={16} /> : "Apply"}
+            </button>
+          </div>
+          {!userId && (
+            <p className="premium-promo-hint">
+              <Link to="/auth" search={{ mode: "signin" }}>
+                Sign in
+              </Link>{" "}
+              to redeem a code.
+            </p>
+          )}
+        </div>
         <div className="premium-recovery">
           <button type="button" onClick={() => void perform("restore")} disabled={busy || loading || !online}>
             Restore purchases
