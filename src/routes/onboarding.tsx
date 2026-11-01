@@ -39,40 +39,42 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [prefs, setPrefs] = useState<FoodPreferences>(EMPTY_PREFERENCES);
+  const [notifyEnabled, setNotifyEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
-  const saving = useRef(false);
+  const started = useRef(false);
 
   useEffect(() => {
     let active = true;
     void (async () => {
       const draft = readOnboardingDraft();
-      let remote = null as Awaited<ReturnType<typeof getMyPreferences>>;
       try {
-        remote = await getMyPreferences();
+        const remote = await getMyPreferences();
+        if (!active) return;
+        if (remote?.onboarding_completed) {
+          void navigate({ to: "/premium", replace: true });
+          return;
+        }
+        if (remote) {
+          setPrefs({
+            cuisines: remote.cuisines ?? EMPTY_PREFERENCES.cuisines,
+            diets: remote.diets ?? EMPTY_PREFERENCES.diets,
+            allergens: remote.allergens ?? EMPTY_PREFERENCES.allergens,
+            skill_level: remote.skill_level ?? EMPTY_PREFERENCES.skill_level,
+            household_size: remote.household_size ?? EMPTY_PREFERENCES.household_size,
+            cooking_time: remote.cooking_time ?? EMPTY_PREFERENCES.cooking_time,
+          });
+        } else if (draft?.preferences) {
+          setPrefs({ ...EMPTY_PREFERENCES, ...draft.preferences });
+        }
+        if (typeof draft?.step === "number") setStep(draft.step);
       } catch {
-        remote = null;
+        if (draft?.preferences) setPrefs({ ...EMPTY_PREFERENCES, ...draft.preferences });
+        if (typeof draft?.step === "number") setStep(draft.step);
+      } finally {
+        if (active) setLoading(false);
       }
-      if (!active) return;
-      if (remote?.onboarding_completed) {
-        void navigate({ to: "/premium", replace: true });
-        return;
-      }
-      if (remote) {
-        setPrefs({
-          cuisines: remote.cuisines ?? [],
-          diets: remote.diets ?? [],
-          allergens: remote.allergens ?? [],
-          skill_level: remote.skill_level ?? "beginner",
-          household_size: remote.household_size ?? 2,
-          cooking_time: remote.cooking_time ?? "30",
-        });
-      } else if (draft?.prefs) {
-        setPrefs({ ...EMPTY_PREFERENCES, ...draft.prefs });
-      }
-      if (draft && typeof draft.step === "number") setStep(draft.step);
-      setReady(true);
     })();
     return () => {
       active = false;
@@ -80,9 +82,9 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   }, [userId, navigate, retry]);
 
   useEffect(() => {
-    if (!ready) return;
-    saveOnboardingDraft({ step, prefs });
-  }, [step, prefs, ready]);
+    if (loading) return;
+    saveOnboardingDraft({ step, preferences: prefs });
+  }, [step, prefs, loading]);
 
   function next() {
     setStep((s) => Math.min(LAST_STEP, s + 1));
@@ -92,33 +94,39 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   }
 
   async function finish() {
-    if (saving.current) return;
-    saving.current = true;
+    if (started.current) return;
+    started.current = true;
     setBusy(true);
     try {
-      await saveMyPreferences({
-        data: {
-          ...prefs,
-          onboarding_completed: true,
-        },
-      });
+      await saveMyPreferences({ data: { ...prefs, onboarding_completed: true } });
       try {
         writeLocalPreferences({ ...prefs, onboarding_completed: true });
       } catch {
-        /* optional */
+        /* local cache optional */
+      }
+      if (notifyEnabled) {
+        try {
+          await saveMyNotificationPreferences({ data: { meal_reminders: true, tips: true } });
+          if (!Capacitor.isNativePlatform()) {
+            const token = await requestBrowserPushToken();
+            if (token) await registerMyPushToken({ data: { token, platform: "web" } });
+          }
+        } catch {
+          /* notifications optional during onboarding */
+        }
       }
       markTourSeen();
       clearOnboardingDraft();
       await navigate({ to: "/premium", replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save your preferences.");
+      started.current = false;
       setBusy(false);
-      saving.current = false;
+      toast.error(error instanceof Error ? error.message : "Could not finish setup.");
       setRetry((n) => n + 1);
     }
   }
 
-  if (!ready) {
+  if (loading) {
     return (
       <main className="flex flex-1 items-center justify-center py-24">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -127,24 +135,39 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   }
 
   return (
-    <OnboardingLayout step={step} total={LAST_STEP + 1} onBack={step > 0 ? back : undefined}>
-      {/* existing step content preserved by prior design */}
-      <div className="onboarding-flow">
-        <div className="onboarding-actions">
-          <button
-            type="button"
-            className="onboarding-next"
-            disabled={busy}
-            onClick={() => void (step === LAST_STEP ? finish() : next())}
-          >
-            {busy ? <Loader2 className="animate-spin" size={18} /> : null}
-            {step === LAST_STEP ? "Get started" : step === PREFS_STEP ? "Continue" : "Next"}
-          </button>
-        </div>
-        {step === PREFS_STEP && (
-          <PreferenceChoices value={prefs} onChange={setPrefs} />
-        )}
-      </div>
+    <OnboardingLayout
+      step={step}
+      total={LAST_STEP + 1}
+      onBack={step > 0 && !busy ? back : undefined}
+      footer={
+        <button
+          type="button"
+          className="onboarding-cta"
+          disabled={busy}
+          onClick={() => void (step === LAST_STEP ? finish() : next())}
+        >
+          {busy ? <Loader2 className="animate-spin" size={18} /> : null}
+          {step === LAST_STEP ? "Get started" : step === PREFS_STEP ? "Continue" : "Next"}
+        </button>
+      }
+    >
+      {step === 1 && (
+        <p className="onboarding-copy">Tell us how you cook so Mia can help in the kitchen.</p>
+      )}
+      {step === 3 && (
+        <p className="onboarding-copy">We will personalise recipes around your household.</p>
+      )}
+      {step === PREFS_STEP && <PreferenceChoices value={prefs} onChange={setPrefs} />}
+      {step === NOTIFY_STEP && (
+        <label className="onboarding-notify">
+          <input
+            type="checkbox"
+            checked={notifyEnabled}
+            onChange={(e) => setNotifyEnabled(e.target.checked)}
+          />
+          <span>Send me meal reminders and cooking tips</span>
+        </label>
+      )}
     </OnboardingLayout>
   );
 }
