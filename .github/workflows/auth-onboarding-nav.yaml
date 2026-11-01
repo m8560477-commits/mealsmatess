@@ -1,6 +1,9 @@
 name: Auth onboarding nav
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/auth-onboarding-nav.yaml"
 jobs:
   patch:
     runs-on: ubuntu-latest
