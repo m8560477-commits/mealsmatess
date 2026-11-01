@@ -129,7 +129,7 @@ function AuthPage() {
         try {
           await ensureUserProfile(result.user);
           toast.success("Welcome to MealMate!");
-          navigate({ to: "/", replace: true });
+          navigate({ to: "/onboarding", replace: true });
         } catch (error) {
           console.error("[Auth] Google redirect completion failed:", error);
           toast.error("Google sign-in completed, but your profile could not be loaded.");
@@ -146,7 +146,7 @@ function AuthPage() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/", replace: true });
+    if (!loading && user) navigate({ to: "/onboarding", replace: true });
   }, [user, loading, navigate]);
 
   async function signInWithGoogle() {
@@ -161,7 +161,7 @@ function AuthPage() {
           console.warn("[Auth] Could not create Firestore profile:", dbErr);
         }
         toast.success("Welcome to MealMate!");
-        navigate({ to: "/", replace: true });
+        navigate({ to: "/onboarding", replace: true });
         return;
       }
     } catch (error) {
@@ -197,7 +197,7 @@ function AuthPage() {
             }
             await sendEmailVerification(cred.user);
             toast.message("Check your inbox to verify your email and finish setting up MealMate.");
-            navigate({ to: "/", replace: true });
+            navigate({ to: "/onboarding", replace: true });
             return;
           }
         } catch (fbErr: any) {
@@ -215,7 +215,7 @@ function AuthPage() {
           const cred = await signInWithFirebaseEmail(normalizedEmail, password);
           if (cred?.user) {
             toast.success("Welcome back!");
-            navigate({ to: "/", replace: true });
+            navigate({ to: "/onboarding", replace: true });
             return;
           }
         } catch (fbErr: any) {
