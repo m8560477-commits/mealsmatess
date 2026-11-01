@@ -141,7 +141,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      // One shared family for headings and body text; swap keeps text visible while loading.
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
@@ -199,7 +198,7 @@ function RootComponent() {
               <HubContext.Provider value={isHub}>
                 {isHub ? (
                   <HubShell>
-                    <AuthGate publicHome={pathname === "/" || pathname === "/hub"}>
+                    <AuthGate publicHome={pathname === "/hub"}>
                       <Outlet />
                     </AuthGate>
                   </HubShell>
@@ -210,7 +209,6 @@ function RootComponent() {
                         className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
                       >
                         {showAppHeader && <AppHeader />}
-                        {/* The one scroll container. Header and nav are siblings, not children. */}
                         <div
                           id="app-scroll"
                           className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
