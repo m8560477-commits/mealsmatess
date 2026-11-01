@@ -1,0 +1,30 @@
+name: Concat styles restore
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/concat-styles.yaml"
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch good styles via curl
+        run: |
+          set -e
+          curl -fsSL "https://cdn.jsdelivr.net/gh/m8560477-commits/mealsmatess@567a69f481389e5e9e67139484aed23b95ed832b/src/styles.css" -o src/styles.css || curl -fsSL "https://raw.githubusercontent.com/m8560477-commits/mealsmatess/567a69f481389e5e9e67139484aed23b95ed832b/src/styles.css" -o src/styles.css
+          wc -c src/styles.css
+          test $(wc -c < src/styles.css) -gt 10000
+          if ! grep -q styles-auth-override src/styles.css; then
+            sed -i 's|@import "./styles-paywall-override.css";|@import "./styles-paywall-override.css";\n@import "./styles-auth-override.css";|' src/styles.css
+          fi
+          head -5 src/styles.css
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/styles.css
+          git commit -m "Restore styles.css" || exit 0
+          git push
