@@ -1677,3 +1677,4 @@ html[data-mia-controls="visible"] #app-scroll {
 @import "./styles-onboarding-override.css";
 
 @import "./styles-paywall-override.css";
+@import "./styles-auth-override.css";
