@@ -55,8 +55,9 @@ export function ConsumerAccessGate({ children }: { children: ReactNode }) {
     if (userId && access.error) return;
     if (userId && access.isPremium) return;
     if (userId && preferences.isPending) return;
-    // Entry sequence: auth (AuthGate) → onboarding → paywall → app
-    const onboardingDone = !!(preferences.data || hasSeenTour());
+    // Entry sequence: auth → onboarding → paywall → app (strict).
+    // Only server-backed onboarding completion counts so local flags cannot skip the flow.
+    const onboardingDone = !!preferences.data;
     if (onboardingDone) markTourSeen();
     void navigate({ to: onboardingDone ? "/premium" : "/onboarding", replace: true });
   }, [

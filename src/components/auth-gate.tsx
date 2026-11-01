@@ -13,7 +13,6 @@ import { toast } from "sonner";
 const PUBLIC_PREFIXES = [
   "/auth",
   "/premium",
-  "/welcome",
   "/reset-password",
   "/legal",
   "/about",
@@ -99,26 +98,6 @@ function RedirectToAuth() {
   return (
     <main className="flex flex-1 items-center justify-center py-24">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </main>
-  );
-}
-
-function SignInPrompt() {
-  const isHub = useHubSurface();
-  const navigate = useNavigate();
-  return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="font-display text-2xl">Sign in to continue</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isHub
-            ? "Sign in with your MealMate account to manage your restaurant, menu and orders."
-            : "Sign in to your MealMate account to continue with your subscription."}
-        </p>
-        <Button className="mt-6 w-full" onClick={() => navigate({ to: "/auth" })}>
-          Create account or sign in
-        </Button>
-      </div>
     </main>
   );
 }
