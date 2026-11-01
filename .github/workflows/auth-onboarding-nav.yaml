@@ -1,0 +1,32 @@
+name: Auth onboarding nav
+on:
+  workflow_dispatch:
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rewrite auth navigations
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("src/routes/auth.tsx")
+          t = p.read_text()
+          t2, n = re.subn(
+              r'navigate\(\{\s*to:\s*"/"\s*,\s*replace:\s*true\s*\}\)',
+              'navigate({ to: "/onboarding", replace: true })',
+              t,
+          )
+          print("replacements", n)
+          p.write_text(t2)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/routes/auth.tsx
+          git diff --cached --quiet || git commit -m "Auth success navigates to onboarding"
+          git push
