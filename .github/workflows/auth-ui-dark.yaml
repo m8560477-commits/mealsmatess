@@ -1,0 +1,113 @@
+name: Dark auth UI
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/auth-ui-dark.yaml"
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rewrite auth page shell
+        run: |
+          python3 << 'END'
+          from pathlib import Path
+          p = Path("src/routes/auth.tsx")
+          t = p.read_text()
+          if "auth-redesign" in t:
+              print("already done")
+              raise SystemExit(0)
+          marker = "  return (\n    <main\n      className={"
+          start = t.find(marker)
+          if start < 0:
+              raise SystemExit("marker missing")
+          # Build new return without confusing the outer YAML
+          parts = []
+          parts.append('  return (')
+          parts.append('    <main className={isHub ? "hub-auth auth-redesign" : "auth-redesign"}>')
+          parts.append('      <div className="auth-ambient" aria-hidden="true" />')
+          parts.append('      <div className="auth-shell">')
+          parts.append('        <header className="auth-brand">')
+          parts.append('          <MealMateLogo className="auth-logo" imageClassName="size-12 rounded-2xl" showName />')
+          parts.append('        </header>')
+          parts.append('        <div className="auth-card">')
+          parts.append('          <p className="auth-eyebrow">{mode === "signin" ? "Welcome back" : "Join MealMate"}</p>')
+          parts.append('          <h1 className="auth-title">')
+          parts.append('            {isHub')
+          parts.append('              ? mode === "signin"')
+          parts.append('                ? "Sign in to your workspace"')
+          parts.append('                : "Create your Hub account"')
+          parts.append('              : mode === "signin"')
+          parts.append('                ? "Log in to cook smarter"')
+          parts.append('                : "Start cooking with confidence"}')
+          parts.append('          </h1>')
+          parts.append('          <p className="auth-subtitle">')
+          parts.append('            {mode === "signin"')
+          parts.append('              ? "Recipes, plans, and Mia — ready when you are."')
+          parts.append('              : "Set up once. Eat well every day."}')
+          parts.append('          </p>')
+          parts.append('          <form onSubmit={handleSubmit} className="auth-form">')
+          parts.append('            {mode === "signup" && (')
+          parts.append('              <div className="auth-field">')
+          parts.append('                <Label htmlFor="name">Display name</Label>')
+          parts.append('                <Input id="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Chef Thabo" className="auth-input" />')
+          parts.append('              </div>')
+          parts.append('            )}')
+          parts.append('            <div className="auth-field">')
+          parts.append('              <Label htmlFor="email">Email</Label>')
+          parts.append('              <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="auth-input" />')
+          parts.append('            </div>')
+          parts.append('            <div className="auth-field">')
+          parts.append('              <Label htmlFor="password">Password</Label>')
+          parts.append('              <div className="auth-password-wrap">')
+          parts.append('                <Input id="password" type={showPassword ? "text" : "password"} required minLength={6} autoComplete={mode === "signin" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="auth-input auth-input-password" />')
+          parts.append('                <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "Hide password" : "Show password"} className="auth-password-toggle">')
+          parts.append('                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}')
+          parts.append('                </button>')
+          parts.append('              </div>')
+          parts.append('              {mode === "signup" && <p className="auth-hint">At least 6 characters.</p>}')
+          parts.append('            </div>')
+          parts.append('            <button type="submit" className="auth-primary" disabled={busy}>')
+          parts.append('              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Create account"}')
+          parts.append('            </button>')
+          parts.append('            <div className="auth-divider"><span>or continue with</span></div>')
+          parts.append('            <button type="button" className="auth-google" disabled={busy} onClick={signInWithGoogle}>')
+          parts.append('              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue with Google"}')
+          parts.append('            </button>')
+          parts.append('            {mode === "signin" && (')
+          parts.append('              <button type="button" className="auth-forgot" disabled={busy} onClick={async () => {')
+          parts.append('                if (!email) { toast.error("Enter your email first, then tap forgot password."); return; }')
+          parts.append('                setBusy(true);')
+          parts.append('                try { await sendFirebasePasswordReset(email.trim().toLowerCase()); toast.success("Check your inbox for a reset link."); }')
+          parts.append('                catch { toast.error("Could not send the reset email. Please check the address and try again."); }')
+          parts.append('                finally { setBusy(false); }')
+          parts.append('              }}>Forgot password?</button>')
+          parts.append('            )}')
+          parts.append('          </form>')
+          parts.append('          <p className="auth-switch">')
+          parts.append('            {mode === "signin" ? "New here?" : "Already have an account?"}{" "}')
+          parts.append('            <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>')
+          parts.append('              {mode === "signin" ? "Create an account" : "Sign in"}')
+          parts.append('            </button>')
+          parts.append('          </p>')
+          parts.append('          <p className="auth-legal">')
+          parts.append('            By continuing you agree to our <Link to="/legal/terms">Terms</Link> and <Link to="/legal/privacy">Privacy Policy</Link>.')
+          parts.append('          </p>')
+          parts.append('        </div>')
+          parts.append('      </div>')
+          parts.append('    </main>')
+          parts.append('  );')
+          parts.append('}')
+          p.write_text(t[:start] + "\n".join(parts) + "\n")
+          print("wrote", p.stat().st_size)
+          END
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/routes/auth.tsx
+          git commit -m "Dark editorial auth redesign" || exit 0
+          git push
