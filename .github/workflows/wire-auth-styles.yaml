@@ -1,0 +1,38 @@
+name: Wire auth styles import
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/wire-auth-styles.yaml"
+      - "src/styles-auth-override.css"
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure styles import
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path("src/styles.css")
+          t = p.read_text()
+          if 'styles-auth-override' not in t:
+              needle = '@import "./styles-paywall-override.css";'
+              if needle in t:
+                  t = t.replace(needle, needle + '\n@import "./styles-auth-override.css";', 1)
+              else:
+                  t = '@import "./styles-auth-override.css";\n' + t
+              p.write_text(t)
+              print("import added")
+          else:
+              print("already wired")
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/styles.css
+          git diff --cached --quiet || git commit -m "Import auth redesign styles"
+          git push
