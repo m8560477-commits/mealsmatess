@@ -1,0 +1,206 @@
+name: Restore styles and auth redesign
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/restore-styles-and-auth.yaml"
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore styles.css from last good commit
+        run: |
+          git show 567a69f481389e5e9e67139484aed23b95ed832b:src/styles.css > src/styles.css
+          # ensure auth override import
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path("src/styles.css")
+          t = p.read_text()
+          if "styles-auth-override" not in t:
+              needle = '@import "./styles-paywall-override.css";'
+              if needle in t:
+                  t = t.replace(needle, needle + "\n@import \"./styles-auth-override.css\";", 1)
+              p.write_text(t)
+          print("styles size", p.stat().st_size)
+          assert p.stat().st_size > 10000
+          PY
+      - name: Apply dark auth UI
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path("src/routes/auth.tsx")
+          t = p.read_text()
+          start = t.find("  return (\n    <main\n      className={")
+          if start < 0:
+              start = t.find('  return (\n    <main className={isHub')
+          if start < 0:
+              raise SystemExit("auth return not found")
+          new_return = r'''  return (
+    <main className={isHub ? "hub-auth auth-redesign" : "auth-redesign"}>
+      <div className="auth-ambient" aria-hidden="true" />
+      <div className="auth-shell">
+        <header className="auth-brand">
+          <MealMateLogo className="auth-logo" imageClassName="size-12 rounded-2xl" showName />
+        </header>
+
+        <div className="auth-card">
+          <p className="auth-eyebrow">
+            {mode === "signin" ? "Welcome back" : "Join MealMate"}
+          </p>
+          <h1 className="auth-title">
+            {isHub
+              ? mode === "signin"
+                ? "Sign in to your workspace"
+                : "Create your Hub account"
+              : mode === "signin"
+                ? "Log in to cook smarter"
+                : "Start cooking with confidence"}
+          </h1>
+          <p className="auth-subtitle">
+            {mode === "signin"
+              ? "Recipes, plans, and Mia — ready when you are."
+              : "Set up once. Eat well every day."}
+          </p>
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            {mode === "signup" && (
+              <div className="auth-field">
+                <Label htmlFor="name">Display name</Label>
+                <Input
+                  id="name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Chef Thabo"
+                  className="auth-input"
+                />
+              </div>
+            )}
+
+            <div className="auth-field">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="auth-input"
+              />
+            </div>
+
+            <div className="auth-field">
+              <Label htmlFor="password">Password</Label>
+              <div className="auth-password-wrap">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="auth-input auth-input-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="auth-password-toggle"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {mode === "signup" && <p className="auth-hint">At least 6 characters.</p>}
+            </div>
+
+            <button type="submit" className="auth-primary" disabled={busy}>
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : mode === "signin" ? (
+                "Sign in"
+              ) : (
+                "Create account"
+              )}
+            </button>
+
+            <div className="auth-divider">
+              <span>or continue with</span>
+            </div>
+
+            <button
+              type="button"
+              className="auth-google"
+              disabled={busy}
+              onClick={signInWithGoogle}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue with Google"}
+            </button>
+
+            {mode === "signin" && (
+              <button
+                type="button"
+                className="auth-forgot"
+                disabled={busy}
+                onClick={async () => {
+                  if (!email) {
+                    toast.error("Enter your email first, then tap forgot password.");
+                    return;
+                  }
+                  setBusy(true);
+                  try {
+                    await sendFirebasePasswordReset(email.trim().toLowerCase());
+                    toast.success("Check your inbox for a reset link.");
+                  } catch {
+                    toast.error(
+                      "Could not send the reset email. Please check the address and try again.",
+                    );
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Forgot password?
+              </button>
+            )}
+          </form>
+
+          <p className="auth-switch">
+            {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            >
+              {mode === "signin" ? "Create an account" : "Sign in"}
+            </button>
+          </p>
+
+          <p className="auth-legal">
+            By continuing you agree to our{" "}
+            <Link to="/legal/terms">Terms</Link> and{" "}
+            <Link to="/legal/privacy">Privacy Policy</Link>.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
+'''
+          p.write_text(t[:start] + new_return)
+          print("auth size", p.stat().st_size)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/styles.css src/routes/auth.tsx
+          git status
+          git diff --cached --quiet || git commit -m "Restore styles.css and apply dark auth redesign"
+          git push
