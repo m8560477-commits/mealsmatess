@@ -177,6 +177,7 @@ function RootComponent() {
     pathname === "/welcome" ||
     pathname === "/premium" ||
     pathname === "/onboarding" ||
+    pathname === "/reset-password" ||
     pathname.startsWith("/auth");
   const showAppHeader = !isHub && pathname !== "/" && !isMarketplace && !isFlow;
   useShellMetrics(showAppHeader ? "with-header" : "no-header");

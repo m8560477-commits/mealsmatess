@@ -1,10 +1,10 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { KeyRound, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { auth } from "@/lib/firebase";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
-import { Button } from "@/components/ui/button";
+import { MealMateLogo } from "@/components/mealmate-logo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -65,51 +65,58 @@ function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="flex flex-col items-center text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <KeyRound className="h-6 w-6" />
-          </span>
-          <h1 className="mt-4 font-display text-3xl">Set a new password</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <main className="auth-redesign auth-reset">
+      <div className="auth-shell">
+        <header className="auth-brand">
+          <MealMateLogo className="auth-logo" showName />
+        </header>
+        <div className="auth-card">
+          <p className="auth-eyebrow">YOUR ACCOUNT</p>
+          <h1 className="auth-title">Set a new password.</h1>
+          <p className="auth-subtitle">
             {ready
               ? "Choose a strong password of at least 8 characters."
-              : "Waiting for your reset link… open this page from the email link."}
+              : "Open the link in your email to reset your password."}
+          </p>
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-field">
+              <Label htmlFor="password">New password</Label>
+              <Input
+                id="password"
+                className="auth-input"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                disabled={!ready}
+              />
+            </div>
+            <div className="auth-field">
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input
+                id="confirm"
+                className="auth-input"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Enter your password again"
+                disabled={!ready}
+              />
+            </div>
+            <button type="submit" className="auth-primary" disabled={busy || !ready}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}
+            </button>
+          </form>
+          <p className="auth-switch">
+            <Link to="/auth">Back to sign in</Link>
           </p>
         </div>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="password">New password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              disabled={!ready}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="confirm">Confirm password</Label>
-            <Input
-              id="confirm"
-              type="password"
-              required
-              minLength={8}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-              disabled={!ready}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={busy || !ready}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}
-          </Button>
-        </form>
       </div>
     </main>
   );

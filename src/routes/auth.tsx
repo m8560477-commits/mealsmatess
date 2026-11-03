@@ -1,12 +1,12 @@
 import { useHubSurface } from "@/components/hub/hub-context";
 import { createFileRoute, useNavigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { MealMateLogo } from "@/components/mealmate-logo";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
-import { Button } from "@/components/ui/button";
+import authFood from "@/assets/recipes/greek-chicken-salad.webp";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -255,73 +255,185 @@ function AuthPage() {
 
   return (
     <main className={isHub ? "hub-auth auth-redesign" : "auth-redesign"}>
-      <div className="auth-ambient" aria-hidden="true" />
+      {!isHub && (
+        <aside className="auth-story" aria-label="Welcome to MealMate">
+          <img src={authFood} alt="" className="auth-story-image" />
+          <div className="auth-story-content">
+            <span className="auth-story-kicker">A LITTLE INSPIRATION FOR EVERY DAY</span>
+            <h2>
+              Good food.
+              <br />
+              <em>Made for you.</em>
+            </h2>
+            <p>Find your next favourite recipe, make a plan and enjoy every step along the way.</p>
+            <div className="auth-story-caption">
+              <span>01 / THE MEALMATE KITCHEN</span>
+              <span>COOK WITH JOY</span>
+            </div>
+          </div>
+        </aside>
+      )}
       <div className="auth-shell">
         <header className="auth-brand">
           <MealMateLogo className="auth-logo" imageClassName="size-12 rounded-2xl" showName />
         </header>
         <div className="auth-card">
-          <p className="auth-eyebrow">{mode === "signin" ? "Welcome back" : "Join MealMate"}</p>
+          <p className="auth-eyebrow">
+            {mode === "signin" ? "YOUR KITCHEN AWAITS" : "LET’S GET STARTED"}
+          </p>
           <h1 className="auth-title">
             {isHub
               ? mode === "signin"
                 ? "Sign in to your workspace"
                 : "Create your Hub account"
               : mode === "signin"
-                ? "Log in to cook smarter"
-                : "Start cooking with confidence"}
+                ? "Welcome back."
+                : "Come on in."}
           </h1>
           <p className="auth-subtitle">
             {mode === "signin"
-              ? "Recipes, plans, and Mia — ready when you are."
-              : "Set up once. Eat well every day."}
+              ? "Sign in to pick up where you left off."
+              : "Create your account and make more of mealtime."}
           </p>
           <form onSubmit={handleSubmit} className="auth-form">
             {mode === "signup" && (
               <div className="auth-field">
                 <Label htmlFor="name">Display name</Label>
-                <Input id="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Chef Thabo" className="auth-input" />
+                <Input
+                  id="name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your name"
+                  autoComplete="name"
+                  className="auth-input"
+                />
               </div>
             )}
             <div className="auth-field">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="auth-input" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="auth-input"
+              />
             </div>
             <div className="auth-field">
-              <Label htmlFor="password">Password</Label>
+              <div className="auth-field-heading">
+                <Label htmlFor="password">Password</Label>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    className="auth-forgot"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!email) {
+                        toast.error("Enter your email first, then tap forgot password.");
+                        return;
+                      }
+                      setBusy(true);
+                      try {
+                        await sendFirebasePasswordReset(email.trim().toLowerCase());
+                        toast.success("Check your inbox for a reset link.");
+                      } catch {
+                        toast.error(
+                          "Could not send the reset email. Please check the address and try again.",
+                        );
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
               <div className="auth-password-wrap">
-                <Input id="password" type={showPassword ? "text" : "password"} required minLength={6} autoComplete={mode === "signin" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="auth-input auth-input-password" />
-                <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "Hide password" : "Show password"} className="auth-password-toggle">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="auth-input auth-input-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="auth-password-toggle"
+                >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {mode === "signup" && <p className="auth-hint">At least 6 characters.</p>}
             </div>
             <button type="submit" className="auth-primary" disabled={busy}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Create account"}
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  {mode === "signin" ? "Sign in" : "Create account"}
+                  <ArrowRight size={18} aria-hidden="true" />
+                </>
+              )}
             </button>
-            <div className="auth-divider"><span>or continue with</span></div>
-            <button type="button" className="auth-google" disabled={busy} onClick={signInWithGoogle}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue with Google"}
+            <div className="auth-divider">
+              <span>or continue with</span>
+            </div>
+            <button
+              type="button"
+              className="auth-google"
+              disabled={busy}
+              onClick={signInWithGoogle}
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.75 3.27-8.1Z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.65l-3.56-2.77c-.98.66-2.23 1.06-3.72 1.06-2.87 0-5.3-1.94-6.17-4.55H2.15v2.84A11 11 0 0 0 12 23Z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.83 14.09a6.6 6.6 0 0 1 0-4.18V7.07H2.15a11 11 0 0 0 0 9.86l3.68-2.84Z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.36c1.62 0 3.06.56 4.2 1.64l3.15-3.15A10.57 10.57 0 0 0 12 1a11 11 0 0 0-9.85 6.07l3.68 2.84C6.7 7.3 9.13 5.36 12 5.36Z"
+                    />
+                  </svg>
+                  Continue with Google
+                </>
+              )}
             </button>
-            {mode === "signin" && (
-              <button type="button" className="auth-forgot" disabled={busy} onClick={async () => {
-                if (!email) { toast.error("Enter your email first, then tap forgot password."); return; }
-                setBusy(true);
-                try { await sendFirebasePasswordReset(email.trim().toLowerCase()); toast.success("Check your inbox for a reset link."); }
-                catch { toast.error("Could not send the reset email. Please check the address and try again."); }
-                finally { setBusy(false); }
-              }}>Forgot password?</button>
-            )}
           </form>
           <p className="auth-switch">
             {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
-            <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            >
               {mode === "signin" ? "Create an account" : "Sign in"}
             </button>
           </p>
           <p className="auth-legal">
-            By continuing you agree to our <Link to="/legal/terms">Terms</Link> and <Link to="/legal/privacy">Privacy Policy</Link>.
+            By continuing you agree to our <Link to="/legal/terms">Terms</Link> and{" "}
+            <Link to="/legal/privacy">Privacy Policy</Link>.
           </p>
         </div>
       </div>
