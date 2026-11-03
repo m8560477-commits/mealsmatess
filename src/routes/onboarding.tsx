@@ -31,142 +31,190 @@ function OnboardingPage() {
   return user ? <PersonalOnboarding key={user.id} userId={user.id} /> : null;
 }
 
-const PREFS_STEP = 4;
-const NOTIFY_STEP = 5;
-const LAST_STEP = 6;
-
 function PersonalOnboarding({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [prefs, setPrefs] = useState<FoodPreferences>(EMPTY_PREFERENCES);
-  const [notifyEnabled, setNotifyEnabled] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const started = useRef(false);
-
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  useEffect(() => {
+    setPushSupported(
+      !Capacitor.isNativePlatform() &&
+        window.isSecureContext &&
+        "Notification" in window &&
+        "serviceWorker" in navigator &&
+        Boolean(import.meta.env.VITE_FIREBASE_VAPID_KEY),
+    );
+  }, []);
   useEffect(() => {
     let active = true;
-    void (async () => {
-      const draft = readOnboardingDraft();
-      try {
-        const remote = await getMyPreferences();
+    setError(null);
+    void getMyPreferences()
+      .then((remote) => {
         if (!active) return;
         if (remote?.onboarding_completed) {
           void navigate({ to: "/premium", replace: true });
           return;
         }
-        if (remote) {
-          setPrefs({
-            cuisines: remote.cuisines ?? EMPTY_PREFERENCES.cuisines,
-            diets: remote.diets ?? EMPTY_PREFERENCES.diets,
-            allergens: remote.allergens ?? EMPTY_PREFERENCES.allergens,
-            skill_level: remote.skill_level ?? EMPTY_PREFERENCES.skill_level,
-            household_size: remote.household_size ?? EMPTY_PREFERENCES.household_size,
-            cooking_time: remote.cooking_time ?? EMPTY_PREFERENCES.cooking_time,
-          });
-        } else if (draft?.preferences) {
-          setPrefs({ ...EMPTY_PREFERENCES, ...draft.preferences });
-        }
-        if (typeof draft?.step === "number") setStep(draft.step);
-      } catch {
-        if (draft?.preferences) setPrefs({ ...EMPTY_PREFERENCES, ...draft.preferences });
-        if (typeof draft?.step === "number") setStep(draft.step);
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
+        const draft = readOnboardingDraft(userId);
+        setPrefs(draft?.preferences ?? remote ?? EMPTY_PREFERENCES);
+        setStep(draft?.step ?? 0);
+        setReady(true);
+      })
+      .catch(() => {
+        if (active)
+          setError("Your preferences couldn’t load. Please check your connection and try again.");
+      });
     return () => {
       active = false;
     };
   }, [userId, navigate, retry]);
-
   useEffect(() => {
-    if (loading) return;
-    saveOnboardingDraft({ step, preferences: prefs });
-  }, [step, prefs, loading]);
+    if (ready) saveOnboardingDraft(userId, step, prefs);
+  }, [userId, step, prefs, ready]);
 
-  function next() {
-    setStep((s) => Math.min(LAST_STEP, s + 1));
-  }
-  function back() {
-    setStep((s) => Math.max(0, s - 1));
-  }
-
-  async function finish() {
-    if (started.current) return;
-    started.current = true;
+  async function run(action: () => Promise<void>) {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
+    setError(null);
     try {
-      await saveMyPreferences({ data: { ...prefs, onboarding_completed: true } });
-      try {
-        writeLocalPreferences({ ...prefs, onboarding_completed: true });
-      } catch {
-        /* local cache optional */
-      }
-      if (notifyEnabled) {
-        try {
-          await saveMyNotificationPreferences({ data: { meal_reminders: true, tips: true } });
-          if (!Capacitor.isNativePlatform()) {
-            const token = await requestBrowserPushToken();
-            if (token) await registerMyPushToken({ data: { token, platform: "web" } });
-          }
-        } catch {
-          /* notifications optional during onboarding */
-        }
-      }
-      markTourSeen();
-      clearOnboardingDraft();
-      await navigate({ to: "/premium", replace: true });
-    } catch (error) {
-      started.current = false;
+      await action();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      pending.current = false;
       setBusy(false);
-      toast.error(error instanceof Error ? error.message : "Could not finish setup.");
-      setRetry((n) => n + 1);
     }
   }
-
-  if (loading) {
-    return (
-      <main className="flex flex-1 items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </main>
-    );
+  async function next() {
+    await run(async () => {
+      if (step === 4) {
+        const { updated_at: _timestamp, ...data } = prefs;
+        await saveMyPreferences({ data: { ...data, onboarding_completed: false } });
+      }
+      setStep(Math.min(6, step + 1));
+    });
   }
-
+  async function finish() {
+    await run(async () => {
+      const { updated_at: _timestamp, ...data } = prefs;
+      await saveMyPreferences({ data: { ...data, onboarding_completed: true } });
+      // Account persistence is authoritative; restricted local storage must not block completion.
+      try {
+        writeLocalPreferences({ ...prefs, onboarding_completed: true }, userId);
+      } catch {
+        /* Account is saved. */
+      }
+      markTourSeen();
+      clearOnboardingDraft(userId);
+      await navigate({ to: "/premium", replace: true });
+    });
+  }
+  async function notifications() {
+    await run(async () => {
+      const token = await requestBrowserPushToken();
+      await saveMyNotificationPreferences({
+        data: { productUpdatesEnabled: true, pushEnabled: true },
+      });
+      await registerMyPushToken({ data: { token } });
+      toast.success("Notifications enabled on this device.");
+      setStep(6);
+    });
+  }
+  if (!ready)
+    return (
+      <div className="onboarding-shell flex items-center justify-center p-8">
+        <div role="status">
+          {error ? (
+            <>
+              <p>{error}</p>
+              <button className="onboarding-primary mt-6" onClick={() => setRetry((v) => v + 1)}>
+                Try again
+              </button>
+            </>
+          ) : (
+            <>
+              <Loader2 className="mx-auto animate-spin" />
+              <p className="mt-4">Preparing your MealMate experience…</p>
+            </>
+          )}
+        </div>
+      </div>
+    );
   return (
     <OnboardingLayout
       step={step}
-      total={LAST_STEP + 1}
-      onBack={step > 0 && !busy ? back : undefined}
-      footer={
-        <button
-          type="button"
-          className="onboarding-cta"
-          disabled={busy}
-          onClick={() => void (step === LAST_STEP ? finish() : next())}
-        >
-          {busy ? <Loader2 className="animate-spin" size={18} /> : null}
-          {step === LAST_STEP ? "Get started" : step === PREFS_STEP ? "Continue" : "Next"}
-        </button>
+      busy={busy}
+      onBack={
+        step > 0
+          ? () => {
+              setError(null);
+              setStep(step - 1);
+            }
+          : undefined
+      }
+      actions={
+        <>
+          {error && (
+            <p role="alert" className="onboarding-error">
+              {error}
+            </p>
+          )}
+          {step === 5 ? (
+            <>
+              <button
+                className="onboarding-primary"
+                onClick={() => void notifications()}
+                disabled={busy || !pushSupported}
+              >
+                {busy && <Loader2 size={19} className="animate-spin" />}Enable notifications
+              </button>
+              <button
+                className="onboarding-text-button"
+                disabled={busy}
+                onClick={() => {
+                  setError(null);
+                  setStep(6);
+                }}
+              >
+                Not now
+              </button>
+            </>
+          ) : (
+            <button
+              className="onboarding-primary"
+              disabled={busy}
+              onClick={() => void (step === 6 ? finish() : next())}
+            >
+              {busy && <Loader2 size={19} className="animate-spin" />}
+              {step === 6 ? "Get started" : step === 4 ? "Continue" : "Next"}
+            </button>
+          )}
+        </>
       }
     >
       {step === 1 && (
-        <p className="onboarding-copy">Tell us how you cook so Mia can help in the kitchen.</p>
+        <p className="onboarding-note">
+          Browse recipes, explore new flavours and keep your favourites close.
+        </p>
       )}
       {step === 3 && (
-        <p className="onboarding-copy">We will personalise recipes around your household.</p>
+        <p className="onboarding-note">
+          Bring your ingredients and questions. Mia helps you decide what to cook.
+        </p>
       )}
-      {step === PREFS_STEP && <PreferenceChoices value={prefs} onChange={setPrefs} />}
-      {step === NOTIFY_STEP && (
-        <label className="onboarding-notify">
-          <input
-            type="checkbox"
-            checked={notifyEnabled}
-            onChange={(e) => setNotifyEnabled(e.target.checked)}
-          />
-          <span>Send me meal reminders and cooking tips</span>
-        </label>
+      {step === 4 && <PreferenceChoices preferences={prefs} onChange={setPrefs} disabled={busy} />}
+      {step === 5 && (
+        <p className="onboarding-note">
+          {pushSupported
+            ? "We’ll ask for your device’s permission next. You can change your choice in Settings."
+            : "Push notifications aren’t available on this device yet. You can still read MealMate updates in the app."}
+        </p>
       )}
     </OnboardingLayout>
   );

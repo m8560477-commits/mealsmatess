@@ -12,7 +12,7 @@ browser(
   ["eval", "--stdin"],
   await readFile(new URL("./mia-browser-probe.js", import.meta.url), "utf8"),
 );
-const deadline = Date.now() + 100_000;
+const deadline = Date.now() + 150_000;
 let result;
 while (Date.now() < deadline) {
   result = browser(["eval", "window.miaVoiceProbe"]).data.result;
@@ -20,8 +20,8 @@ while (Date.now() < deadline) {
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }
 assert.equal(result.phase, "done", result.error ?? "Voice probe timed out");
-assert.equal(result.questions.length, 2);
-assert.equal(result.spoken.length, 2);
+assert.equal(result.questions.length, 4);
+assert.equal(result.spoken.length, 4);
 assert.equal(result.state, "muted");
 console.log(
   JSON.stringify(

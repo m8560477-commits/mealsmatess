@@ -10,16 +10,14 @@ export type MicrophoneEvents = {
   transcript: (text: string, endpoint: boolean) => void;
   activity: () => void;
   failed: (error: Error) => void;
+  needsGesture?: () => void;
 };
 
 export async function openMiaMicrophone(
   events: MicrophoneEvents,
   signal: AbortSignal,
 ): Promise<MiaMicrophone> {
-  if (
-    Capacitor.isNativePlatform() &&
-    (!Capacitor.isPluginAvailable("App") || !Capacitor.isPluginAvailable("TextToSpeech"))
-  ) {
+  if (Capacitor.isNativePlatform() && !Capacitor.isPluginAvailable("App")) {
     throw new Error("Update the MealMate Android app to enable hands-free Mia.");
   }
   if (
@@ -31,7 +29,7 @@ export async function openMiaMicrophone(
       "Hands-free Mia needs HTTPS and a browser with microphone and AudioWorklet support.",
     );
   }
-  // Construct/resume from the user's enable gesture, before asynchronous model loading.
+  // Ask the platform for permission before waiting for audio playback restrictions.
   const context = new AudioContext({ sampleRate: 16000 });
   let stream: MediaStream | undefined;
   let decoder: LocalRecognizer | undefined;
@@ -55,8 +53,6 @@ export async function openMiaMicrophone(
   };
   signal.addEventListener("abort", dispose, { once: true });
   try {
-    await context.resume();
-    signal.throwIfAborted();
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         channelCount: 1,
@@ -70,6 +66,42 @@ export async function openMiaMicrophone(
       stream.getTracks().forEach((track) => track.stop());
       signal.throwIfAborted();
     }
+    await new Promise<void>((resolve, reject) => {
+      let done = false;
+      const cleanup = () => {
+        clearTimeout(notice);
+        signal.removeEventListener("abort", aborted);
+        window.removeEventListener("pointerdown", attempt);
+        window.removeEventListener("keydown", attempt);
+      };
+      const finish = (error?: unknown) => {
+        if (done) return;
+        done = true;
+        cleanup();
+        if (error) reject(error);
+        else resolve();
+      };
+      const aborted = () => finish(new DOMException("Voice stopped", "AbortError"));
+      const attempt = () => {
+        void context
+          .resume()
+          .then(() => {
+            if (context.state === "running") finish();
+          })
+          .catch((error: unknown) => {
+            if (!(error instanceof DOMException && error.name === "NotAllowedError")) finish(error);
+          });
+      };
+      const notice = setTimeout(() => {
+        if (!done) events.needsGesture?.();
+      }, 1000);
+      signal.addEventListener("abort", aborted, { once: true });
+      window.addEventListener("pointerdown", attempt);
+      window.addEventListener("keydown", attempt);
+      if (signal.aborted) aborted();
+      else attempt();
+    });
+    signal.throwIfAborted();
     stream.getAudioTracks().forEach((track) => {
       track.onended = () =>
         events.failed(new Error("Microphone access ended. Enable hands-free again to reconnect."));

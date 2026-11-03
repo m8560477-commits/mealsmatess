@@ -266,6 +266,7 @@ describe("purchase claim request origin", () => {
     const rejectedOrigins: Record<string, string>[] = [
       { "sec-fetch-site": "cross-site" },
       { "sec-fetch-site": "same-site", origin: "https://hub.mealsmates.site" },
+      { "sec-fetch-site": "same-origin", origin: "https://attacker.test" },
       { origin: "https://attacker.test" },
       {},
     ];

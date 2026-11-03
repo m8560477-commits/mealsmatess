@@ -10,8 +10,10 @@ const mocks = vi.hoisted(() => ({
   image: vi.fn(),
   readRecipe: vi.fn(),
   readPantry: vi.fn(),
+  context: vi.fn(),
 }));
 vi.mock("@/server/authenticated-api", () => ({ authenticateApiRequest: mocks.auth }));
+vi.mock("@/server/mia-context", () => ({ loadMiaContext: mocks.context }));
 vi.mock("@/lib/ai-credits.server", async (original) => ({
   ...(await original<typeof import("@/lib/ai-credits.server")>()),
   requireAiCredit: mocks.credit,
@@ -48,6 +50,7 @@ beforeEach(() => {
     },
   });
   mocks.readRecipe.mockResolvedValue({ data: { id: "firebaseRecipe123" }, error: null });
+  mocks.context.mockResolvedValue({ profile: null, pantry: [{ name: "rice", quantity: "1 cup" }] });
   mocks.readPantry.mockResolvedValue({ data: [{ name: "rice", quantity: "1 cup" }], error: null });
   mocks.credit.mockResolvedValue(undefined);
   mocks.rateLimit.mockResolvedValue(undefined);
@@ -71,15 +74,15 @@ describe("Mia API", () => {
   });
 
   it("includes the user's saved onboarding preferences in Mia's instructions", async () => {
-    mocks.readRecipe.mockResolvedValue({
-      data: {
+    mocks.context.mockResolvedValue({
+      profile: {
         preferences: {
           allergies: ["peanuts"],
           dietary_restrictions: ["Vegan"],
           goal: "Save money",
         },
       },
-      error: null,
+      pantry: [],
     });
     const response = await miaPost(request({ message: "Suggest dinner" }));
     expect(response.status).toBe(200);
@@ -93,7 +96,7 @@ describe("Mia API", () => {
     const recipe = { name: "Tomato rice", steps: ["Wash rice", "Add tomatoes"], step: 1 };
     const response = await miaPost(request({ message: "What next?", voice: true, recipe }));
     expect(response.status).toBe(200);
-    expect(mocks.readPantry).toHaveBeenCalledOnce();
+    expect(mocks.context).toHaveBeenCalledWith("synthetic-user", true);
     const instructions = mocks.text.mock.calls[0]?.[0].instructions;
     expect(instructions).toContain('"name":"rice"');
     expect(instructions).toContain('"step":1');
@@ -147,5 +150,29 @@ it.each([miaPost, imagePost])("rejects unauthenticated AI calls", async (handler
   const response = await handler(request({ message: "Hello", recipeId: "firebaseRecipe123" }));
   expect(response.status).toBe(401);
   expect(mocks.text).not.toHaveBeenCalled();
+  expect(mocks.image).not.toHaveBeenCalled();
+});
+
+it("passes actual quantities, completed steps and temperatures to Mia", async () => {
+  const recipe = {
+    name: "Roast carrots",
+    ingredients: ["500 g carrots", "1 tbsp olive oil"],
+    steps: ["Cut carrots", "Roast 20 minutes at 200°C"],
+    step: 1,
+    completedSteps: [0],
+    timing: "20 minutes",
+    temperature: "200°C",
+    paused: false,
+  };
+  const response = await miaPost(request({ message: "How long?", recipe }));
+  expect(response.status).toBe(200);
+  const prompt = mocks.text.mock.calls[0][0].instructions;
+  expect(prompt).toContain("500 g carrots");
+  expect(prompt).toContain('"completedSteps":[0]');
+  expect(prompt).toContain("200°C");
+});
+it("checks access before requesting a step visual", async () => {
+  mocks.readRecipe.mockResolvedValue({ data: null, error: null });
+  expect((await imagePost(request({ recipeId: "private", stepIndex: 1 }))).status).toBe(404);
   expect(mocks.image).not.toHaveBeenCalled();
 });

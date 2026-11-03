@@ -21,10 +21,12 @@ function setup() {
     async (_text: string, _signal: AbortSignal) => "What ingredients do you have today?",
   );
   const speak = vi.fn(async (_text: string, _signal: AbortSignal) => {});
+  const mutedByVoice = vi.fn();
   const session = new MiaVoiceSession({
     microphone,
     respond,
     speak,
+    mutedByVoice,
     changed: (next) => {
       snapshot = next;
     },
@@ -35,6 +37,7 @@ function setup() {
     microphone,
     respond,
     speak,
+    mutedByVoice,
     state: () => snapshot,
     hear: (text: string, endpoint = false) => {
       captured = text;
@@ -134,7 +137,7 @@ describe("foreground hands-free Mia", () => {
     expect(s.state().state).toBe("waiting");
     expect(s.respond).toHaveBeenCalledOnce();
     s.hear("hey mia");
-    await vi.advanceTimersByTimeAsync(25_100);
+    await vi.advanceTimersByTimeAsync(27_500);
     expect(s.state().state).toBe("waiting");
     s.session.stop();
   });
@@ -195,6 +198,44 @@ describe("foreground hands-free Mia", () => {
 it("only activates a complete wake phrase", () => {
   expect(afterMiaWake("Hey Mia, what is next?")).toBe("what is next?");
   expect(afterMiaWake("hey me a help with dinner")).toBe("help with dinner");
-  expect(afterMiaWake("Mia is helpful")).toBeNull();
+  expect(afterMiaWake("Mia is helpful")).toBe("is helpful");
+  expect(afterMiaWake("Hi Mia, what next?")).toBe("what next?");
+  expect(afterMiaWake("Mia what next?")).toBe("what next?");
+  expect(afterMiaWake("mute mia")).toBeNull();
   expect(afterMiaWake("they might cook")).toBeNull();
+});
+
+it("acknowledges a name-only wake and accepts a follow-up without a second wake", async () => {
+  const s = setup();
+  await s.session.start();
+  s.hear("mia");
+  await vi.advanceTimersByTimeAsync(2300);
+  expect(s.speak).toHaveBeenCalledWith("I'm here. What do you need?", expect.any(AbortSignal));
+  expect(s.state().state).toBe("listening");
+  s.hear("how long should this cook");
+  await vi.advanceTimersByTimeAsync(1300);
+  expect(s.respond).toHaveBeenCalledWith("how long should this cook", expect.any(AbortSignal));
+  s.session.stop();
+});
+it("does not greet while a question follows the wake phrase", async () => {
+  const s = setup();
+  await s.session.start();
+  s.hear("hi mia");
+  await vi.advanceTimersByTimeAsync(800);
+  s.hear("hi mia how do i simmer");
+  await vi.advanceTimersByTimeAsync(1300);
+  expect(s.respond).toHaveBeenCalledWith("how do i simmer", expect.any(AbortSignal));
+  expect(s.speak).not.toHaveBeenCalledWith("I'm here. What do you need?", expect.anything());
+  s.session.stop();
+});
+
+it("the spoken mute command disables automatic listening", async () => {
+  const s = setup();
+  await s.session.start();
+  s.hear("mia");
+  s.hear("mute mia");
+  await vi.advanceTimersByTimeAsync(1300);
+  expect(s.mutedByVoice).toHaveBeenCalledOnce();
+  expect(s.state().state).toBe("muted");
+  expect(s.respond).not.toHaveBeenCalled();
 });

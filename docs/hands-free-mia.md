@@ -2,11 +2,19 @@
 
 # Hands-free Mia
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:97e3feecaa9883c287fab5f4ad6229079dd2ec911a82969f2ab15b200f22f236 -->
+
 ## Behaviour
 
-Enable Hands-free Mia in the Consumer app, read the microphone explanation, and grant access. Say “Hey Mia, what can I cook?” The wake detector and English transcription run on the device. After Mia speaks, follow-up questions do not require another wake phrase or button press. After 25 seconds without a question, or “thanks Mia”, the session returns to wake listening. “Mute Mia”, “microphone off”, “stop listening”, or the visible Mute control stop capture. A question ends after about 1.2 seconds of silence, with a 30-second maximum turn.
+For a signed-in Premium user, Mia automatically requests microphone access and listens while the Consumer app is in the foreground. Say “Hey Mia”, “Hi Mia” or “Mia”, followed by a question. If only the name is spoken, Mia acknowledges it and waits for a question. Follow-up questions need no button or repeated name. After 25 seconds without a question, or “thanks Mia”, Mia returns to wake listening. “Mute Mia”, “microphone off”, “stop listening”, or the visible Mute control stop capture; a user's choice to mute is remembered on this device. Re-enable it with the visible control.
 
-The visible bar reports loading, waiting, listening, thinking, speaking, paused, muted, denied, or error. It remains across Consumer navigation. Mic permission is never requested on launch or during onboarding. Onboarding explains the optional feature; each explicit enabling session asks for informed consent. Resuming after backgrounding requires enabling again. Hub does not mount the voice provider.
+The visible bar reports loading, waiting, listening, thinking, speaking, paused, muted, denied, or error. The operating system or browser requests microphone permission; some browsers also need any normal screen interaction before audio can start. Mia resumes automatically after the app returns to the foreground or reconnects unless the user muted her. Permission denials and engine errors do not trigger repeated permission prompts. Hub does not mount the voice provider. This automatic foreground behavior replaces the earlier per-session opt-in at the user's request. It does not keep listening in the background or while the app is closed.
+
+
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 ## Audio, consent and context
 
@@ -14,7 +22,13 @@ The visible bar reports loading, waiting, listening, thinking, speaking, paused,
 - Activated question text and bounded conversation history go to the existing authenticated `/api/mia` endpoint. Existing Firebase, Premium verification, AI credit and rate limits still apply. Ordinary room speech is discarded locally.
 - Voice requests use the signed-in user's saved food preferences and pantry through the scoped server adapter. The currently open cooking screen supplies its recipe and zero-based step as data. “Next step”, “previous step”, and “repeat step” navigate/speak the current recipe locally. Suggestions do not silently save meal plans or modify pantry data.
 - Conversation history is in memory, shared with existing text chat and cleared on account change. Existing visual answers remain available for typed questions in Visual Mode.
-- Browser replies use device speech synthesis, preferring a local English voice. Android uses the native TextToSpeech plugin. The user's configured device speech service may process reply text. There is no cloud microphone recognizer fallback.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:5e8864284430754ec7699bce5010b698b9983d6a1fa043eb0b9a2dfc1fef09c4 -->
+
+- Spoken replies use ElevenLabs: the server sends Mia’s response text to ElevenLabs and returns audio for browser or Android playback. Microphone audio remains on the device. The authenticated Premium endpoint is rate-limited, limits reply and audio sizes, never exposes the API key, and cancels playback on mute or interruption. Configure server-only `ELEVENLABS_API_KEY`; optionally set `ELEVENLABS_VOICE_ID` to a voice available in that account. The default voice ID is the example in [ElevenLabs’ speech API](https://elevenlabs.io/docs/api-reference/text-to-speech/convert). If the key, voice, network or playback is unavailable, Mia shows an error and the text answer remains in chat; no device-voice fallback is used.
+
+<!-- /coderabbit-ai-generated:v1 -->
 - Microphone tracks, worklet/context and model worker are released on mute, permission failure, page hide, hidden document, Android app backgrounding, logout or loss of eligible Consumer access. Spoken output and pending client AI requests are cancelled. Android's App plugin supplies an explicit native activity listener. No foreground service or closed-app wake listening is implemented.
 - Echo cancellation and local comparison against the spoken reply reduce self-triggering; real device acoustics, accents, noise, battery use and interruption reliability still need field testing. This is an English-only first implementation, not a recognition accuracy benchmark.
 
@@ -26,7 +40,13 @@ The roughly 40 MB model downloads to the browser after enabling and is cached by
 
 The Consumer response policy now allows `microphone=(self)` and `worker-src 'self' blob:` to support permission prompts and Vosk's local worker. Hub host/path responses retain `microphone=()` and their previous worker policy. The Android manifest adds RECORD_AUDIO and MODIFY_AUDIO_SETTINGS, and Capacitor handles the runtime permission request.
 
-After dependency changes, run `bunx cap sync android`, then the existing Java21/SDK36 Gradle build. **The installed Android/Play app needs an updated native binary** with the microphone permissions, App and TTS plugins. Shipping web JavaScript alone cannot add them to an old installed wrapper. A wrapper without the required plugins displays an update message.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:a4458a087cf54da284c66ba0668b5f8a6c301f64f8533e4378e073de0a3bea0b -->
+
+After native dependency changes, run `bunx cap sync android`, then the existing Java21/SDK36 Gradle build. **The installed Android/Play app needs an updated native binary** with the microphone permissions and App plugin. ElevenLabs audio plays through the WebView; its API key remains on the server. Shipping web JavaScript alone cannot add microphone permission or native lifecycle support to an old installed wrapper. A wrapper without the required lifecycle plugin displays an update message.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 Sources: [Vosk browser implementation and API](https://github.com/ccoreilly/vosk-browser), [official Vosk model catalog and Apache2.0 licence](https://alphacephei.com/vosk/models), [native TTS plugin](https://github.com/capacitor-community/text-to-speech), [Capacitor app lifecycle API](https://capacitorjs.com/docs/apis/app).
 

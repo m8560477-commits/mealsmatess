@@ -16,11 +16,13 @@ import { getMyPreferences, saveMyPreferences } from "@/lib/preferences.functions
  */
 export function usePreferences() {
   const { user } = useSession();
-  const [prefs, setPrefs] = useState<FoodPreferences | null>(() => readLocalPreferences());
+  const userId = user?.id;
+  const [cached, setCached] = useState(() => ({ userId, prefs: readLocalPreferences(userId) }));
+  const prefs = cached.userId === userId ? cached.prefs : null;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const sync = () => setPrefs(readLocalPreferences());
+    const sync = () => setCached({ userId, prefs: readLocalPreferences(userId) });
     window.addEventListener(PREFERENCES_EVENT, sync);
     window.addEventListener("storage", sync);
     sync();
@@ -29,15 +31,15 @@ export function usePreferences() {
       window.removeEventListener(PREFERENCES_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
-  }, []);
+  }, [userId]);
 
   // On sign-in: push local answers up, or pull down what the account has.
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let cancelled = false;
     (async () => {
       try {
-        const local = readLocalPreferences();
+        const local = readLocalPreferences(userId);
         const remote = await getMyPreferences();
         if (cancelled) return;
         const localNewer =
@@ -47,7 +49,7 @@ export function usePreferences() {
           const { updated_at: _drop, ...rest } = local;
           await saveMyPreferences({ data: rest });
         } else if (remote?.onboarding_completed) {
-          writeLocalPreferences(remote);
+          writeLocalPreferences(remote, userId, true);
         }
       } catch {
         // offline or not provisioned yet — local answers still apply
@@ -56,13 +58,13 @@ export function usePreferences() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [userId]);
 
   const save = useCallback(
     async (next: FoodPreferences) => {
-      writeLocalPreferences(next);
-      setPrefs(next);
-      if (user) {
+      writeLocalPreferences(next, userId);
+      setCached({ userId, prefs: next });
+      if (userId) {
         const { updated_at: _drop, ...rest } = next;
         try {
           await saveMyPreferences({ data: rest });
@@ -73,13 +75,13 @@ export function usePreferences() {
         }
       }
     },
-    [user],
+    [userId],
   );
 
   const reset = useCallback(() => {
-    clearLocalPreferences();
-    setPrefs(null);
-  }, []);
+    clearLocalPreferences(userId);
+    setCached({ userId, prefs: null });
+  }, [userId]);
 
   return {
     preferences: prefs ?? EMPTY_PREFERENCES,

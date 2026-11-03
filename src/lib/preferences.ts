@@ -61,10 +61,14 @@ export function normalizePreferences(raw: unknown): FoodPreferences {
   };
 }
 
-export function readLocalPreferences(): FoodPreferences | null {
+function preferencesKey(userId?: string): string {
+  return userId ? `${KEY}:${userId}` : KEY;
+}
+
+export function readLocalPreferences(userId?: string): FoodPreferences | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(preferencesKey(userId));
     if (!raw) return null;
     return normalizePreferences(JSON.parse(raw));
   } catch {
@@ -72,17 +76,24 @@ export function readLocalPreferences(): FoodPreferences | null {
   }
 }
 
-export function writeLocalPreferences(prefs: FoodPreferences): void {
+export function writeLocalPreferences(
+  prefs: FoodPreferences,
+  userId?: string,
+  preserveTimestamp = false,
+): void {
   if (typeof window === "undefined") return;
-  const next = { ...prefs, updated_at: new Date().toISOString() };
-  window.localStorage.setItem(KEY, JSON.stringify(next));
+  const next = {
+    ...prefs,
+    updated_at: preserveTimestamp ? prefs.updated_at : new Date().toISOString(),
+  };
+  window.localStorage.setItem(preferencesKey(userId), JSON.stringify(next));
   window.localStorage.setItem(SEEN_KEY, "1");
   window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT));
 }
 
-export function clearLocalPreferences(): void {
+export function clearLocalPreferences(userId?: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
+  window.localStorage.removeItem(preferencesKey(userId));
   window.localStorage.removeItem(SEEN_KEY);
   window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT));
 }

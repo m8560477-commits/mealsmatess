@@ -9,11 +9,14 @@ const mocks = vi.hoisted(() => ({
   premium: true,
   native: false,
   addListener: vi.fn(),
+  getState: vi.fn(),
 }));
 vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => mocks.native, isPluginAvailable: () => true },
 }));
-vi.mock("@capacitor/app", () => ({ App: { addListener: mocks.addListener } }));
+vi.mock("@capacitor/app", () => ({
+  App: { addListener: mocks.addListener, getState: mocks.getState },
+}));
 vi.mock("@/hooks/use-session", () => ({ useSession: () => ({ user: mocks.user }) }));
 vi.mock("@/hooks/use-premium", () => ({ usePremium: () => ({ isPremium: mocks.premium }) }));
 vi.mock("@tanstack/react-router", () => ({
@@ -30,6 +33,9 @@ function Capture() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  mocks.getState.mockResolvedValue({ isActive: true });
+  mocks.mic.mockResolvedValue({ reset: vi.fn(), finish: vi.fn(async () => ""), dispose: vi.fn() });
   mocks.user = { id: "voice-user" };
   mocks.premium = true;
   mocks.native = false;
@@ -42,7 +48,8 @@ it("shares typed and spoken history and includes the current cooking step", asyn
       <Capture />
     </MiaProvider>,
   );
-  expect(mocks.mic).not.toHaveBeenCalled();
+  await waitFor(() => expect(mia.voice.state).toBe("waiting"));
+  expect(mocks.mic).toHaveBeenCalledOnce();
   await act(async () => {
     await mia.ask("I have rice and tomatoes");
   });
@@ -95,11 +102,73 @@ it("releases the microphone on Android app backgrounding", async () => {
     </MiaProvider>,
   );
   await waitFor(() => expect(mocks.addListener).toHaveBeenCalled());
-  await act(async () => {
-    mia.startVoice();
-  });
   await waitFor(() => expect(mia.voice.state).toBe("waiting"));
   act(() => activity({ isActive: false }));
   expect(dispose).toHaveBeenCalledOnce();
   expect(mia.voice.state).toBe("paused");
+  act(() => activity({ isActive: true }));
+  await waitFor(() => expect(mia.voice.state).toBe("waiting"));
+  expect(mocks.mic).toHaveBeenCalledTimes(2);
+});
+
+it("remembers an explicit mute and does not restart on foreground return or reload", async () => {
+  const page = render(
+    <MiaProvider>
+      <Capture />
+    </MiaProvider>,
+  );
+  await waitFor(() => expect(mia.voice.state).toBe("waiting"));
+  act(() => mia.stopVoice());
+  expect(localStorage.getItem("mealmate:voice-muted:voice-user")).toBe("1");
+  act(() => window.dispatchEvent(new Event("pageshow")));
+  expect(mocks.mic).toHaveBeenCalledOnce();
+  page.unmount();
+  render(
+    <MiaProvider>
+      <Capture />
+    </MiaProvider>,
+  );
+  expect(mocks.mic).toHaveBeenCalledOnce();
+  act(() => mia.startVoice());
+  await waitFor(() => expect(mia.voice.state).toBe("waiting"));
+  expect(mocks.mic).toHaveBeenCalledTimes(2);
+});
+it("does not retry microphone permission denial on ordinary page events", async () => {
+  mocks.mic.mockRejectedValueOnce(new DOMException("Permission denied", "NotAllowedError"));
+  render(
+    <MiaProvider>
+      <Capture />
+    </MiaProvider>,
+  );
+  await waitFor(() => expect(mia.voice.state).toBe("denied"));
+  act(() => window.dispatchEvent(new Event("pageshow")));
+  expect(mocks.mic).toHaveBeenCalledOnce();
+});
+it("does not start for a signed-out or unverified account", () => {
+  mocks.premium = false;
+  render(
+    <MiaProvider>
+      <Capture />
+    </MiaProvider>,
+  );
+  expect(mocks.mic).not.toHaveBeenCalled();
+});
+
+it("waits for Android foreground before opening the microphone", async () => {
+  mocks.native = true;
+  let activity!: (state: { isActive: boolean }) => void;
+  mocks.addListener.mockImplementation(async (_event, listener) => {
+    activity = listener;
+    return { remove: vi.fn(async () => {}) };
+  });
+  mocks.getState.mockResolvedValue({ isActive: false });
+  render(
+    <MiaProvider>
+      <Capture />
+    </MiaProvider>,
+  );
+  await waitFor(() => expect(mocks.getState).toHaveBeenCalledOnce());
+  expect(mocks.mic).not.toHaveBeenCalled();
+  act(() => activity({ isActive: true }));
+  await waitFor(() => expect(mia.voice.state).toBe("waiting"));
 });

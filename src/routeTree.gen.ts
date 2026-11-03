@@ -36,6 +36,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ApiMiaRouteImport } from './routes/api/mia'
+import { Route as ApiMiaSpeechRouteImport } from './routes/api/mia-speech'
 import { Route as ApiRecipeImageRouteImport } from './routes/api/recipe-image'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
@@ -183,6 +184,11 @@ const ApiMiaRoute = ApiMiaRouteImport.update({
   path: '/api/mia',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMiaSpeechRoute = ApiMiaSpeechRouteImport.update({
+  id: '/api/mia-speech',
+  path: '/api/mia-speech',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRecipeImageRoute = ApiRecipeImageRouteImport.update({
   id: '/api/recipe-image',
   path: '/api/recipe-image',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
   '/api/mia': typeof ApiMiaRoute
+  '/api/mia-speech': typeof ApiMiaSpeechRoute
   '/api/recipe-image': typeof ApiRecipeImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
   '/api/mia': typeof ApiMiaRoute
+  '/api/mia-speech': typeof ApiMiaSpeechRoute
   '/api/recipe-image': typeof ApiRecipeImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
   '/api/mia': typeof ApiMiaRoute
+  '/api/mia-speech': typeof ApiMiaSpeechRoute
   '/api/recipe-image': typeof ApiRecipeImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/welcome'
     | '/api/mia'
+    | '/api/mia-speech'
     | '/api/recipe-image'
     | '/auth/callback'
     | '/legal/privacy'
@@ -433,6 +443,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/welcome'
     | '/api/mia'
+    | '/api/mia-speech'
     | '/api/recipe-image'
     | '/auth/callback'
     | '/legal/privacy'
@@ -473,6 +484,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/welcome'
     | '/api/mia'
+    | '/api/mia-speech'
     | '/api/recipe-image'
     | '/auth/callback'
     | '/legal/privacy'
@@ -514,6 +526,7 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   WelcomeRoute: typeof WelcomeRoute
   ApiMiaRoute: typeof ApiMiaRoute
+  ApiMiaSpeechRoute: typeof ApiMiaSpeechRoute
   ApiRecipeImageRoute: typeof ApiRecipeImageRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
@@ -716,6 +729,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMiaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mia-speech': {
+      id: '/api/mia-speech'
+      path: '/api/mia-speech'
+      fullPath: '/api/mia-speech'
+      preLoaderRoute: typeof ApiMiaSpeechRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/recipe-image': {
       id: '/api/recipe-image'
       path: '/api/recipe-image'
@@ -845,6 +865,7 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   WelcomeRoute: WelcomeRoute,
   ApiMiaRoute: ApiMiaRoute,
+  ApiMiaSpeechRoute: ApiMiaSpeechRoute,
   ApiRecipeImageRoute: ApiRecipeImageRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,

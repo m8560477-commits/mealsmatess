@@ -1678,3 +1678,10 @@ html[data-mia-controls="visible"] #app-scroll {
 
 @import "./styles-paywall-override.css";
 @import "./styles-auth-override.css";
+
+.mia-voice-provider {
+  margin: 9px 12px 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}

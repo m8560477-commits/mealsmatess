@@ -62,10 +62,11 @@ describe("onboarding account flow", () => {
 
   it("walks through discovery, planner, Mia, optional preferences, notifications and completion", async () => {
     render(<Page />);
-    await screen.findByRole("heading", { name: "Find your next favourite." });
+    await screen.findByRole("heading", { name: "Discover. Plan. Eat. Enjoy." });
     for (const title of [
+      "Find your next favourite.",
       "Make every meal count.",
-      "Your food assistant, Mia.",
+      "Meet Mia, your kitchen companion.",
       "Make MealMate yours.",
     ]) {
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -84,7 +85,9 @@ describe("onboarding account flow", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Not now" }));
     fireEvent.click(screen.getByRole("button", { name: "Get started" }));
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith({ to: "/", replace: true }));
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/premium", replace: true }),
+    );
     expect(mocks.save).toHaveBeenLastCalledWith({
       data: expect.objectContaining({ onboarding_completed: true }),
     });
@@ -108,20 +111,22 @@ describe("onboarding account flow", () => {
   it("resumes only the current account's draft", async () => {
     saveOnboardingDraft("account-b", 5, { ...EMPTY_PREFERENCES, allergies: ["Milk"] });
     render(<Page />);
-    await screen.findByRole("heading", { name: "Find your next favourite." });
+    await screen.findByRole("heading", { name: "Discover. Plan. Eat. Enjoy." });
     expect(readOnboardingDraft("account-a")?.preferences.allergies).toEqual([]);
   });
-  it("sends completed accounts home without replaying setup", async () => {
+  it("sends completed accounts to the paywall without replaying setup", async () => {
     mocks.get.mockResolvedValue({ ...EMPTY_PREFERENCES, onboarding_completed: true });
     render(<Page />);
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith({ to: "/", replace: true }));
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/premium", replace: true }),
+    );
     expect(mocks.save).not.toHaveBeenCalled();
   });
   it("does not overwrite preferences when the initial account fetch fails", async () => {
     mocks.get.mockRejectedValueOnce(new Error("offline"));
     render(<Page />);
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
-    await screen.findByRole("heading", { name: "Find your next favourite." });
+    await screen.findByRole("heading", { name: "Discover. Plan. Eat. Enjoy." });
     expect(mocks.save).not.toHaveBeenCalled();
   });
 });

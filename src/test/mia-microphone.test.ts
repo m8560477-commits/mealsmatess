@@ -73,3 +73,58 @@ it("closes audio resources when permission is denied", async () => {
   expect(close).toHaveBeenCalledOnce();
   expect(mocks.load).not.toHaveBeenCalled();
 });
+it("requests mic permission on launch and resumes suspended audio on a normal screen interaction", async () => {
+  let resumes = 0;
+  const audioState = { current: "suspended" };
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      sampleRate = 16000;
+      get state() {
+        return audioState.current;
+      }
+      onstatechange = null;
+      audioWorklet = { addModule: vi.fn(async () => {}) };
+      resume() {
+        resumes++;
+        if (resumes === 1) return new Promise<void>(() => {});
+        audioState.current = "running";
+        return Promise.resolve();
+      }
+      close = close;
+      createMediaStreamSource() {
+        return { connect: vi.fn(), disconnect: vi.fn() };
+      }
+    },
+  );
+  const controller = new AbortController();
+  const pending = openMiaMicrophone(events, controller.signal);
+  await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+  expect(audioState.current).toBe("suspended");
+  window.dispatchEvent(new Event("pointerdown"));
+  const microphone = await pending;
+  expect(audioState.current).toBe("running");
+  expect(mocks.load).toHaveBeenCalledOnce();
+  microphone.dispose();
+});
+it("releases the microphone when stopped while awaiting an audio gesture", async () => {
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      sampleRate = 16000;
+      state = "suspended";
+      onstatechange = null;
+      resume() {
+        return new Promise<void>(() => {});
+      }
+      close = close;
+    },
+  );
+  const controller = new AbortController();
+  const pending = openMiaMicrophone(events, controller.signal);
+  await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(stop).toHaveBeenCalledOnce();
+  expect(close).toHaveBeenCalledOnce();
+});

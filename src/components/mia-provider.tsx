@@ -36,6 +36,21 @@ export function MiaProvider({ children }: { children: ReactNode }) {
   });
   const session = useRef<MiaVoiceSession | null>(null);
   const nativeLifecycleReady = useRef(!Capacitor.isNativePlatform());
+  const nativeForeground = useRef(true);
+  const statusRef = useRef<MiaVoiceSnapshot>({ state: "muted", transcript: "", error: "" });
+  const manualMuted = useRef(false);
+  const cookingPaused = useRef(false);
+  const userIdRef = useRef(user?.id);
+  userIdRef.current = user?.id;
+  const saveMute = useCallback((muted: boolean) => {
+    manualMuted.current = muted;
+    try {
+      if (userIdRef.current)
+        localStorage.setItem(`mealmate:voice-muted:${userIdRef.current}`, muted ? "1" : "0");
+    } catch {
+      /* Device storage may be unavailable. */
+    }
+  }, []);
   const allowedRef = useRef(allowed);
   allowedRef.current = allowed;
   const updateTurns = useCallback((update: (items: MiaTurn[]) => MiaTurn[]) => {
@@ -48,6 +63,48 @@ export function MiaProvider({ children }: { children: ReactNode }) {
     },
     [updateTurns],
   );
+
+  const startIfEligible = useCallback(() => {
+    if (
+      !allowedRef.current ||
+      manualMuted.current ||
+      cookingPaused.current ||
+      !nativeLifecycleReady.current ||
+      !nativeForeground.current ||
+      !navigator.onLine ||
+      document.visibilityState !== "visible"
+    )
+      return;
+    if (!["muted", "paused"].includes(statusRef.current.state)) return;
+    void session.current?.start();
+  }, []);
+  const startVoice = useCallback(() => {
+    if (!allowedRef.current) return;
+    saveMute(false);
+    if (!nativeLifecycleReady.current) {
+      session.current?.stop("error", "Update or reopen MealMate to enable foreground listening.");
+      return;
+    }
+    if (!navigator.onLine || document.visibilityState !== "visible" || !nativeForeground.current) {
+      session.current?.stop("paused", "Keep MealMate active and connect to resume hands-free.");
+      return;
+    }
+    cookingPaused.current = false;
+    session.current?.stop();
+    startIfEligible();
+  }, [saveMute, startIfEligible]);
+  const stopVoice = useCallback(() => {
+    saveMute(true);
+    session.current?.stop();
+  }, [saveMute]);
+  const pauseVoice = useCallback(() => {
+    cookingPaused.current = true;
+    session.current?.stop("paused");
+  }, []);
+  const resumeVoice = useCallback(() => {
+    cookingPaused.current = false;
+    startIfEligible();
+  }, [startIfEligible]);
 
   const answer = useCallback(
     async (text: string, history: MiaTurn[], signal: AbortSignal, voiceMode: boolean) => {
@@ -179,17 +236,25 @@ export function MiaProvider({ children }: { children: ReactNode }) {
     const current = recipe.current;
     if (
       current &&
-      /^(next(?: step)?|previous(?: step)?|repeat(?: (?:the )?step)?|what(?: is|'s) (?:the )?(?:current )?step)[.!]?$/i.test(
+      !current.paused &&
+      /^(next(?: step)?|previous(?: step)?|repeat(?: (?:the )?step)?|what(?: is|'s|’s) (?:the )?(?:current )?step|what(?: is|'s|’s) next)[.!?]?$/i.test(
         text,
       )
     ) {
-      const next = /^next/i.test(text)
+      const next = /^(?:next|what(?: is|'s|’s) next)/i.test(text)
         ? Math.min(current.steps.length - 1, current.step + 1)
         : /^previous/i.test(text)
           ? Math.max(0, current.step - 1)
           : current.step;
       recipeStepper.current?.(next);
-      recipe.current = { ...current, step: next };
+      recipe.current = {
+        ...current,
+        step: next,
+        completedSteps:
+          next > current.step
+            ? Array.from(new Set([...(current.completedSteps ?? []), current.step]))
+            : current.completedSteps,
+      };
       const reply = `Step ${next + 1} of ${current.steps.length}. ${current.steps[next]}`;
       updateTurns((items) =>
         [...items, { id: crypto.randomUUID(), question: text, answer: reply }].slice(-50),
@@ -203,7 +268,11 @@ export function MiaProvider({ children }: { children: ReactNode }) {
     const instance = new MiaVoiceSession({
       microphone: openMiaMicrophone,
       speak: speakMia,
-      changed: setVoice,
+      changed: (value) => {
+        statusRef.current = value;
+        setVoice(value);
+      },
+      mutedByVoice: () => saveMute(true),
       respond: (text, signal) => voiceRespond.current(text, signal),
     });
     session.current = instance;
@@ -211,31 +280,44 @@ export function MiaProvider({ children }: { children: ReactNode }) {
     let disposed = false;
     let removeNativeListener: (() => Promise<void>) | undefined;
     if (Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("App")) {
+      let activityVersion = 0;
       void import("@capacitor/app")
-        .then(({ App }) =>
-          App.addListener("appStateChange", ({ isActive }) => {
+        .then(async ({ App }) => {
+          const listener = await App.addListener("appStateChange", ({ isActive }) => {
+            activityVersion += 1;
+            nativeForeground.current = isActive;
             if (!isActive) pause();
-          }),
-        )
-        .then((listener) => {
-          if (disposed) void listener.remove();
-          else {
-            nativeLifecycleReady.current = true;
-            removeNativeListener = () => listener.remove();
+            else startIfEligible();
+          });
+          if (disposed) {
+            await listener.remove();
+            return;
           }
+          removeNativeListener = () => listener.remove();
+          const observedVersion = activityVersion;
+          const state = await App.getState();
+          if (disposed) return;
+          if (activityVersion === observedVersion) nativeForeground.current = state.isActive;
+          nativeLifecycleReady.current = true;
+          if (nativeForeground.current) startIfEligible();
+          else pause();
         })
-        .catch(() =>
-          instance.stop("error", "Couldn't monitor app activity. Enable hands-free again."),
-        );
+        .catch(() => {
+          if (!disposed)
+            instance.stop("error", "Couldn't monitor app activity. Reopen MealMate to try again.");
+        });
     }
     const visibility = () => {
       if (document.visibilityState !== "visible") pause();
+      else startIfEligible();
     };
     const offline = () =>
       instance.stop("paused", "You're offline. Reconnect and resume hands-free.");
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", pause);
     window.addEventListener("offline", offline);
+    window.addEventListener("online", startIfEligible);
+    window.addEventListener("pageshow", startIfEligible);
     return () => {
       disposed = true;
       nativeLifecycleReady.current = !Capacitor.isNativePlatform();
@@ -245,8 +327,10 @@ export function MiaProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", pause);
       window.removeEventListener("offline", offline);
+      window.removeEventListener("online", startIfEligible);
+      window.removeEventListener("pageshow", startIfEligible);
     };
-  }, []);
+  }, [saveMute, startIfEligible]);
   useEffect(() => {
     if (!allowed) {
       session.current?.stop();
@@ -258,7 +342,21 @@ export function MiaProvider({ children }: { children: ReactNode }) {
     requestRef.current?.abort();
     updateTurns(() => []);
     recipe.current = null;
+    cookingPaused.current = false;
+    try {
+      manualMuted.current =
+        !!user?.id && localStorage.getItem(`mealmate:voice-muted:${user.id}`) === "1";
+    } catch {
+      manualMuted.current = false;
+    }
   }, [user?.id, updateTurns]);
+  useEffect(() => {
+    if (allowed && Capacitor.isNativePlatform() && !Capacitor.isPluginAvailable("App")) {
+      session.current?.stop("error", "Update the MealMate app to enable hands-free Mia.");
+      return;
+    }
+    startIfEligible();
+  }, [allowed, user?.id, startIfEligible]);
 
   return (
     <MiaContext.Provider
@@ -268,25 +366,10 @@ export function MiaProvider({ children }: { children: ReactNode }) {
         ask,
         retry,
         voice,
-        startVoice: () => {
-          if (!allowedRef.current) return;
-          if (!nativeLifecycleReady.current) {
-            session.current?.stop(
-              "error",
-              "Update or reopen MealMate to enable safe foreground listening.",
-            );
-            return;
-          }
-          if (!navigator.onLine || document.visibilityState !== "visible") {
-            session.current?.stop(
-              "paused",
-              "Keep MealMate active and connect to resume hands-free.",
-            );
-            return;
-          }
-          void session.current?.start();
-        },
-        stopVoice: () => session.current?.stop(),
+        startVoice,
+        stopVoice,
+        pauseVoice,
+        resumeVoice,
         endConversation: () => session.current?.endConversation(),
         setRecipe,
       }}

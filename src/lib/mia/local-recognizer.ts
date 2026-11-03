@@ -95,7 +95,9 @@ export class LocalRecognizer {
     if (mode === "ignore") return;
     const recognizer = new this.model.KaldiRecognizer(
       this.rate,
-      mode === "wake" ? JSON.stringify(["hey mia", "hey me a", "[unk]"]) : undefined,
+      mode === "wake"
+        ? JSON.stringify(["hey mia", "hey me a", "hi mia", "hi me a", "mia", "me a", "[unk]"])
+        : undefined,
     );
     this.recognizer = recognizer;
     recognizer.setWords(true);
@@ -103,7 +105,7 @@ export class LocalRecognizer {
       if (!("result" in message) || !("partial" in message.result)) return;
       const text = message.result.partial;
       if (this.mode === "wake") {
-        if (!this.waking && /\bhey (mia|me a)\b/.test(text)) {
+        if (!this.waking && /\b(?:(?:hey|hi)\s+)?(?:mia|me a)\b/i.test(text)) {
           this.waking = true;
           // Resolve the wake word's acoustic end timestamp, preserving trailing question audio.
           recognizer.retrieveFinalResult();
@@ -122,11 +124,12 @@ export class LocalRecognizer {
           .filter((word) => word.word === "mia" || word.word === "a")
           .at(-1)?.end;
         if (
-          (this.waking || /\bhey (mia|me a)\b/.test(message.result.text)) &&
+          (this.waking || /\b(?:(?:hey|hi)\s+)?(?:mia|me a)\b/i.test(message.result.text)) &&
           wakeEnd !== undefined
         ) {
           const buffered = this.ring;
-          const cut = Math.round(wakeEnd * this.rate);
+          // Keep a short overlap: word end timestamps can run into the first question word.
+          const cut = Math.max(0, Math.round((wakeEnd - 0.22) * this.rate));
           if (!this.waking) this.transcript("hey mia", false);
           this.reset("conversation");
           for (const { start, data } of buffered) {

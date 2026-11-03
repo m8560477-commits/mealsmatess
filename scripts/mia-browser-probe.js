@@ -64,6 +64,21 @@ void (async () => {
       throw new Error("Hands-free follow-up was lost");
     session.endConversation();
     if (probe.state !== "waiting") throw new Error("Did not return to wake listening");
+    await feed("hi-mia");
+    if (
+      probe.questions.length !== 3 ||
+      !/chicken/.test(probe.questions[2]) ||
+      !/rice/.test(probe.questions[2])
+    )
+      throw new Error("Hi Mia question was lost");
+    session.endConversation();
+    await feed("mia");
+    if (
+      probe.questions.length !== 4 ||
+      !/chicken/.test(probe.questions[3]) ||
+      !/rice/.test(probe.questions[3])
+    )
+      throw new Error("Mia question was lost");
     session.stop();
     probe.phase = "done";
   } finally {

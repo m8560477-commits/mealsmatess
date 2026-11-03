@@ -16,8 +16,9 @@ type Dependencies = {
   respond: (text: string, signal: AbortSignal) => Promise<string>;
   speak: (text: string, signal: AbortSignal) => Promise<void>;
   changed: (value: MiaVoiceSnapshot) => void;
+  mutedByVoice?: () => void;
 };
-const WAKE = /\bhey\s+(?:mia|me\s+a)\b[,.!?\s]*/i;
+const WAKE = /^\s*(?:(?:hey|hi)\s+)?(?:mia|me\s+a)\b[,.!?\s]*/i;
 export function afterMiaWake(text: string): string | null {
   const match = WAKE.exec(text);
   return match ? text.slice(match.index + match[0].length).trim() : null;
@@ -40,7 +41,7 @@ function isReplyEcho(text: string, reply: string) {
   );
 }
 
-/** One opt-in foreground session. The only network boundary is respond(), after activation. */
+/** One foreground session. The only network boundary is respond(), after activation. */
 export class MiaVoiceSession {
   private snapshot: MiaVoiceSnapshot = { state: "muted", transcript: "", error: "" };
   private lifetime?: AbortController;
@@ -49,6 +50,7 @@ export class MiaVoiceSession {
   private silence?: ReturnType<typeof setTimeout>;
   private idle?: ReturnType<typeof setTimeout>;
   private maxTurn?: ReturnType<typeof setTimeout>;
+  private greeting?: ReturnType<typeof setTimeout>;
   private finalizing = false;
   private spoken = "";
   constructor(private dependencies: Dependencies) {}
@@ -67,6 +69,7 @@ export class MiaVoiceSession {
     clearTimeout(this.silence);
     clearTimeout(this.idle);
     clearTimeout(this.maxTurn);
+    clearTimeout(this.greeting);
   }
   stop(state: MiaVoiceState = "muted", error = "") {
     this.clearTimers();
@@ -95,7 +98,13 @@ export class MiaVoiceSession {
               this.snapshot.transcript
             ) {
               this.scheduleFinish();
+            } else if (!lifetime.signal.aborted && this.snapshot.state === "listening") {
+              this.scheduleGreeting();
             }
+          },
+          needsGesture: () => {
+            if (!lifetime.signal.aborted && this.snapshot.state === "loading")
+              this.change("loading", "", "Tap anywhere in MealMate to enable audio.");
           },
           failed: (error) => {
             if (!lifetime.signal.aborted) this.stop("error", error.message);
@@ -135,6 +144,35 @@ export class MiaVoiceSession {
     clearTimeout(this.silence);
     this.silence = setTimeout(() => void this.finish(), 1200);
   }
+  private scheduleGreeting() {
+    clearTimeout(this.greeting);
+    this.greeting = setTimeout(() => void this.greet(), 2200);
+  }
+  private async greet() {
+    if (
+      this.snapshot.state !== "listening" ||
+      this.snapshot.transcript ||
+      !this.mic ||
+      !this.lifetime
+    )
+      return;
+    const lifetime = this.lifetime;
+    const output = new AbortController();
+    this.output = output;
+    this.clearTimers();
+    this.mic.reset();
+    this.spoken = "I'm here. What do you need?";
+    this.change("speaking");
+    try {
+      await this.dependencies.speak(this.spoken, output.signal);
+      if (lifetime.signal.aborted || output.signal.aborted) return;
+      this.mic?.reset();
+      this.listen();
+    } catch (error) {
+      if (lifetime.signal.aborted || output.signal.aborted) return;
+      this.wait(error instanceof Error ? error.message : "Mia couldn't speak. Try again.");
+    }
+  }
   private heard(text: string, endpoint: boolean) {
     if (this.finalizing) return;
     const wakeText = afterMiaWake(text);
@@ -145,6 +183,7 @@ export class MiaVoiceSession {
         return;
       }
       this.listen();
+      if (!wakeText.trim()) this.scheduleGreeting();
     } else if (this.snapshot.state === "speaking") {
       const candidate = normal(text);
       // AEC is enabled; also suppress recognition of Mia's own spoken words.
@@ -156,6 +195,7 @@ export class MiaVoiceSession {
     const question = wakeText ?? text;
     this.change("listening", question.slice(0, 4000));
     if (question.trim()) {
+      clearTimeout(this.greeting);
       clearTimeout(this.idle);
       this.scheduleFinish();
     }
@@ -174,6 +214,7 @@ export class MiaVoiceSession {
       return;
     }
     if (/^(mute mia|microphone off|mute microphone|stop listening)[.!]?$/i.test(text)) {
+      this.dependencies.mutedByVoice?.();
       this.stop();
       return;
     }

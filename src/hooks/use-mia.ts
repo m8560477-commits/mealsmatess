@@ -1,8 +1,10 @@
+import type { z } from "zod";
+import type { cookingRecipeSchema } from "@/lib/cooking-context";
 import { createContext, useContext } from "react";
 import type { VisualExplanation } from "@/lib/visual.functions";
 import type { MiaVoiceSnapshot } from "@/lib/mia/voice-session";
 
-export type MiaRecipe = { name: string; steps: string[]; step: number };
+export type MiaRecipe = z.infer<typeof cookingRecipeSchema>;
 export type MiaTurn = {
   id: string;
   question: string;
@@ -23,6 +25,8 @@ export type MiaContextValue = {
   voice: MiaVoiceSnapshot;
   startVoice: () => void;
   stopVoice: () => void;
+  pauseVoice: () => void;
+  resumeVoice: () => void;
   endConversation: () => void;
   setRecipe: (recipe: MiaRecipe | null, onStep?: (step: number) => void) => void;
 };

@@ -84,7 +84,7 @@ describe("onboarding and mandatory paywall", () => {
     mount(<Welcome />);
     for (let step = 1; step <= 4; step++) {
       expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", String(step));
-      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+      fireEvent.click(screen.getByRole("button", { name: /Continue|Choose Premium/ }));
     }
     expect(mocks.navigate).toHaveBeenCalledWith({ to: "/premium", replace: true });
     expect(localStorage.getItem("mealmate.tour-seen.v1")).toBe("1");
@@ -127,7 +127,7 @@ describe("onboarding and mandatory paywall", () => {
   it("restores an existing account without another purchase", async () => {
     mocks.session.user = { id: "subscriber" };
     mount(<PremiumPaywall />);
-    const restore = await screen.findByRole("button", { name: "Restore Purchases" });
+    const restore = await screen.findByRole("button", { name: "Restore purchases" });
     await waitFor(() => expect(restore).not.toBeDisabled());
     fireEvent.click(restore);
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith({ to: "/", replace: true }));
@@ -145,7 +145,7 @@ describe("onboarding and mandatory paywall", () => {
   it("keeps an inactive restored purchase on the paywall", async () => {
     mocks.verify.mockResolvedValue({ isPremium: false });
     mount(<PremiumPaywall />);
-    const restore = await screen.findByRole("button", { name: "Restore Purchases" });
+    const restore = await screen.findByRole("button", { name: "Restore purchases" });
     await waitFor(() => expect(restore).not.toBeDisabled());
     fireEvent.click(restore);
     await screen.findByText(/subscription isn’t confirmed/, {}, { timeout: 4000 });
@@ -188,13 +188,14 @@ describe("Consumer route enforcement", () => {
       </ConsumerAccessGate>,
     );
     await waitFor(() =>
-      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/welcome", replace: true }),
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/onboarding", replace: true }),
     );
     expect(screen.queryByText("Protected app")).not.toBeInTheDocument();
   });
   it("cannot unlock app content by editing onboarding storage", async () => {
     localStorage.setItem("mealmate.tour-seen.v1", "1");
     localStorage.setItem("premium", "true");
+    mocks.intro.mockResolvedValue(true);
     mocks.session.user = { id: "unpaid" };
     mount(
       <ConsumerAccessGate>

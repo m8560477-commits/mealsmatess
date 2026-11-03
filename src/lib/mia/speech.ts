@@ -1,106 +1,73 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
-import type { TextToSpeechPlugin } from "@capacitor-community/text-to-speech";
+import { waitForFirebaseAuth } from "@/lib/firebase";
 
-// Register only the native bridge. The package's web implementation touches
-// window during module loading, including in the server-rendered bundle.
-// Browser replies use speakBrowser instead.
-
-/** Device TTS, preferring a local English voice. No microphone data is passed to TTS. */
-function speakBrowser(text: string, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (!("speechSynthesis" in window)) {
-      reject(
-        new Error("Spoken replies aren't available on this device. Mia's answer is shown in chat."),
-      );
-      return;
-    }
-    signal.throwIfAborted();
-    const synth = window.speechSynthesis;
-    const chunks = text.replace(/[*#`]/g, "").match(/.{1,180}(?:\s|$)|\S{1,180}/g) ?? [];
-    let timer: ReturnType<typeof setTimeout>;
-    const cleanup = () => {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", abort);
-    };
-    const abort = () => {
-      cleanup();
-      synth.cancel();
-      reject(new DOMException("Speech interrupted", "AbortError"));
-    };
-    signal.addEventListener("abort", abort, { once: true });
-    const next = () => {
-      if (signal.aborted) return;
-      const chunk = chunks.shift();
-      if (!chunk) {
-        cleanup();
-        resolve();
-        return;
-      }
-      const utterance = new SpeechSynthesisUtterance(chunk);
-      const voices = synth.getVoices().filter((voice) => voice.lang.startsWith("en"));
-      utterance.voice = voices.find((voice) => voice.localService) ?? voices[0] ?? null;
-      utterance.lang = "en-US";
-      utterance.rate = 1;
-      utterance.onend = next;
-      utterance.onerror = () => {
-        cleanup();
-        reject(new Error("Couldn't speak the reply. You can read it in Mia chat."));
-      };
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        cleanup();
-        synth.cancel();
-        reject(new Error("Device speech stopped responding. You can read Mia's answer in chat."));
-      }, 35_000);
-      synth.speak(utterance);
-    };
-    next();
-  });
-}
-
+/** Play server-generated ElevenLabs audio. Mute and interruption cancel both fetch and playback. */
 export async function speakMia(text: string, signal: AbortSignal): Promise<void> {
   signal.throwIfAborted();
-  if (!Capacitor.isNativePlatform()) return speakBrowser(text, signal);
-  if (!Capacitor.isPluginAvailable("TextToSpeech")) {
-    throw new Error("Update the MealMate Android app to enable spoken Mia replies.");
-  }
-  const TextToSpeech = registerPlugin<TextToSpeechPlugin>("TextToSpeech");
+  const user = await waitForFirebaseAuth();
+  if (!user) throw new Error("Sign in to hear Mia.");
+  const token = await user.getIdToken();
   signal.throwIfAborted();
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      clearTimeout(timeout);
-      signal.removeEventListener("abort", abort);
-    };
-    const abort = () => {
-      cleanup();
-      void TextToSpeech.stop().catch(() => undefined);
-      reject(new DOMException("Speech interrupted", "AbortError"));
-    };
-    const timeout = setTimeout(() => {
-      cleanup();
-      void TextToSpeech.stop().catch(() => undefined);
-      reject(new Error("Device speech stopped responding. You can read Mia's answer in chat."));
-    }, 120_000);
-    signal.addEventListener("abort", abort, { once: true });
-    void TextToSpeech.speak({
-      text: text.replace(/[*#`]/g, ""),
-      lang: "en-US",
-      rate: 1,
-      pitch: 1,
-      volume: 1,
-    }).then(
-      () => {
-        cleanup();
-        resolve();
-      },
-      () => {
-        cleanup();
-        reject(
-          new Error(
-            "Couldn't speak the reply. Check that an English voice is installed in Android speech settings.",
-          ),
-        );
-      },
+  let response: Response;
+  try {
+    response = await fetch("/api/mia-speech", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.replace(/[*#`]/g, "").slice(0, 4000) }),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(55_000)]),
+    });
+  } catch {
+    if (signal.aborted) throw new DOMException("Speech interrupted", "AbortError");
+    throw new Error("Mia's voice is temporarily unavailable. You can read the reply in chat.");
+  }
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    throw new Error(
+      typeof data?.error === "string"
+        ? data.error
+        : "Mia's voice is unavailable. You can read the reply in chat.",
     );
+  }
+  if (!response.headers.get("content-type")?.toLowerCase().startsWith("audio/"))
+    throw new Error("Mia's voice response was invalid.");
+  const blob = await response.blob();
+  signal.throwIfAborted();
+  if (!blob.size || blob.size > 10 * 1024 * 1024)
+    throw new Error("Mia's voice response was invalid.");
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      URL.revokeObjectURL(url);
+    };
+    const finish = (failure?: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (failure) reject(failure);
+      else resolve();
+    };
+    const abort = () => finish(new DOMException("Speech interrupted", "AbortError"));
+    const timer = setTimeout(
+      () => finish(new Error("Mia's voice stopped responding. You can read the reply in chat.")),
+      120_000,
+    );
+    audio.onended = () => finish();
+    audio.onerror = () =>
+      finish(new Error("Couldn't play Mia's voice. You can read the reply in chat."));
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    void audio
+      .play()
+      .catch(() => finish(new Error("Tap the screen to allow audio, then try Mia again.")));
   });
 }
