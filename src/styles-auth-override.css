@@ -316,3 +316,57 @@
   color: #c5cffb;
   font-weight: 700;
 }
+
+/* Small, one-time movements keep the forms readable and ready to use. */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-brand,
+  .auth-card {
+    animation: auth-appear 420ms ease-out both;
+  }
+  .auth-story-image {
+    animation: auth-photo-appear 700ms ease-out both;
+  }
+  .auth-story-content {
+    animation: auth-appear 500ms ease-out both;
+  }
+  .auth-field:has(#name) {
+    animation: auth-appear 220ms ease-out both;
+  }
+  .auth-primary,
+  .auth-google {
+    transition:
+      background 200ms,
+      border-color 200ms,
+      transform 160ms;
+  }
+  .auth-primary:not(:disabled):active,
+  .auth-google:not(:disabled):active {
+    transform: scale(0.985);
+  }
+  .auth-primary svg:not(.animate-spin) {
+    transition: transform 180ms ease;
+  }
+  .auth-primary:hover:not(:disabled) svg:not(.animate-spin) {
+    transform: translateX(3px);
+  }
+}
+@keyframes auth-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes auth-photo-appear {
+  from {
+    opacity: 0.75;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
