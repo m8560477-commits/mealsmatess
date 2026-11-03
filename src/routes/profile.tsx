@@ -35,6 +35,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/theme-provider";
 import { GamificationCard } from "@/components/gamification-card";
 import { ThemePicker } from "@/components/theme-picker";
+import { MiaVoiceControls } from "@/components/mia-voice-controls";
 import {
   Select,
   SelectContent,
@@ -393,6 +394,12 @@ function SettingsPage() {
       <ThemePicker />
       <Section title="Profile" items={profileItems} />
       <Section title="Account" items={accountItems} />
+      {user && (
+        <section className="mt-6" aria-label="Mia settings">
+          <h2 className="mb-3 text-sm font-semibold">Mia</h2>
+          <MiaVoiceControls embedded />
+        </section>
+      )}
 
       <Section
         title="Notifications"

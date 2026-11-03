@@ -8,9 +8,15 @@
 
 ## Behaviour
 
-For a signed-in Premium user, Mia automatically requests microphone access and listens while the Consumer app is in the foreground. Say “Hey Mia”, “Hi Mia” or “Mia”, followed by a question. If only the name is spoken, Mia acknowledges it and waits for a question. Follow-up questions need no button or repeated name. After 25 seconds without a question, or “thanks Mia”, Mia returns to wake listening. “Mute Mia”, “microphone off”, “stop listening”, or the visible Mute control stop capture; a user's choice to mute is remembered on this device. Re-enable it with the visible control.
+<!-- coderabbit-ai-generated:v1 -->
 
-The visible bar reports loading, waiting, listening, thinking, speaking, paused, muted, denied, or error. The operating system or browser requests microphone permission; some browsers also need any normal screen interaction before audio can start. Mia resumes automatically after the app returns to the foreground or reconnects unless the user muted her. Permission denials and engine errors do not trigger repeated permission prompts. Hub does not mount the voice provider. This automatic foreground behavior replaces the earlier per-session opt-in at the user's request. It does not keep listening in the background or while the app is closed.
+<!-- coderabbit-ai-generated-section:v1:5ff23b7239112f84f50fcaaa4107d2d698b1a10d7cb1e8cef42ff2eae1650e4c -->
+
+For a signed-in Premium user, Mia automatically requests microphone access and listens while the Consumer app is in the foreground. Say “Hey Mia”, “Hi Mia” or “Mia”, followed by a question. If only the name is spoken, Mia acknowledges it and waits for a question. Follow-up questions need no button or repeated name. After 25 seconds without a question, or “thanks Mia”, Mia returns to wake listening. “Mute Mia”, “microphone off”, “stop listening”, or the Mute control in Settings stop capture; a user's choice to mute is remembered on this device. Re-enable it in Settings.
+
+Settings reports loading, waiting, listening, thinking, speaking, paused, muted, denied, or error. At the user's request, the floating voice bar is no longer shown. The operating system or browser requests microphone permission; some browsers also need any normal screen interaction before audio can start. Mia resumes automatically after the app returns to the foreground or reconnects unless the user muted her. Permission denials and engine errors do not trigger repeated permission prompts. Hub does not mount the voice provider. This automatic foreground behavior replaces the earlier per-session opt-in at the user's request. It does not keep listening in the background or while the app is closed.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 
 

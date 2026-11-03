@@ -1,4 +1,4 @@
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MiaProvider } from "@/components/mia-provider";
 import { useMia, type MiaContextValue } from "@/hooks/use-mia";
@@ -25,7 +25,6 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/lib/ai-api", () => ({ postAuthenticatedAi: mocks.api }));
 vi.mock("@/lib/mia/microphone", () => ({ openMiaMicrophone: mocks.mic }));
-vi.mock("@/components/mia-voice-controls", () => ({ MiaVoiceControls: () => null }));
 let mia!: MiaContextValue;
 function Capture() {
   mia = useMia();
@@ -49,6 +48,7 @@ it("shares typed and spoken history and includes the current cooking step", asyn
     </MiaProvider>,
   );
   await waitFor(() => expect(mia.voice.state).toBe("waiting"));
+  expect(screen.queryByRole("complementary", { name: "Hands-free Mia" })).not.toBeInTheDocument();
   expect(mocks.mic).toHaveBeenCalledOnce();
   await act(async () => {
     await mia.ask("I have rice and tomatoes");

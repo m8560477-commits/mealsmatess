@@ -58,7 +58,6 @@ export function MiaVoiceControls({ embedded = false }: { embedded?: boolean }) {
       className={embedded ? "cooking-mia" : "mia-voice-panel"}
       aria-label="Hands-free Mia"
     >
-      <p className="mia-voice-provider">Voice by ElevenLabs · Mic audio stays on device</p>
       <div className="mia-voice-bar">
         <button
           className="mia-voice-status"
@@ -112,7 +111,7 @@ export function MiaVoiceControls({ embedded = false }: { embedded?: boolean }) {
           )}
           <p>
             English · Mia listens while MealMate is open. Microphone audio stays on this device;
-            question text goes to Mia and reply text goes to ElevenLabs for speech. Say “thanks Mia”
+            question text goes to Mia and reply text is sent to a speech service. Say “thanks Mia”
             to end the conversation.
           </p>
           <div className="flex flex-wrap gap-3">
@@ -144,14 +143,13 @@ export function MiaVoiceControls({ embedded = false }: { embedded?: boolean }) {
               preferences and current recipe to help answer.
             </p>
             <p>
-              Mia’s reply text is sent to ElevenLabs to generate speech. Keep this screen open.
+              Mia’s reply text is sent to a speech service to generate audio. Keep this screen open.
               Closing MealMate, switching apps, locking the screen or Android suspension pauses
               listening; it resumes when you return unless you have muted Mia.
             </p>
             <p>
-              The microphone indicator stays visible while enabled. Mute stops capture and spoken
-              replies immediately. You can continue asking questions without pressing a microphone
-              button.
+              You can mute Mia in Settings. Mute stops capture and spoken replies immediately. You
+              can continue asking questions without pressing a microphone button.
             </p>
           </div>
           <Button

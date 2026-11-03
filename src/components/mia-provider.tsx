@@ -8,7 +8,6 @@ import { postAuthenticatedAi } from "@/lib/ai-api";
 import { MiaVoiceSession, type MiaVoiceSnapshot } from "@/lib/mia/voice-session";
 import { openMiaMicrophone } from "@/lib/mia/microphone";
 import { speakMia } from "@/lib/mia/speech";
-import { MiaVoiceControls } from "@/components/mia-voice-controls";
 
 /** Shared across Consumer routes; navigation never resets a hands-free conversation. */
 export function MiaProvider({ children }: { children: ReactNode }) {
@@ -375,7 +374,6 @@ export function MiaProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      {allowed && <MiaVoiceControls />}
     </MiaContext.Provider>
   );
 }

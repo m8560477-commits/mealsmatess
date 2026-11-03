@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/mia-speech")({
         const key = process.env["ELEVENLABS_API_KEY"]?.trim();
         const voice = process.env["ELEVENLABS_VOICE_ID"]?.trim() || DEFAULT_VOICE;
         if (!key || !/^[A-Za-z0-9_-]{1,100}$/.test(voice))
-          return error("Mia's ElevenLabs voice is not configured yet.", 503);
+          return error("Mia's voice is not configured yet.", 503);
         try {
           await enforceAiRateLimit("mia_speech", auth.user.userId, 12);
           const response = await fetch(

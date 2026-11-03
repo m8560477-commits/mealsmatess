@@ -39,7 +39,7 @@ afterEach(() => {
 describe("hands-free consent and indicators", () => {
   it("asks for informed consent before accessing the microphone", () => {
     render(<MiaVoiceControls />);
-    expect(screen.getByText(/Voice by ElevenLabs/)).toBeInTheDocument();
+    expect(screen.queryByText(/ElevenLabs/i)).not.toBeInTheDocument();
     expect(mocks.start).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("switch", { name: "Hands-free Mia" }));
     expect(mocks.start).not.toHaveBeenCalled();
