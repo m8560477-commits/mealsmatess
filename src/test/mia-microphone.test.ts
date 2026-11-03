@@ -101,6 +101,7 @@ it("requests mic permission on launch and resumes suspended audio on a normal sc
   const pending = openMiaMicrophone(events, controller.signal);
   await vi.waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
   expect(audioState.current).toBe("suspended");
+  await vi.waitFor(() => expect(mocks.load).toHaveBeenCalledOnce());
   window.dispatchEvent(new Event("pointerdown"));
   const microphone = await pending;
   expect(audioState.current).toBe("running");
@@ -114,6 +115,7 @@ it("releases the microphone when stopped while awaiting an audio gesture", async
       sampleRate = 16000;
       state = "suspended";
       onstatechange = null;
+      audioWorklet = { addModule: vi.fn(async () => {}) };
       resume() {
         return new Promise<void>(() => {});
       }
@@ -127,4 +129,39 @@ it("releases the microphone when stopped while awaiting an audio gesture", async
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   expect(stop).toHaveBeenCalledOnce();
   expect(close).toHaveBeenCalledOnce();
+});
+
+it("disposes a model that finishes after cancellation while audio awaits a gesture", async () => {
+  let finishLoad!: (value: {
+    reset: typeof vi.fn;
+    finish: typeof vi.fn;
+    accept: typeof vi.fn;
+    dispose: typeof dispose;
+  }) => void;
+  mocks.load.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishLoad = resolve;
+    }),
+  );
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      sampleRate = 16000;
+      state = "suspended";
+      onstatechange = null;
+      audioWorklet = { addModule: vi.fn(async () => {}) };
+      resume() {
+        return new Promise<void>(() => {});
+      }
+      close = close;
+    },
+  );
+  const controller = new AbortController();
+  const pending = openMiaMicrophone(events, controller.signal);
+  await vi.waitFor(() => expect(mocks.load).toHaveBeenCalledOnce());
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  finishLoad({ reset: vi.fn(), finish: vi.fn(), accept: vi.fn(), dispose });
+  await vi.waitFor(() => expect(dispose).toHaveBeenCalledOnce());
+  expect(stop).toHaveBeenCalledOnce();
 });

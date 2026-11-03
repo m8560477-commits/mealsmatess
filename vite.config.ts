@@ -56,6 +56,9 @@ export default defineConfig(({ command }) => ({
             // Serve Firebase's helpers on the app origin before enabling a
             // custom authDomain; redirects cannot replace this transparent proxy.
             routeRules: {
+              "/mia/vosk-model-small-en-us-0.15.tar.gz": {
+                headers: { "cache-control": "public, max-age=604800, must-revalidate" },
+              },
               "/__/auth/**": {
                 proxy: "https://mealmate-d2e53.firebaseapp.com/__/auth/**",
                 headers: { "cache-control": "no-store" },

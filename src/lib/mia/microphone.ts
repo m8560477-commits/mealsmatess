@@ -36,9 +36,11 @@ export async function openMiaMicrophone(
   let source: MediaStreamAudioSourceNode | undefined;
   let processor: AudioWorkletNode | undefined;
   let disposed = false;
+  const loading = new AbortController();
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    loading.abort();
     signal.removeEventListener("abort", dispose);
     stream?.getTracks().forEach((track) => {
       track.onended = null;
@@ -66,11 +68,28 @@ export async function openMiaMicrophone(
       stream.getTracks().forEach((track) => track.stop());
       signal.throwIfAborted();
     }
-    await new Promise<void>((resolve, reject) => {
+    // Load the local decoder and worklet while waiting for a playback gesture.
+    // The worker is still started only after microphone permission is granted.
+    const decoderReady = LocalRecognizer.load(
+      context.sampleRate,
+      events.transcript,
+      loading.signal,
+      events.failed,
+    ).then((value) => {
+      if (disposed || signal.aborted) {
+        value.dispose();
+        throw new DOMException("Voice stopped", "AbortError");
+      }
+      decoder = value;
+    });
+    const workletReady = Promise.resolve().then(() =>
+      context.audioWorklet.addModule("/mia/pcm-worklet.js"),
+    );
+    const audioReady = new Promise<void>((resolve, reject) => {
       let done = false;
       const cleanup = () => {
         clearTimeout(notice);
-        signal.removeEventListener("abort", aborted);
+        loading.signal.removeEventListener("abort", aborted);
         window.removeEventListener("pointerdown", attempt);
         window.removeEventListener("keydown", attempt);
       };
@@ -95,29 +114,18 @@ export async function openMiaMicrophone(
       const notice = setTimeout(() => {
         if (!done) events.needsGesture?.();
       }, 1000);
-      signal.addEventListener("abort", aborted, { once: true });
+      loading.signal.addEventListener("abort", aborted, { once: true });
       window.addEventListener("pointerdown", attempt);
       window.addEventListener("keydown", attempt);
-      if (signal.aborted) aborted();
+      if (loading.signal.aborted) aborted();
       else attempt();
     });
+    await Promise.all([decoderReady, workletReady, audioReady]);
     signal.throwIfAborted();
     stream.getAudioTracks().forEach((track) => {
       track.onended = () =>
         events.failed(new Error("Microphone access ended. Enable hands-free again to reconnect."));
     });
-    decoder = await LocalRecognizer.load(
-      context.sampleRate,
-      events.transcript,
-      signal,
-      events.failed,
-    );
-    if (signal.aborted) {
-      decoder.dispose();
-      signal.throwIfAborted();
-    }
-    await context.audioWorklet.addModule("/mia/pcm-worklet.js");
-    signal.throwIfAborted();
     source = context.createMediaStreamSource(stream);
     processor = new AudioWorkletNode(context, "mia-pcm");
     processor.port.onmessage = ({ data }: MessageEvent<Float32Array>) => {
