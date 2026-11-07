@@ -143,24 +143,28 @@ type Subscriber = {
   >;
 };
 
-function pickEntitlement(subscriber: Subscriber) {
-  const map = subscriber.entitlements ?? {};
-  for (const key of ENTITLEMENT_ALIASES) {
-    if (map[key]?.product_identifier) return map[key]!;
-  }
-  for (const value of Object.values(map)) {
-    if (value?.product_identifier) return value;
-  }
-  return undefined;
-}
-
-/** Only the server's authenticated RevenueCat response is accepted as purchase evidence. */
+/** Only the configured and legacy MealMate entitlements can grant access. */
 export function parseRevenueCatAccess(
   subscriber: Subscriber,
   now = Date.now(),
   allowSandbox = false,
 ): PremiumAccess {
-  const entitlement = pickEntitlement(subscriber);
+  for (const name of ENTITLEMENT_ALIASES) {
+    const entitlement = subscriber.entitlements?.[name];
+    if (!entitlement) continue;
+    const access = parseEntitlementAccess(subscriber, entitlement, now, allowSandbox);
+    if (access.isPremium) return access;
+  }
+  return denied();
+}
+
+/** Each active entitlement must have matching, verified store purchase evidence. */
+function parseEntitlementAccess(
+  subscriber: Subscriber,
+  entitlement: NonNullable<Subscriber["entitlements"]>[string],
+  now: number,
+  allowSandbox: boolean,
+): PremiumAccess {
   if (
     !entitlement?.product_identifier ||
     typeof entitlement.purchase_date !== "string" ||
@@ -186,7 +190,8 @@ export function parseRevenueCatAccess(
         typeof transaction.store === "string" &&
         supportedStores.has(transaction.store.toLowerCase()) &&
         typeof transaction.is_sandbox === "boolean" &&
-        (allowSandbox || !transaction.is_sandbox) &&
+        (allowSandbox ||
+          (!transaction.is_sandbox && transaction.store.toLowerCase() !== "test_store")) &&
         transaction.refunded_at == null &&
         Number.isFinite(purchasedAt) &&
         purchasedAt <= now
@@ -211,7 +216,8 @@ export function parseRevenueCatAccess(
     typeof subscription.store !== "string" ||
     !supportedStores.has(subscription.store.toLowerCase()) ||
     typeof subscription.is_sandbox !== "boolean" ||
-    (!allowSandbox && subscription.is_sandbox) ||
+    (!allowSandbox &&
+      (subscription.is_sandbox || subscription.store.toLowerCase() === "test_store")) ||
     subscription.refunded_at != null
   )
     return denied();

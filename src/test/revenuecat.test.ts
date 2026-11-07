@@ -89,6 +89,42 @@ describe("RevenueCat authority", () => {
       verifiedUntil: now + 300_000,
     });
   });
+  it("rejects unrelated entitlements even with a matching paid subscription", () => {
+    const data = subscriber();
+    expect(
+      parseRevenueCatAccess(
+        { ...data, entitlements: { unrelated: data.entitlements.premium } },
+        now,
+      ).isPremium,
+    ).toBe(false);
+  });
+  it("preserves the legacy MealMate Pro entitlement when premium has expired", () => {
+    const current = subscriber();
+    const expired = subscriber(purchased);
+    const data = {
+      entitlements: {
+        premium: expired.entitlements.premium,
+        "MealMate Pro": current.entitlements.premium,
+      },
+      subscriptions: current.subscriptions,
+    };
+    expect(parseRevenueCatAccess(data, now).isPremium).toBe(true);
+    expect(
+      parseRevenueCatAccess(
+        { ...data, entitlements: { "MealMate Pro": current.entitlements.premium } },
+        now,
+      ).isPremium,
+    ).toBe(true);
+    expect(
+      parseRevenueCatAccess(
+        {
+          ...data,
+          entitlements: { ...data.entitlements, "MealMate Pro": expired.entitlements.premium },
+        },
+        now,
+      ).isPremium,
+    ).toBe(false);
+  });
   it("distinguishes trials, cancellation before expiry, lifetime and sandbox", () => {
     const trial = subscriber();
     trial.subscriptions.monthly.period_type = "trial";
@@ -163,6 +199,21 @@ describe("RevenueCat authority", () => {
         now,
       ).isPremium,
     ).toBe(false);
+  });
+  it("never accepts Test Store purchases in production even if incorrectly marked live", () => {
+    const data = subscriber();
+    data.subscriptions.monthly.store = "test_store";
+    expect(parseRevenueCatAccess(data, now).isPremium).toBe(false);
+    expect(parseRevenueCatAccess(data, now, true).isPremium).toBe(true);
+    const lifetime = {
+      ...subscriber(null),
+      subscriptions: {},
+      non_subscriptions: {
+        monthly: [{ store: "test_store", is_sandbox: false, purchase_date: purchased }],
+      },
+    };
+    expect(parseRevenueCatAccess(lifetime, now).isPremium).toBe(false);
+    expect(parseRevenueCatAccess(lifetime, now, true).isPremium).toBe(true);
   });
   it("preserves lifetime entitlements only when the matching transaction is verified", () => {
     const lifetime = subscriber(null);
