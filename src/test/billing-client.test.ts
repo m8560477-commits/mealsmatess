@@ -28,6 +28,7 @@ beforeEach(() => {
 });
 const identity = {
   isActive: false,
+  production: false,
   appUserId: "server-issued",
   offering: "default" as const,
   androidApiKey: "synthetic-public-android",

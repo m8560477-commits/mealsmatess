@@ -195,6 +195,27 @@ describe("onboarding and mandatory paywall", () => {
     expect(screen.getByRole("button", { name: "Subscribe" })).toBeDisabled();
     expect(screen.queryByText("7 days free")).not.toBeInTheDocument();
   });
+  it("shows a lifetime product separately with correct one-time terms", async () => {
+    mocks.load.mockResolvedValue({
+      plans: [
+        {
+          id: "lifetime",
+          kind: "lifetime",
+          price: "$99.99",
+          period: "once",
+          trialDays: 0,
+          purchase: mocks.purchase,
+        },
+      ],
+      restore: mocks.restore,
+    });
+    mount(<PremiumPaywall />);
+    const option = await screen.findByRole("radio", { name: /Lifetime/ });
+    expect(option).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Family/ })).toBeDisabled();
+    expect(screen.getByText(/one-time payment. No recurring billing/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Buy lifetime access" })).toBeEnabled();
+  });
   it("does not invent trial eligibility or map unrelated package names", () => {
     expect(sevenDayTrial("P7D", false)).toBe(7);
     expect(sevenDayTrial("P1W", false)).toBe(7);
@@ -203,6 +224,8 @@ describe("onboarding and mandatory paywall", () => {
     expect(planKind("family", "household", "P1M")).toBe("family");
     expect(planKind("a", "product", "P1Y")).toBe("yearly");
     expect(planKind("a", "product", "P3M")).toBeNull();
+    expect(planKind("$rc_lifetime", "lifetime", "")).toBe("lifetime");
+    expect(planKind("family", "premium_family_monthly", "P1M")).toBe("family");
   });
 });
 describe("Consumer route enforcement", () => {

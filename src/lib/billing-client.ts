@@ -2,7 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import type { createPurchaseSession } from "@/lib/billing.functions";
 
 type Identity = Awaited<ReturnType<typeof createPurchaseSession>>;
-export type PlanKind = "monthly" | "yearly" | "family";
+export type PlanKind = "monthly" | "yearly" | "family" | "lifetime";
 export type BillingPlan = {
   id: string;
   kind: PlanKind;
@@ -20,10 +20,7 @@ export type BillingStore = {
 export function planKind(identifier: string, product: string, period: string): PlanKind | null {
   const key = `${identifier}_${product}`.toLowerCase();
   if (/(?:^|[_.-])family(?:$|[_.-])/.test(key)) return "family";
-  // Lifetime / one-time maps to the third paywall slot until a family product exists.
-  if (/(?:^|[_.-])lifetime(?:$|[_.-])/.test(key) || period === "") {
-    if (/lifetime|forever|one.?time/.test(key)) return "family";
-  }
+  if (/lifetime|forever|one.?time/.test(key)) return "lifetime";
   if (period === "P1Y" || /(?:^|[_.-])(?:annual|yearly)(?:$|[_.-])/.test(key)) return "yearly";
   if (period === "P1M" || /(?:^|[_.-])monthly(?:$|[_.-])/.test(key)) return "monthly";
   return null;
@@ -100,6 +97,9 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
   const sdk = webUser
     ? Purchases.getSharedInstance()
     : Purchases.configure({ apiKey: identity.webApiKey, appUserId: identity.appUserId });
+  if (!webUser) webUser = identity.appUserId;
+  if (identity.production && sdk.isSandbox())
+    throw new Error("Live subscriptions are temporarily unavailable. Please contact support.");
   if (webUser && webUser !== identity.appUserId) await sdk.changeUser(identity.appUserId);
   webUser = identity.appUserId;
   const offerings = await sdk.getOfferings();

@@ -197,7 +197,10 @@ export function PremiumPaywall() {
         </ul>
         <fieldset className="premium-plans" disabled={busy || loading}>
           <legend className="sr-only">Choose a subscription plan</legend>
-          {(["monthly", "yearly", "family"] as const).map((kind) => {
+          {[
+            ...(["monthly", "yearly", "family"] as const),
+            ...(store?.plans.some((p) => p.kind === "lifetime") ? ["lifetime" as const] : []),
+          ].map((kind) => {
             const option = store?.plans.find((p) => p.kind === kind);
             return (
               <label
@@ -277,7 +280,11 @@ export function PremiumPaywall() {
               <Loader2 className="animate-spin" size={20} />
             ) : (
               <>
-                {plan?.trialDays === 7 ? "Start 7-day free trial" : "Subscribe"}
+                {plan?.trialDays === 7
+                  ? "Start 7-day free trial"
+                  : plan?.kind === "lifetime"
+                    ? "Buy lifetime access"
+                    : "Subscribe"}
                 <ArrowRight size={18} aria-hidden="true" />
               </>
             )}
@@ -285,11 +292,17 @@ export function PremiumPaywall() {
         )}
         {plan && (
           <p className="premium-terms">
-            {plan.trialDays === 7
-              ? `7 days free, then ${plan.price} every ${plan.period}.`
-              : `${plan.price} billed every ${plan.period}.`}{" "}
-            Auto-renews until cancelled. Cancel before renewal in your store or billing account
-            settings. Trial eligibility and final taxes are confirmed at checkout.
+            {plan.kind === "lifetime" ? (
+              `${plan.price} one-time payment. No recurring billing. Final taxes are confirmed at checkout.`
+            ) : (
+              <>
+                {plan.trialDays === 7
+                  ? `7 days free, then ${plan.price} every ${plan.period}.`
+                  : `${plan.price} billed every ${plan.period}.`}{" "}
+                Auto-renews until cancelled. Cancel before renewal in your store or billing account
+                settings. Trial eligibility and final taxes are confirmed at checkout.
+              </>
+            )}
           </p>
         )}
         <div className="premium-promo">

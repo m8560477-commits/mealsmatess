@@ -37,6 +37,10 @@ export const createPurchaseSession = createServerFn({ method: "POST" }).handler(
     appUserId: identity.customerId,
     offering: service.OFFERING,
     isActive,
+    production:
+      process.env["VERCEL_ENV"] === "production" ||
+      (process.env["NODE_ENV"] === "production" &&
+        !["preview", "development"].includes(process.env["VERCEL_ENV"] ?? "")),
     webApiKey: process.env["REVENUECAT_WEB_PUBLIC_KEY"] ?? null,
     androidApiKey: process.env["REVENUECAT_ANDROID_PUBLIC_KEY"] ?? null,
   };
