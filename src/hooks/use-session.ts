@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
-import { auth, onAuthStateChanged, signOutUser, type User as FirebaseUser } from "@/lib/firebase";
+import { useSyncExternalStore } from "react";
+import {
+  auth,
+  onIdTokenChanged,
+  signOutUser,
+  type User as FirebaseUser,
+} from "@/lib/firebase-core";
 
 const INACTIVITY_LIMIT_MS = 40 * 24 * 60 * 60 * 1000;
 const ACTIVITY_KEY_PREFIX = "mealmate:last-activity:";
-
 export interface SessionUser {
   id: string;
   email: string | null;
@@ -15,109 +19,101 @@ export interface SessionUser {
   provider: "firebase";
 }
 
-function activityKey(userId: string) {
-  return `${ACTIVITY_KEY_PREFIX}${userId}`;
-}
+type Session = {
+  session: FirebaseUser | null;
+  firebaseUser: FirebaseUser | null;
+  loading: boolean;
+  user: SessionUser | null;
+};
+const initial: Session = { session: null, firebaseUser: null, loading: true, user: null };
+let snapshot = initial;
+const listeners = new Set<() => void>();
+let stop: (() => void) | undefined;
 
-function readLastActivity(userId: string): number | null {
-  try {
-    const value = window.localStorage.getItem(activityKey(userId));
-    const timestamp = value ? Number(value) : NaN;
-    return Number.isFinite(timestamp) ? timestamp : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeActivity(userId: string) {
-  try {
-    window.localStorage.setItem(activityKey(userId), String(Date.now()));
-  } catch {
-    // Session persistence still works when storage is unavailable.
-  }
-}
-
-export function useSession() {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
-  const [fbLoading, setFbLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    let currentUserId: string | null = null;
-    let lastWritten = 0;
-
-    const recordActivity = () => {
-      if (!currentUserId || Date.now() - lastWritten < 60_000) return;
-      lastWritten = Date.now();
-      writeActivity(currentUserId);
-    };
-
-    const unsubscribeFb = onAuthStateChanged(auth, (fbUser) => {
-      if (!active) return;
-      setFirebaseUser(fbUser);
-      setFbLoading(false);
-      if (fbUser) {
-        currentUserId = fbUser.uid;
-        writeActivity(fbUser.uid);
-        lastWritten = Date.now();
+function startSession() {
+  let active = true;
+  let currentUserId: string | null = null;
+  let lastWritten = 0;
+  const recordActivity = () => {
+    if (!currentUserId || Date.now() - lastWritten < 60_000) return;
+    lastWritten = Date.now();
+    try {
+      window.localStorage.setItem(`${ACTIVITY_KEY_PREFIX}${currentUserId}`, String(lastWritten));
+    } catch {
+      /* Firebase sessions still work without local storage. */
+    }
+  };
+  const unsubscribe = onIdTokenChanged(auth, (firebaseUser) => {
+    if (!active) return;
+    currentUserId = firebaseUser?.uid ?? null;
+    if (firebaseUser) {
+      let lastActivity = 0;
+      try {
+        lastActivity = Number(
+          window.localStorage.getItem(`${ACTIVITY_KEY_PREFIX}${firebaseUser.uid}`),
+        );
+      } catch {
+        /* Storage may be unavailable. */
       }
-    });
-
-    const checkInactivity = async (fbUser: FirebaseUser) => {
-      const lastActivity = readLastActivity(fbUser.uid);
       if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
-        await signOutUser();
-        return false;
+        // Check before recording fresh activity, once for the whole application.
+        void signOutUser().catch(() => undefined);
+        return;
       }
-      currentUserId = fbUser.uid;
-      writeActivity(fbUser.uid);
-      lastWritten = Date.now();
-      return true;
+      lastWritten = 0;
+      recordActivity();
+    }
+    const verifiedAt = firebaseUser?.emailVerified ? new Date().toISOString() : null;
+    snapshot = {
+      session: firebaseUser,
+      firebaseUser,
+      loading: false,
+      user: firebaseUser
+        ? {
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            emailVerified: firebaseUser.emailVerified,
+            email_confirmed_at: verifiedAt,
+            confirmed_at: verifiedAt,
+            provider: "firebase",
+          }
+        : null,
     };
-
-    const unsubscribeActivity = onAuthStateChanged(auth, (fbUser) => {
-      if (!fbUser) return;
-      void checkInactivity(fbUser);
-    });
-
-    window.addEventListener("pointerdown", recordActivity, { passive: true });
-    window.addEventListener("keydown", recordActivity, { passive: true });
-    window.addEventListener("visibilitychange", recordActivity);
-
-    return () => {
-      active = false;
-      unsubscribeFb();
-      unsubscribeActivity();
-      window.removeEventListener("pointerdown", recordActivity);
-      window.removeEventListener("keydown", recordActivity);
-      window.removeEventListener("visibilitychange", recordActivity);
-    };
-  }, []);
-
-  const loading = fbLoading;
-
-  let user: SessionUser | null = null;
-  if (firebaseUser) {
-    user = {
-      id: firebaseUser.uid,
-      email: firebaseUser.email,
-      displayName: firebaseUser.displayName,
-      photoURL: firebaseUser.photoURL,
-      emailVerified: firebaseUser.emailVerified,
-      email_confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
-      confirmed_at: firebaseUser.emailVerified ? new Date().toISOString() : null,
-      provider: "firebase",
-    };
-  }
-
-  return {
-    session: firebaseUser,
-    firebaseUser,
-    loading,
-    user,
+    listeners.forEach((notify) => notify());
+  });
+  window.addEventListener("pointerdown", recordActivity, { passive: true });
+  window.addEventListener("keydown", recordActivity, { passive: true });
+  document.addEventListener("visibilitychange", recordActivity);
+  return () => {
+    active = false;
+    unsubscribe();
+    window.removeEventListener("pointerdown", recordActivity);
+    window.removeEventListener("keydown", recordActivity);
+    document.removeEventListener("visibilitychange", recordActivity);
+    snapshot = initial;
   };
 }
-
+function subscribe(notify: () => void) {
+  listeners.add(notify);
+  if (listeners.size === 1) stop = startSession();
+  return () => {
+    listeners.delete(notify);
+    if (!listeners.size) {
+      stop?.();
+      stop = undefined;
+    }
+  };
+}
+/** One Firebase listener and one activity tracker, shared by every mounted consumer. */
+export function useSession() {
+  return useSyncExternalStore(
+    subscribe,
+    () => snapshot,
+    () => initial,
+  );
+}
 export async function signOutUnified() {
   await signOutUser();
 }

@@ -35,6 +35,15 @@ vi.mock("@/lib/firebase", () => ({
   signUpWithEmail: mocks.signUp,
   sendPasswordReset: mocks.reset,
 }));
+vi.mock("@/lib/firebase-core", () => ({
+  auth: mocks.auth,
+  db: {},
+  getRedirectResult: mocks.redirect,
+  signInWithGoogle: mocks.google,
+  signInWithEmail: mocks.signIn,
+  signUpWithEmail: mocks.signUp,
+  sendPasswordReset: mocks.reset,
+}));
 vi.mock("firebase/auth", () => ({
   sendEmailVerification: mocks.verification,
   updateProfile: mocks.update,

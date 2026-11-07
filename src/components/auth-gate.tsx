@@ -3,7 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Loader2, MailWarning } from "lucide-react";
 import { useSession, signOutUnified } from "@/hooks/use-session";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase-core";
 import { reload, sendEmailVerification } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";

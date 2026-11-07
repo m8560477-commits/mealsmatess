@@ -89,3 +89,27 @@ export const listRecipeRatings = createServerFn({ method: "POST" })
       return { ...review, isMine: user_id === context.userId };
     });
   });
+
+/** Aggregate genuine ratings without downloading reviews or author information for cards. */
+export const getRecipeRatingSummaries = createServerFn({ method: "GET" })
+  .middleware([requirePremium])
+  .validator((input: unknown) =>
+    z
+      .object({
+        recipeIds: z
+          .array(
+            z
+              .string()
+              .min(1)
+              .max(1500)
+              .refine((id) => !id.includes("/")),
+          )
+          .min(1)
+          .max(30),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { readRatingSummaries } = await import("@/lib/rating-summary.server");
+    return readRatingSummaries(data.recipeIds);
+  });

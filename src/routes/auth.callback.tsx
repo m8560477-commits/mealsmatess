@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { auth, onAuthStateChanged } from "@/lib/firebase";
+import { auth, onAuthStateChanged } from "@/lib/firebase-core";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({

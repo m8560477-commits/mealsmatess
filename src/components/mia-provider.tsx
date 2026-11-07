@@ -50,7 +50,13 @@ export function MiaProvider({ children }: { children: ReactNode }) {
   );
 
   const answer = useCallback(
-    async (text: string, history: MiaTurn[], signal: AbortSignal, voiceMode: boolean) => {
+    async (
+      text: string,
+      history: MiaTurn[],
+      signal: AbortSignal,
+      voiceMode: boolean,
+      onText?: (text: string) => void,
+    ) => {
       const messages = history
         .filter((turn) => turn.answer.trim() && !turn.error)
         .slice(-10)
@@ -69,9 +75,10 @@ export function MiaProvider({ children }: { children: ReactNode }) {
         {
           messages,
           voice: voiceMode,
+          stream: true,
           ...(recipe.current ? { recipe: recipe.current } : {}),
         },
-        { signal },
+        { signal, onText },
       );
       if (!reply?.trim()) throw new Error("Mia returned an empty response. Please try again.");
       return reply;
@@ -113,7 +120,14 @@ export function MiaProvider({ children }: { children: ReactNode }) {
           );
       }
       try {
-        const reply = await answer(text, previous, request.signal, !!options.voice);
+        let updatedAt = 0;
+        const reply = await answer(text, previous, request.signal, !!options.voice, (answer) => {
+          // Keep token rendering light on slower Android devices.
+          if (!request.signal.aborted && Date.now() - updatedAt >= 80) {
+            updatedAt = Date.now();
+            patch(id, { answer });
+          }
+        });
         request.signal.throwIfAborted();
         patch(id, { answer: reply });
         return reply;
@@ -150,12 +164,19 @@ export function MiaProvider({ children }: { children: ReactNode }) {
       setBusy(true);
       patch(id, { answer: "", error: undefined });
       try {
+        let updatedAt = 0;
         patch(id, {
           answer: await answer(
             turn.question,
             turnsRef.current.slice(0, index),
             request.signal,
             false,
+            (answer) => {
+              if (!request.signal.aborted && Date.now() - updatedAt >= 80) {
+                updatedAt = Date.now();
+                patch(id, { answer });
+              }
+            },
           ),
         });
       } catch (error) {

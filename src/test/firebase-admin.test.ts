@@ -19,20 +19,35 @@ const fixture = vi.hoisted(() => {
   });
   const write = (ref: Ref, values: Row) =>
     table(ref.table).set(ref.id, { ...table(ref.table).get(ref.id), ...values });
-  const collection = (name: string, filter?: { field: string; value: unknown }) => ({
+  const reads = { documents: 0 };
+  const collection = (
+    name: string,
+    filters: { field: string; value: unknown }[] = [],
+    maximum?: number,
+  ) => ({
     doc: (id: string) => ({ table: name, id }),
-    where: (field: string, _operator: string, value: unknown) => collection(name, { field, value }),
-    get: async () => ({
-      docs: Array.from(table(name).keys())
+    where: (field: string, _operator: string, value: unknown) =>
+      collection(name, [...filters, { field, value }], maximum),
+    limit: (value: number) => collection(name, filters, value),
+    get: async () => {
+      const docs = Array.from(table(name).keys())
         .map((id) => read({ table: name, id }))
-        .filter((item) => !filter || item.get(filter.field) === filter.value),
-    }),
+        .filter((item) => filters.every((filter) => item.get(filter.field) === filter.value))
+        .slice(0, maximum);
+      reads.documents += docs.length;
+      return { docs };
+    },
   });
   return {
     tables,
     table,
+    reads,
     db: {
       collection,
+      getAll: async (...refs: Ref[]) => {
+        reads.documents += refs.length;
+        return refs.map(read);
+      },
       batch: () => {
         const pending: (() => void)[] = [];
         return {
@@ -90,6 +105,7 @@ vi.mock("firebase-admin/storage", () => ({
 
 beforeEach(() => {
   fixture.tables.clear();
+  fixture.reads.documents = 0;
   vi.stubEnv(
     "FIREBASE_SERVICE_ACCOUNT_JSON",
     JSON.stringify({
@@ -268,4 +284,23 @@ describe("shared Hub and Consumer restaurant records", () => {
     ).rejects.toMatchObject({ status: 403 });
     expect(restaurantBlob.put).not.toHaveBeenCalled();
   });
+});
+
+it("reads only matching Firestore documents for detail lookups and bounded lists", async () => {
+  for (let i = 0; i < 1000; i++)
+    fixture.table("recipes").set(String(i), { name: `Dish ${i}`, slug: `dish-${i}` });
+  const detail = await firebaseAdmin
+    .from("recipes")
+    .select("*")
+    .eq("slug", "dish-999")
+    .limit(1)
+    .maybeSingle();
+  expect(detail.error).toBeNull();
+  expect(detail.data.name).toBe("Dish 999");
+  expect(fixture.reads.documents).toBe(1);
+  fixture.reads.documents = 0;
+  const byId = await firebaseAdmin.from("recipes").select("*").eq("id", "999").maybeSingle();
+  expect(byId.error).toBeNull();
+  expect(byId.data.name).toBe("Dish 999");
+  expect(fixture.reads.documents).toBe(1);
 });

@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { listRecipeRatings, rateRecipe } from "@/lib/engagement.functions";
 import { useSession } from "@/hooks/use-session";
+import { loadRatingSummary } from "@/lib/rating-summary";
+import { useInView } from "@/hooks/use-in-view";
 import { Button } from "@/components/ui/button";
 
 type Rating = {
@@ -53,6 +55,7 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
       });
       toast.success("Thanks for rating!");
       await qc.invalidateQueries({ queryKey: ["ratings", recipeId] });
+      await qc.invalidateQueries({ queryKey: ["rating-summary", recipeId] });
       await qc.invalidateQueries({ queryKey: ["recipe"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't save rating");
@@ -126,24 +129,24 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
 
 /** Shows only ratings actually submitted; no seeded/default stars. */
 export function RecipeRatingSummary({ recipeId }: { recipeId: string }) {
-  const load = useServerFn(listRecipeRatings);
+  const { ref, visible } = useInView();
   const { data } = useQuery({
-    queryKey: ["ratings", recipeId],
-    queryFn: async () => (await load({ data: { recipeId } })).slice(0, 20) as Rating[],
+    queryKey: ["rating-summary", recipeId],
+    queryFn: () => loadRatingSummary(recipeId),
+    enabled: visible,
     staleTime: 60_000,
   });
-  const ratings = data?.filter(
-    (item) => Number.isFinite(item.rating) && item.rating >= 1 && item.rating <= 5,
-  );
-  if (!ratings?.length) return null;
-  const average = ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length;
   return (
-    <span
-      className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-      aria-label={`${average.toFixed(1)} out of 5 from ${ratings.length} recent reviews`}
-    >
-      <Star size={12} aria-hidden="true" className="text-primary" />
-      {average.toFixed(1)} · {ratings.length} recent reviews
-    </span>
+    <div ref={ref} className="min-h-4">
+      {data && (
+        <span
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+          aria-label={`${data.average.toFixed(1)} out of 5 from ${data.count} reviews`}
+        >
+          <Star className="size-3 fill-primary text-primary" aria-hidden="true" />
+          {data.average.toFixed(1)} ({data.count})
+        </span>
+      )}
+    </div>
   );
 }

@@ -1,8 +1,12 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { collection, getDocs, getDoc, doc, limit, orderBy, query, where } from "firebase/firestore";
 import { auth, db, handleFirestoreError, OperationType } from "@/lib/firebase";
 
-import { listRecipeCatalog, getRecipeCatalogEntry } from "@/lib/recipe-catalog.functions";
+import {
+  listRecipeCatalog,
+  listRecipeCatalogPage,
+  getRecipeCatalogEntry,
+} from "@/lib/recipe-catalog.functions";
 export type FirestoreRecord = Record<string, any> & {
   id: string;
   name?: string;
@@ -110,6 +114,17 @@ export const recipesByCategoryQuery = (category: string | undefined, search = ""
     queryFn: () => listRecipeCatalog({ data: { category, search } }),
   });
 
+export const recipePagesQuery = (category: string | undefined, search = "") =>
+  infiniteQueryOptions({
+    queryKey: ["recipes", "pages", category ?? "all", search.trim().toLowerCase()],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      listRecipeCatalogPage({ data: { category, search, limit: 12, cursor: pageParam } }),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: 5 * 60_000,
+    refetchOnMount: true,
+  });
+
 export const recipeBySlugQuery = (slug: string) =>
   queryOptions({
     queryKey: ["recipe", slug],
@@ -118,7 +133,7 @@ export const recipeBySlugQuery = (slug: string) =>
 
 export const myFavoritesQuery = () =>
   queryOptions({
-    queryKey: ["favorites"],
+    queryKey: ["favorites", auth.currentUser?.uid ?? "anon"],
     queryFn: async (): Promise<FavoriteRecord[]> => {
       const user = auth.currentUser;
       if (!user) return [];
@@ -130,7 +145,7 @@ export const myFavoritesQuery = () =>
 
 export const myGroceryQuery = () =>
   queryOptions({
-    queryKey: ["grocery"],
+    queryKey: ["grocery", auth.currentUser?.uid ?? "anon"],
     queryFn: async (): Promise<GroceryRecord[]> =>
       auth.currentUser
         ? ((await list(`users/${auth.currentUser.uid}/grocery`, [
@@ -142,7 +157,7 @@ export const myGroceryQuery = () =>
 
 export const myPantryQuery = () =>
   queryOptions<PantryRecord[]>({
-    queryKey: ["pantry"],
+    queryKey: ["pantry", auth.currentUser?.uid ?? "anon"],
     queryFn: async (): Promise<PantryRecord[]> =>
       auth.currentUser
         ? ((await list(`users/${auth.currentUser.uid}/pantry`, [
@@ -153,7 +168,7 @@ export const myPantryQuery = () =>
 
 export const myPlannerQuery = (fromISO: string, toISO: string) =>
   queryOptions({
-    queryKey: ["planner", fromISO, toISO],
+    queryKey: ["planner", fromISO, toISO, auth.currentUser?.uid ?? "anon"],
     queryFn: async (): Promise<MealPlanRecord[]> =>
       auth.currentUser
         ? ((await list(`users/${auth.currentUser.uid}/mealPlans`, [
@@ -166,7 +181,7 @@ export const myPlannerQuery = (fromISO: string, toISO: string) =>
 
 export const myProfileQuery = () =>
   queryOptions({
-    queryKey: ["profile"],
+    queryKey: ["profile", auth.currentUser?.uid ?? "anon"],
     queryFn: async (): Promise<{
       user: typeof auth.currentUser;
       profile: FirestoreRecord | null;

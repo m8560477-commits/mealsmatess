@@ -2029,3 +2029,177 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* Compact account settings; tokens continue to follow the selected app theme. */
+.settings-page {
+  max-width: 1120px;
+  margin: auto;
+  padding: 32px 24px 100px;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 48px;
+  font-family: var(--font-ui);
+}
+.settings-sidebar {
+  align-self: start;
+  position: sticky;
+  top: 24px;
+}
+.settings-sidebar h1 {
+  font: 700 24px var(--font-heading);
+}
+.settings-sidebar p {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  margin: 8px 0 24px;
+}
+.settings-sidebar nav {
+  display: grid;
+  gap: 4px;
+}
+.settings-sidebar a {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.settings-sidebar a:hover {
+  background: var(--muted);
+}
+.settings-content {
+  min-width: 0;
+}
+.settings-account {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 24px;
+}
+.settings-account h2 {
+  font: 600 22px var(--font-heading);
+  margin: 5px 0;
+}
+.settings-account a {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--primary);
+  margin-top: 8px;
+}
+.settings-page section,
+.settings-page header,
+.settings-page #app-theme {
+  scroll-margin-top: 90px;
+}
+.settings-page h2,
+.settings-page h3 {
+  font-family: var(--font-heading);
+}
+.settings-page section {
+  box-shadow: none;
+  border-radius: 8px;
+}
+.settings-page section > ul {
+  border-radius: 8px;
+  box-shadow: none;
+}
+.settings-page [class*="rounded-3xl"] {
+  border-radius: 8px;
+}
+.settings-page [class*="bg-gradient"] {
+  background: var(--muted);
+}
+.settings-page [class*="shadow"] {
+  box-shadow: none;
+}
+.settings-page [class*="rounded-2xl"] {
+  border-radius: 8px;
+}
+.settings-page [class*="hover:-translate"] {
+  transform: none;
+}
+.settings-page section > h2 {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 12px;
+}
+.settings-page summary {
+  cursor: pointer;
+  font-size: 14px;
+  padding: 14px 0;
+}
+.settings-activity {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.settings-page .settings-section {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.settings-preferences {
+  display: grid;
+  gap: 16px;
+}
+.settings-preferences label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+}
+.settings-preferences input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.settings-save {
+  padding: 12px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 6px;
+}
+.settings-save:disabled {
+  opacity: 0.5;
+}
+.settings-page button:focus-visible,
+.settings-page a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.settings-page .onboarding-chips button {
+  min-height: 40px;
+}
+@media (max-width: 767px) {
+  .settings-page {
+    display: block;
+    padding: 24px 16px 100px;
+  }
+  .settings-sidebar {
+    position: static;
+    margin-bottom: 24px;
+  }
+  .settings-sidebar nav {
+    display: none;
+  }
+  .settings-account {
+    gap: 14px;
+  }
+  .settings-account h2 {
+    font-size: 19px;
+  }
+  .settings-page .settings-section li > div > div {
+    flex-wrap: wrap;
+  }
+  .settings-page .settings-section [class*="px-4"] {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .settings-page .settings-section [class*="h-10"] {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .settings-page .settings-section [class*="w-[150px]"] {
+    max-width: 130px;
+  }
+}

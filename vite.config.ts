@@ -41,6 +41,17 @@ export default defineConfig(({ command }) => ({
   plugins: [
     tailwindcss(),
     tanstackStart({
+      router: {
+        codeSplittingOptions: {
+          defaultBehavior: [
+            ["component"],
+            ["loader"],
+            ["pendingComponent"],
+            ["errorComponent"],
+            ["notFoundComponent"],
+          ],
+        },
+      },
       client: { entry: "client" },
       // src/server.ts wraps the TanStack Start server entry with SSR error handling.
       server: { entry: "server" },

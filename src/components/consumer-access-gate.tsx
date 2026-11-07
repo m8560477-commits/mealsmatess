@@ -1,5 +1,4 @@
-import { WelcomeGuide } from "@/components/welcome-guide";
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/hooks/use-session";
@@ -7,6 +6,10 @@ import { usePremium } from "@/hooks/use-premium";
 import { hasSeenTour, markTourSeen } from "@/lib/preferences";
 import { completeIntro, getIntroCompletion } from "@/lib/billing.functions";
 import { getMyPreferences } from "@/lib/preferences.functions";
+
+const WelcomeGuide = lazy(() =>
+  import("@/components/welcome-guide").then((module) => ({ default: module.WelcomeGuide })),
+);
 
 function isPublicConsumerPath(path: string) {
   return [
@@ -101,5 +104,15 @@ export function ConsumerAccessGate({ children }: { children: ReactNode }) {
       </main>
     );
   if (user.emailVerified === false) return <>{children}</>;
-  return <WelcomeGuide key={user.id}>{children}</WelcomeGuide>;
+  return (
+    <Suspense
+      fallback={
+        <main className="premium-gate" role="status">
+          Opening your kitchen…
+        </main>
+      }
+    >
+      <WelcomeGuide key={user.id}>{children}</WelcomeGuide>
+    </Suspense>
+  );
 }

@@ -3,7 +3,7 @@ import { preferenceSummary } from "@/lib/preferences";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { AiLimitError, requireAiCredit } from "@/lib/ai-credits.server";
-import { generateAiText } from "@/lib/ai-engine.server";
+import { generateAiText, streamAiText } from "@/lib/ai-engine.server";
 import { enforceAiRateLimit } from "@/server/ai-rate-limit";
 import { authenticateApiRequest } from "@/server/authenticated-api";
 
@@ -15,6 +15,7 @@ const MessageSchema = z.object({
 const InputSchema = z
   .object({
     voice: z.boolean().optional(),
+    stream: z.boolean().optional(),
     recipe: z
       .object({
         name: z.string().max(200),
@@ -115,7 +116,7 @@ export const Route = createFileRoute("/api/mia")({
               })),
             );
           }
-          const reply = await generateAiText({
+          const options = {
             feature: "chat.mia",
             instructions: [
               MIA_INSTRUCTIONS,
@@ -137,7 +138,58 @@ export const Route = createFileRoute("/api/mia")({
             messages,
             timeoutMs: 35_000,
             maxRetries: 0,
-          });
+          };
+          if (input.stream) {
+            const abort = new AbortController();
+            const interrupted = () => abort.abort();
+            request.signal.addEventListener("abort", interrupted, { once: true });
+            if (request.signal.aborted) abort.abort();
+            const iterator = streamAiText({ ...options, signal: abort.signal })[
+              Symbol.asyncIterator
+            ]();
+            const encoder = new TextEncoder();
+            const cleanup = () => request.signal.removeEventListener("abort", interrupted);
+            const body = new ReadableStream<Uint8Array>({
+              async pull(controller) {
+                try {
+                  const { value, done } = await iterator.next();
+                  controller.enqueue(
+                    encoder.encode(
+                      JSON.stringify(done ? { type: "done" } : { type: "text", text: value }) +
+                        "\n",
+                    ),
+                  );
+                  if (done) {
+                    cleanup();
+                    controller.close();
+                  }
+                } catch (error) {
+                  const safe =
+                    error instanceof Error && error.message.startsWith("MealMate AI ")
+                      ? error.message
+                      : "Mia's response was interrupted. Please try again.";
+                  controller.enqueue(
+                    encoder.encode(JSON.stringify({ type: "error", error: safe }) + "\n"),
+                  );
+                  cleanup();
+                  controller.close();
+                }
+              },
+              async cancel() {
+                abort.abort();
+                cleanup();
+                await iterator.return?.(undefined);
+              },
+            });
+            return new Response(body, {
+              headers: {
+                "Content-Type": "application/x-ndjson; charset=utf-8",
+                "Cache-Control": "no-store, no-transform",
+                "X-Content-Type-Options": "nosniff",
+              },
+            });
+          }
+          const reply = await generateAiText(options);
           return Response.json({ reply });
         } catch (error) {
           return errorResponse(error);

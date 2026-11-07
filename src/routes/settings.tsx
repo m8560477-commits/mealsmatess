@@ -1,4 +1,5 @@
-import { Navigate, createFileRoute } from "@tanstack/react-router";
+import { SettingsPage } from "@/components/settings-page";
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -11,9 +12,5 @@ export const Route = createFileRoute("/settings")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: SettingsAlias,
+  component: SettingsPage,
 });
-
-function SettingsAlias() {
-  return <Navigate to="/profile" replace />;
-}

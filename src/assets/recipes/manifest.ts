@@ -22,35 +22,41 @@ const recipeSlugs = [
   "west-african-jollof-rice",
 ] as const;
 
-function imageUrl(slug: string, size: "thumb" | "card" | "hero") {
+function imageUrl(slug: string, size: "thumb" | "card" | "large" | "hero") {
   const filename = size === "hero" ? `${slug}.webp` : `${slug}-${size}.webp`;
   const url = recipeImageAssets[`./${filename}`];
   if (!url) throw new Error(`Missing bundled recipe image: ${filename}`);
   return url;
 }
 
-export const RECIPE_PHOTOS: Record<string, { thumb: string; card: string; hero: string }> =
-  Object.fromEntries(
-    recipeSlugs.map((slug) => {
-      return [
-        slug,
-        {
-          thumb: imageUrl(slug, "thumb"),
-          card: imageUrl(slug, "card"),
-          hero: imageUrl(slug, "hero"),
-        },
-      ];
-    }),
-  );
-
-export const DISH_RENDITIONS: Record<string, { thumb: string; card: string; hero: string }> =
-  Object.fromEntries(
-    ["ackee-and-saltfish", "quinoa-harissa-chicken", "pizza-margherita"].map((slug) => [
+export const RECIPE_PHOTOS: Record<
+  string,
+  { thumb: string; card: string; large: string; hero: string }
+> = Object.fromEntries(
+  recipeSlugs.map((slug) => {
+    return [
       slug,
       {
-        thumb: recipeImageAssets[`./dishes/${slug}-thumb.webp`]!,
-        card: recipeImageAssets[`./dishes/${slug}-card.webp`]!,
-        hero: recipeImageAssets[`./dishes/${slug}.jpg`]!,
+        thumb: imageUrl(slug, "thumb"),
+        card: imageUrl(slug, "card"),
+        large: imageUrl(slug, "large"),
+        hero: imageUrl(slug, "hero"),
       },
-    ]),
-  );
+    ];
+  }),
+);
+
+export const DISH_RENDITIONS: Record<
+  string,
+  { thumb: string; card: string; large: string; hero: string }
+> = Object.fromEntries(
+  ["ackee-and-saltfish", "quinoa-harissa-chicken", "pizza-margherita"].map((slug) => [
+    slug,
+    {
+      thumb: recipeImageAssets[`./dishes/${slug}-thumb.webp`]!,
+      card: recipeImageAssets[`./dishes/${slug}-card.webp`]!,
+      large: recipeImageAssets[`./dishes/${slug}-large.webp`]!,
+      hero: recipeImageAssets[`./dishes/${slug}.jpg`]!,
+    },
+  ]),
+);

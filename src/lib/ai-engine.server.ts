@@ -4,6 +4,7 @@ import {
   generateImage,
   generateSpeech,
   generateText,
+  streamText,
   Output,
   zodSchema,
   type ModelMessage,
@@ -280,6 +281,103 @@ export async function generateAiText(options: AiRequestOptions): Promise<string>
     });
     return text;
   } catch (error) {
+    logFailure(
+      options.feature,
+      options.model ?? DEFAULT_AI_TEXT_MODEL,
+      error,
+      Date.now() - startedAt,
+    );
+    throw publicError(errorCategory(error));
+  }
+}
+
+/** Stream either configured gateway; errors remain sanitized and requests stay cancellable. */
+export async function* streamAiText(
+  options: AiRequestOptions & { signal?: AbortSignal },
+): AsyncGenerator<string> {
+  const startedAt = Date.now();
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  let received = false;
+  try {
+    if (options.modelOverride || !usesLovableGateway()) {
+      const result = streamText({
+        model:
+          options.modelOverride ??
+          vercelGateway().languageModel(options.model ?? DEFAULT_AI_TEXT_MODEL),
+        ...promptFields(options),
+        maxRetries: options.maxRetries ?? 0,
+        abortSignal: signal,
+        maxOutputTokens: 8192,
+        timeout: options.timeoutMs ?? DEFAULT_TEXT_TIMEOUT_MS,
+      });
+      for await (const part of result.stream) {
+        if (part.type === "error") throw part.error;
+        if (part.type === "abort") throw new DOMException("Interrupted", "AbortError");
+        if (part.type === "text-delta" && part.text) {
+          received = true;
+          yield part.text;
+        }
+      }
+    } else {
+      const key = apiKey();
+      const response = await fetch(`${LOVABLE_AI_BASE_URL}/chat/completions`, {
+        method: "POST",
+        signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+          "Lovable-API-Key": key,
+          "X-Lovable-AIG-SDK": "fetch",
+        },
+        body: JSON.stringify({
+          model: options.model ?? DEFAULT_AI_TEXT_MODEL,
+          messages: messagesFor(options),
+          max_tokens: 8192,
+          stream: true,
+        }),
+      });
+      if (!response.ok)
+        throw new AiProviderError(categoryForStatus(response.status), response.status);
+      if (!response.body) throw new AiProviderError("empty_response");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let total = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          buffer += decoder.decode(value, { stream: !done });
+          total += value?.length ?? 0;
+          if (total > 1_000_000) throw new AiProviderError("invalid_response");
+          let end: number;
+          while ((end = buffer.indexOf("\n")) >= 0) {
+            const line = buffer.slice(0, end).trim();
+            buffer = buffer.slice(end + 1);
+            if (!line.startsWith("data:")) continue;
+            const data = line.slice(5).trim();
+            if (data === "[DONE]") {
+              if (!received) throw new AiProviderError("empty_response");
+              return;
+            }
+            const event = JSON.parse(data);
+            if (event.error) throw new AiProviderError("provider_unavailable");
+            const text = event.choices?.[0]?.delta?.content;
+            if (typeof text === "string" && text) {
+              received = true;
+              yield text;
+            }
+          }
+          if (done) throw new AiProviderError("invalid_response");
+        }
+      } finally {
+        await reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
+    }
+    if (!received) throw new AiProviderError("empty_response");
+  } catch (error) {
+    if (options.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
     logFailure(
       options.feature,
       options.model ?? DEFAULT_AI_TEXT_MODEL,

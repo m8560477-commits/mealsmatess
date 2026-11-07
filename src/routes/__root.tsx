@@ -1,7 +1,6 @@
 import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import headingLatin from "@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2?url";
-import recipeLatin from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url";
-import { MiaProvider } from "@/components/mia-provider";
+
 import { HubContext } from "@/components/hub/hub-context";
 import { HubShell } from "@/components/hub/hub-shell";
 import { isHubSurface } from "@/lib/hub-surface";
@@ -17,12 +16,31 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
+const MiaProvider = lazy(() =>
+  import("@/components/mia-provider").then((module) => ({ default: module.MiaProvider })),
+);
+function ConsumerMia({ children, publicEntry }: { children: ReactNode; publicEntry: boolean }) {
+  if (publicEntry) return <>{children}</>;
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6" role="status">
+          Opening your kitchen…
+        </div>
+      }
+    >
+      <MiaProvider>{children}</MiaProvider>
+    </Suspense>
+  );
+}
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { auth, onAuthStateChanged } from "@/lib/firebase";
-import { AppHeader } from "@/components/app-header";
+import { auth, onAuthStateChanged } from "@/lib/firebase-core";
+const AppHeader = lazy(() =>
+  import("@/components/app-header").then((module) => ({ default: module.AppHeader })),
+);
 import { BottomNav } from "@/components/bottom-nav";
 
 import { AuthGate } from "@/components/auth-gate";
@@ -156,13 +174,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         type: "font/woff2",
         crossOrigin: "anonymous",
       },
-      {
-        rel: "preload",
-        href: recipeLatin,
-        as: "font",
-        type: "font/woff2",
-        crossOrigin: "anonymous",
-      },
     ],
   }),
   shellComponent: RootShell,
@@ -200,10 +211,13 @@ function RootComponent() {
   useShellMetrics(showAppHeader ? "with-header" : "no-header");
 
   useEffect(() => {
+    let previousUid = auth.currentUser?.uid ?? null;
     return onAuthStateChanged(auth, (firebaseUser) => {
+      const uid = firebaseUser?.uid ?? null;
+      if (uid !== previousUid || !uid) queryClient.clear();
+      else void queryClient.invalidateQueries();
+      previousUid = uid;
       router.invalidate();
-      if (firebaseUser) void queryClient.invalidateQueries();
-      else queryClient.clear();
     });
   }, [router, queryClient]);
 
@@ -222,11 +236,19 @@ function RootComponent() {
                   </HubShell>
                 ) : (
                   <ConsumerAccessGate>
-                    <MiaProvider>
+                    <ConsumerMia
+                      publicEntry={
+                        isFlow || /^\/(legal|support|about|reset-password)(\/|$)/.test(pathname)
+                      }
+                    >
                       <div
                         className={`theme-backdrop h-dvh w-full overflow-hidden bg-background ${isMarketplace ? "marketplace-dark" : ""}`}
                       >
-                        {showAppHeader && <AppHeader />}
+                        {showAppHeader && (
+                          <Suspense fallback={<div className="h-16" />}>
+                            <AppHeader />
+                          </Suspense>
+                        )}
                         <div
                           id="app-scroll"
                           className={`h-full overflow-y-auto overscroll-y-none ${isFlow ? "" : "pb-[var(--app-nav-h)] pt-[var(--app-header-h)]"}`}
@@ -246,7 +268,7 @@ function RootComponent() {
                         </div>
                         {isFlow ? null : <BottomNav />}
                       </div>
-                    </MiaProvider>
+                    </ConsumerMia>
                   </ConsumerAccessGate>
                 )}
               </HubContext.Provider>

@@ -82,3 +82,16 @@ it("does not mirror an uncommitted Firestore write to Auth", () => {
   expect(result.current.photoURL).toBe("https://example.test/google.jpg");
   expect(mocks.updateProfile).not.toHaveBeenCalled();
 });
+
+it("shares one Firestore subscription across avatars and releases the final subscriber", () => {
+  const first = renderHook(useProfilePhoto);
+  const firstCallback = mocks.listener;
+  const second = renderHook(useProfilePhoto);
+  expect(mocks.listener).toBe(firstCallback);
+  act(() => mocks.listener?.({ data: () => ({ photoURL: "https://example.test/shared.jpg" }) }));
+  expect(first.result.current.photoURL).toBe(second.result.current.photoURL);
+  first.unmount();
+  expect(mocks.unsubscribe).not.toHaveBeenCalled();
+  second.unmount();
+  expect(mocks.unsubscribe).toHaveBeenCalledOnce();
+});

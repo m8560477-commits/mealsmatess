@@ -3,6 +3,7 @@
 
 export type FoodPreferences = {
   goal: string | null;
+  preferred_cuisines?: string[];
   favorite_foods: string[];
   allergies: string[];
   dietary_restrictions: string[];
@@ -47,6 +48,7 @@ export function normalizePreferences(raw: unknown): FoodPreferences {
   const o = (raw ?? {}) as Record<string, unknown>;
   return {
     goal: asString(o["goal"]),
+    preferred_cuisines: asStringArray(o["preferred_cuisines"]),
     favorite_foods: asStringArray(o["favorite_foods"]),
     allergies: asStringArray(o["allergies"]),
     dietary_restrictions: asStringArray(o["dietary_restrictions"]),
@@ -165,6 +167,8 @@ export function personalize<T>(
 /** A short line the AI and UI can use to explain the user's taste. */
 export function preferenceSummary(prefs: FoodPreferences): string {
   const bits: string[] = [];
+  if (prefs.preferred_cuisines?.length)
+    bits.push(`Cuisines: ${prefs.preferred_cuisines.join(", ")}`);
   if (prefs.goal) bits.push(`Goal: ${prefs.goal}`);
   if (prefs.favorite_foods.length) bits.push(`Enjoys: ${prefs.favorite_foods.join(", ")}`);
   if (prefs.allergies.length) bits.push(`Must avoid: ${prefs.allergies.join(", ")}`);

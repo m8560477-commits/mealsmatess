@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase-core";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

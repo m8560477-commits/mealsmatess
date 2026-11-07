@@ -5,6 +5,7 @@ import { normalizePreferences, type FoodPreferences } from "@/lib/preferences";
 
 const prefsSchema = z.object({
   goal: z.string().max(60).nullable().default(null),
+  preferred_cuisines: z.array(z.string().max(60)).max(30).default([]),
   favorite_foods: z.array(z.string().max(60)).max(30).default([]),
   allergies: z.array(z.string().max(60)).max(40).default([]),
   dietary_restrictions: z.array(z.string().max(60)).max(30).default([]),

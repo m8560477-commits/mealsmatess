@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useRef } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/use-session";
 import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
-import { recipesByCategoryQuery } from "@/lib/queries";
+import { recipePagesQuery } from "@/lib/queries";
 import { generateRecipe, surpriseMe } from "@/lib/ai.functions";
 import { RecipeCard } from "@/components/recipe-card";
 import { Button } from "@/components/ui/button";
@@ -58,14 +58,40 @@ function RecipesPage() {
   const navigate = useNavigate();
   const { user } = useSession();
   const {
-    data: recipes,
+    data,
     isLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
     isError,
     refetch,
-  } = useQuery({
-    ...recipesByCategoryQuery(active !== "All" ? active : undefined, q),
+  } = useInfiniteQuery({
+    ...recipePagesQuery(active !== "All" ? active : undefined, q),
     enabled: !!user,
   });
+  const recipes = data?.pages.flatMap((page) => page.recipes);
+  const loadMore = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = loadMore.current;
+    if (
+      !node ||
+      !hasNextPage ||
+      isFetchingNextPage ||
+      isFetchNextPageError ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
+    // Prefetch just ahead of the viewport; never eagerly download the entire collection.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) void fetchNextPage();
+      },
+      { root: document.getElementById("app-scroll"), rootMargin: "400px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
   const [query, setQuery] = useState(q ?? "");
   useEffect(() => {
     setQuery(q ?? "");
@@ -83,10 +109,13 @@ function RecipesPage() {
         to: "/recipes",
         search: { ...(active !== "All" ? { c: active } : {}), q: term },
       });
-      const matches = await queryClient.fetchQuery(
-        recipesByCategoryQuery(active !== "All" ? active : undefined, term),
+      const matches = await queryClient.fetchInfiniteQuery(
+        recipePagesQuery(active !== "All" ? active : undefined, term),
       );
-      void loadRecipeSearchImages(matches, queryClient);
+      void loadRecipeSearchImages(
+        matches.pages.flatMap((page) => page.recipes),
+        queryClient,
+      );
     } catch {
       toast.error("Couldn't complete the search. Please try again.");
     } finally {
@@ -206,7 +235,7 @@ function RecipesPage() {
               <Skeleton key={i} className="aspect-[4/3] w-full rounded-2xl" />
             ))}
           </div>
-        ) : isError ? (
+        ) : isError && !recipes?.length ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="text-muted-foreground">Recipes couldn&apos;t load right now.</p>
             <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
@@ -219,6 +248,8 @@ function RecipesPage() {
               <RecipeCard key={r.id} recipe={r} priority={index < 2} />
             ))}
           </div>
+        ) : hasNextPage ? (
+          <p className="text-sm text-muted-foreground">Looking for matching recipes…</p>
         ) : (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="text-muted-foreground">
@@ -227,6 +258,26 @@ function RecipesPage() {
           </div>
         )}
       </div>
+      {hasNextPage && (
+        <div ref={loadMore} className="mt-6 flex flex-col items-center gap-3" aria-live="polite">
+          {isFetchNextPageError && (
+            <p className="text-sm text-muted-foreground">
+              Couldn't load more recipes. Your loaded recipes are still available.
+            </p>
+          )}
+          <Button
+            variant="outline"
+            disabled={isFetchingNextPage}
+            onClick={() => void fetchNextPage()}
+          >
+            {isFetchingNextPage
+              ? "Loading recipes…"
+              : isFetchNextPageError
+                ? "Retry loading more"
+                : "Load more recipes"}
+          </Button>
+        </div>
+      )}
     </main>
   );
 }

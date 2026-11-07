@@ -105,7 +105,12 @@ function WelcomePage() {
       </header>
       <section key={step} className="intro-step">
         <div className="intro-photo">
-          <RecipeImage recipe={{ name: current.dish }} size="hero" priority />
+          <RecipeImage
+            recipe={{ name: current.dish }}
+            size="hero"
+            sizes="(max-width: 500px) calc(100vw - 56px), 444px"
+            priority
+          />
           {step === 1 && (
             <div className="scan-illustration" aria-label="Ingredient scanner illustration">
               <ScanLine size={64} />

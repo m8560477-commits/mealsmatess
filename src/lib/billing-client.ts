@@ -11,7 +11,11 @@ export type BillingPlan = {
   trialDays: number;
   purchase: () => Promise<unknown>;
 };
-export type BillingStore = { plans: BillingPlan[]; restore: () => Promise<unknown> };
+export type BillingStore = {
+  plans: BillingPlan[];
+  restore: () => Promise<unknown>;
+  managementUrl?: () => Promise<string | null>;
+};
 
 export function planKind(identifier: string, product: string, period: string): PlanKind | null {
   const key = `${identifier}_${product}`.toLowerCase();
@@ -82,7 +86,11 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
     });
     if (!plans.length)
       throw new Error("Subscription plans are temporarily unavailable. Please try again.");
-    return { plans, restore: () => Purchases.restorePurchases() };
+    return {
+      plans,
+      restore: () => Purchases.restorePurchases(),
+      managementUrl: async () => (await Purchases.getCustomerInfo()).customerInfo.managementURL,
+    };
   }
   if (!identity.webApiKey)
     throw new Error(
@@ -113,15 +121,16 @@ async function configureStore(identity: Identity): Promise<BillingStore> {
         kind,
         price: product.price.formattedPrice,
         period: periodLabel(iso),
-        trialDays: sevenDayTrial(
-          product.freeTrialPhase?.periodDuration,
-          !!product.introPricePhase,
-        ),
+        trialDays: sevenDayTrial(product.freeTrialPhase?.periodDuration, !!product.introPricePhase),
         purchase: () => sdk.purchase({ rcPackage: pkg, skipSuccessPage: true }),
       },
     ];
   });
   if (!plans.length)
     throw new Error("Subscription plans are temporarily unavailable. Please try again.");
-  return { plans, restore: () => sdk.getCustomerInfo() };
+  return {
+    plans,
+    restore: () => sdk.getCustomerInfo(),
+    managementUrl: async () => (await sdk.getCustomerInfo()).managementURL,
+  };
 }

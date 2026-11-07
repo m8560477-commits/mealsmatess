@@ -15,9 +15,7 @@ import {
   signInWithEmail as signInWithFirebaseEmail,
   signUpWithEmail as signUpWithFirebaseEmail,
   sendPasswordReset as sendFirebasePasswordReset,
-  db,
-} from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+} from "@/lib/firebase-core";
 import { sendEmailVerification, updateProfile } from "firebase/auth";
 
 async function ensureUserProfile(user: {
@@ -26,6 +24,10 @@ async function ensureUserProfile(user: {
   displayName: string | null;
   photoURL: string | null;
 }) {
+  const [{ db }, { doc, getDoc, setDoc }] = await Promise.all([
+    import("@/lib/firebase"),
+    import("firebase/firestore"),
+  ]);
   const userRef = doc(db, "users", user.uid);
   const snap = await getDoc(userRef);
   const profile = {

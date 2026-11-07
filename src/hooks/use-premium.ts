@@ -8,19 +8,26 @@ import { useEffect, useState } from "react";
 export function usePremium() {
   const { user } = useSession();
   const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
   const query = useQuery({
     queryKey: ["entitlement", user?.id ?? "anon"],
     queryFn: () => verifyMyPremium(),
     enabled: !!user,
-    staleTime: 0,
+    staleTime: 15_000,
+    refetchOnMount: true,
     refetchInterval: 60_000,
     refetchOnWindowFocus: "always",
     retry: false,
   });
+  const verifiedUntil = query.data?.verifiedUntil ?? 0;
+  useEffect(() => {
+    if (verifiedUntil <= Date.now()) return;
+    // Re-render at lease expiry rather than waking every component every second.
+    const timer = window.setTimeout(
+      () => setNow(Date.now()),
+      Math.min(verifiedUntil - Date.now() + 1, 2_147_483_647),
+    );
+    return () => window.clearTimeout(timer);
+  }, [verifiedUntil]);
   return {
     isPremium:
       !!user &&

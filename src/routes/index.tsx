@@ -20,12 +20,13 @@ import {
 import { toast } from "sonner";
 import {
   trendingRecipesQuery,
-  recipesByCategoryQuery,
+  recipePagesQuery,
   southAfricanFavoritesQuery,
   myFavoritesQuery,
   type RecipeRecord,
 } from "@/lib/queries";
 import { surpriseMe } from "@/lib/ai.functions";
+import { useInView } from "@/hooks/use-in-view";
 import { useSession } from "@/hooks/use-session";
 import { firebaseData } from "@/lib/firebase-data";
 import { getContinueCooking } from "@/lib/continue-cooking";
@@ -100,6 +101,7 @@ function Index() {
   const queryClient = useQueryClient();
   const { user } = useSession();
   const { preferences, hasPreferences } = usePreferences();
+  const southAfricanSection = useInView("500px");
   const {
     data: trendingRaw = [],
     isLoading: trendingLoading,
@@ -109,7 +111,7 @@ function Index() {
     data: southAfricanRaw = [],
     isLoading: southAfricanLoading,
     error: southAfricanError,
-  } = useQuery({ ...southAfricanFavoritesQuery(), enabled: !!user });
+  } = useQuery({ ...southAfricanFavoritesQuery(), enabled: !!user && southAfricanSection.visible });
   const recipeText = (r: RecipeRecord) => [
     String(r.name),
     r.description == null ? null : String(r.description),
@@ -137,8 +139,13 @@ function Index() {
     await navigate({ to: "/recipes", search: { q: term } });
     // Use the same explicit photo lookup as a search submitted from the library.
     void queryClient
-      .fetchQuery(recipesByCategoryQuery(undefined, term))
-      .then((matches) => loadRecipeSearchImages(matches, queryClient))
+      .fetchInfiniteQuery(recipePagesQuery(undefined, term))
+      .then((matches) =>
+        loadRecipeSearchImages(
+          matches.pages.flatMap((page) => page.recipes),
+          queryClient,
+        ),
+      )
       .catch(() => {});
   }
 
@@ -403,7 +410,7 @@ function Index() {
       </section>
 
       {/* South African favourites */}
-      <section className="pt-8">
+      <section ref={southAfricanSection.ref} className="pt-8">
         <div className="mb-3 flex items-end justify-between px-4">
           <h2 className="font-display text-2xl">South African Favourites</h2>
           <Link
@@ -415,7 +422,7 @@ function Index() {
           </Link>
         </div>
 
-        {southAfricanLoading ? (
+        {!southAfricanSection.visible || southAfricanLoading ? (
           <div className="flex gap-4 overflow-x-auto px-4 pb-1">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-24 w-24 flex-shrink-0 rounded-2xl" />

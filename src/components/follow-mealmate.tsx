@@ -7,20 +7,20 @@ import { getSocialIntroCompletion, completeSocialIntro } from "@/lib/billing.fun
 export function SocialLinks() {
   return (
     <div className="social-cards">
-      <a href="https://www.instagram.com/mealsmates.app/" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.instagram.com/mealmate.sp/" target="_blank" rel="noopener noreferrer">
         <Instagram size={32} aria-hidden="true" />
         <strong>Instagram</strong>
-        <span>@mealsmates.app</span>
+        <span>@mealmate.sp</span>
         <span className="social-follow">
           Follow on Instagram <ArrowUpRight size={16} />
         </span>
       </a>
-      <a href="https://www.tiktok.com/@mealsmates.app" target="_blank" rel="noopener noreferrer">
+      <a href="https://www.tiktok.com/@mealmate.sp" target="_blank" rel="noopener noreferrer">
         <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
           <path d="M16.7 1h-4v14.6a3.2 3.2 0 1 1-2.8-3.2V8.3A7.3 7.3 0 1 0 16.7 16V8.5A10 10 0 0 0 22 10V6a5.4 5.4 0 0 1-5.3-5Z" />
         </svg>
         <strong>TikTok</strong>
-        <span>@mealsmates.app</span>
+        <span>@mealmate.sp</span>
         <span className="social-follow">
           Follow on TikTok <ArrowUpRight size={16} />
         </span>

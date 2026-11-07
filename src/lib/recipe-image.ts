@@ -65,11 +65,12 @@ export function dishPrompt(r: ImageRecipeLike): string {
     .join(", ");
 }
 
-export type ImageSize = "thumb" | "card" | "hero";
+export type ImageSize = "thumb" | "card" | "large" | "hero";
 
 export const IMAGE_DIMENSIONS: Record<ImageSize, { width: number; height: number }> = {
   thumb: { width: 256, height: 256 },
   card: { width: 512, height: 512 },
+  large: { width: 768, height: 768 },
   hero: { width: 1024, height: 1024 },
 };
 
@@ -191,8 +192,8 @@ export function photoRendition(url: string, width: number): string {
 
 export function recipePhotoSources(recipe: ImageRecipeLike, size: ImageSize, useCurated = false) {
   const stored = !useCurated && recipe.image_source && recipe.image_url;
-  const widths = [256, 512, 1024] as const;
-  const sizes = ["thumb", "card", "hero"] as const;
+  const widths = [256, 512, 768, 1024] as const;
+  const sizes = ["thumb", "card", "large", "hero"] as const;
   const urls = sizes.map((rendition, i) =>
     stored ? photoRendition(stored, widths[i]!) : curatedRecipeImageUrl(recipe, rendition),
   );

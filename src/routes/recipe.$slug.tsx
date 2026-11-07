@@ -255,6 +255,7 @@ function RecipePage() {
               <RecipeImage
                 recipe={r}
                 size="hero"
+                sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1024px) calc(50vw - 32px), 484px"
                 priority
                 generating={makingImage}
                 className="aspect-square w-full object-cover"

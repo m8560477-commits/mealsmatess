@@ -48,16 +48,32 @@ function ChatPage() {
   const { q } = Route.useSearch();
   const [question, setQuestion] = useState(q ?? "");
   const endRef = useRef<HTMLDivElement>(null);
+  const followReply = useRef(true);
+  useEffect(() => {
+    const scroller = document.getElementById("app-scroll");
+    if (!scroller) return;
+    const follow = () => {
+      followReply.current =
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 140;
+    };
+    scroller.addEventListener("scroll", follow, { passive: true });
+    return () => scroller.removeEventListener("scroll", follow);
+  }, []);
   const mia = useMia();
   const { turns, busy } = mia;
   const [visualMode, setVisualMode] = useState(false);
   useEffect(() => {
-    if (turns.length) endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    if (!turns.length || !followReply.current) return;
+    const frame = requestAnimationFrame(() =>
+      endRef.current?.scrollIntoView({ block: "end", behavior: busy ? "auto" : "smooth" }),
+    );
+    return () => cancelAnimationFrame(frame);
   }, [turns, busy]);
 
   async function ask(question: string) {
     if (!question.trim() || busy) return;
     setQuestion("");
+    followReply.current = true;
     mia.endConversation();
     try {
       await mia.ask(question, { visual: isPremium && visualMode });

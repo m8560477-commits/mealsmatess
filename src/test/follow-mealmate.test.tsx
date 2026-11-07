@@ -29,11 +29,11 @@ it("opens only official accounts and persists optional skip", async () => {
   mount();
   expect(await screen.findByRole("link", { name: /Follow on Instagram/ })).toHaveAttribute(
     "href",
-    "https://www.instagram.com/mealsmates.app/",
+    "https://www.instagram.com/mealmate.sp/",
   );
   expect(screen.getByRole("link", { name: /Follow on TikTok/ })).toHaveAttribute(
     "href",
-    "https://www.tiktok.com/@mealsmates.app",
+    "https://www.tiktok.com/@mealmate.sp",
   );
   expect(mocks.save).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Skip" }));

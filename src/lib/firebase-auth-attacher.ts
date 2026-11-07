@@ -1,5 +1,5 @@
 import { createMiddleware } from "@tanstack/react-start";
-import { waitForFirebaseAuth } from "@/lib/firebase";
+import { waitForFirebaseAuth } from "@/lib/firebase-core";
 
 export const attachFirebaseAuth = createMiddleware({ type: "function" }).client(
   async ({ next }) => {

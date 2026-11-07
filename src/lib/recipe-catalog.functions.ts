@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requirePremium } from "@/lib/premium-middleware";
-import { filterRecipeCatalog, recipeCatalogRecord } from "@/lib/recipe-catalog";
+import { recipeCatalogRecord } from "@/lib/recipe-catalog";
 
 export const listRecipeCatalog = createServerFn({ method: "GET" })
   .middleware([requirePremium])
@@ -15,16 +15,19 @@ export const listRecipeCatalog = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: rows, error } = await context.firebase
-      .from("recipes")
-      .select("*")
-      .order("created_at", { ascending: false, nullsFirst: false });
-    if (error) throw error;
-    const recipes = (rows as Record<string, unknown>[])
-      .map(recipeCatalogRecord)
-      .filter((recipe) => recipe !== null);
-    // Apply matching before the result limit, including older rows without created_at.
-    return filterRecipeCatalog(recipes, data);
+    const { readRecipeCatalogPage } = await import("@/lib/recipe-catalog.server");
+    const recipes = [];
+    let cursor: string | undefined;
+    do {
+      const page = await readRecipeCatalogPage({
+        ...data,
+        limit: data.limit - recipes.length,
+        cursor,
+      });
+      recipes.push(...page.recipes);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor && recipes.length < data.limit);
+    return recipes;
   });
 
 export const getRecipeCatalogEntry = createServerFn({ method: "GET" })
@@ -39,4 +42,22 @@ export const getRecipeCatalogEntry = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw error;
     return row ? recipeCatalogRecord(row) : null;
+  });
+
+/** A cursor page never reads the complete catalog to produce its first response. */
+export const listRecipeCatalogPage = createServerFn({ method: "GET" })
+  .middleware([requirePremium])
+  .validator((input: unknown) =>
+    z
+      .object({
+        category: z.string().trim().max(80).optional(),
+        search: z.string().trim().max(200).default(""),
+        limit: z.number().int().min(1).max(60).default(12),
+        cursor: z.string().max(4096).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { readRecipeCatalogPage } = await import("@/lib/recipe-catalog.server");
+    return readRecipeCatalogPage(data);
   });

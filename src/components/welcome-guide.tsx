@@ -120,7 +120,12 @@ export function WelcomeGuide({ children }: { children: ReactNode }) {
   return (
     <main className="welcome-guide">
       <div className="guide-photo">
-        <RecipeImage recipe={{ name: current.dish }} size="hero" priority />
+        <RecipeImage
+          recipe={{ name: current.dish }}
+          size="hero"
+          sizes="(max-width: 500px) calc(100vw - 56px), 444px"
+          priority
+        />
       </div>
       <section className="guide-copy" aria-labelledby="guide-title">
         <p className="premium-eyebrow">YOUR MEALMATE · {step + 1} OF 5</p>

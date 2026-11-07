@@ -37,6 +37,7 @@ export function ThemePicker() {
               <button
                 key={t.id}
                 type="button"
+                disabled={saving}
                 role="radio"
                 aria-checked={selected}
                 aria-label={`${t.name}${locked ? " (Premium)" : ""}`}
@@ -53,7 +54,14 @@ export function ThemePicker() {
                     selected ? "border-foreground" : "border-transparent",
                   )}
                 >
-                  <img src={t.image} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <span aria-hidden="true" className="block h-full w-full bg-background p-2">
+                    <span className="block h-2 w-1/2 rounded bg-muted-foreground/30" />
+                    <span
+                      className="mt-2 block h-6 w-full rounded"
+                      style={{ background: t.accentDark }}
+                    />
+                    <span className="mt-2 block h-2 w-3/4 rounded bg-muted-foreground/20" />
+                  </span>
                   {locked && (
                     <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-background/90">
                       <Lock className="h-3 w-3" />

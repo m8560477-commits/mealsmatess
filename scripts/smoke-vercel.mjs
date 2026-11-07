@@ -18,10 +18,19 @@ try {
   if (!catalogFile) throw new Error("Recipe catalog is missing from the server artifact.");
   const catalogSource = await readFile(join(artifact, "_ssr", catalogFile), "utf8");
   const catalogFunctionIds = [
+    catalogSource.match(/id: "([a-f0-9]+)",\s*name: "listRecipeCatalogPage"/)?.[1],
     catalogSource.match(/id: "([a-f0-9]+)",\s*name: "listRecipeCatalog"/)?.[1],
     catalogSource.match(/id: "([a-f0-9]+)",\s*name: "getRecipeCatalogEntry"/)?.[1],
   ];
   if (catalogFunctionIds.some((id) => !id)) throw new Error("Catalog function IDs are missing.");
+  const engagementFile = serverFiles.find((name) => name.startsWith("engagement.functions-"));
+  if (!engagementFile) throw new Error("Engagement functions missing.");
+  const engagementSource = await readFile(join(artifact, "_ssr", engagementFile), "utf8");
+  const summaryId = engagementSource.match(
+    /id: "([a-f0-9]+)",\s*name: "getRecipeRatingSummaries"/,
+  )?.[1];
+  if (!summaryId) throw new Error("Rating summary function missing.");
+  catalogFunctionIds.push(summaryId);
   const billingFiles = serverFiles.filter((name) => name.startsWith("billing.functions-"));
   if (!billingFiles.length)
     throw new Error("Billing functions are missing from the server artifact.");

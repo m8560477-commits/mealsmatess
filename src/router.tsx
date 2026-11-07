@@ -22,6 +22,7 @@ export const getRouter = () => {
     scrollRestoration: true,
     // Keep link preloads warm briefly so hover/tap navigation is instant without stale data lingering.
     defaultPreloadStaleTime: 30_000,
+    defaultPreload: "intent",
   });
 
   return router;

@@ -57,7 +57,8 @@ describe("Recipe image safety", () => {
 describe("responsive recipe delivery", () => {
   it("uses genuinely distinct local files for each size", () => {
     for (const photo of Object.values(RECIPE_PHOTOS)) {
-      expect(new Set(Object.values(photo)).size).toBe(3);
+      expect(new Set(Object.values(photo)).size).toBe(4);
+      expect(photo.large).toContain("-large.webp");
     }
   });
   it("resizes supported providers while preserving attribution parameters", () => {

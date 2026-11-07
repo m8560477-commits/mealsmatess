@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   credit: vi.fn(),
   rateLimit: vi.fn(),
   text: vi.fn(),
+  stream: vi.fn(),
   image: vi.fn(),
   readRecipe: vi.fn(),
   readPantry: vi.fn(),
@@ -17,7 +18,10 @@ vi.mock("@/lib/ai-credits.server", async (original) => ({
   requireAiCredit: mocks.credit,
 }));
 vi.mock("@/server/ai-rate-limit", () => ({ enforceAiRateLimit: mocks.rateLimit }));
-vi.mock("@/lib/ai-engine.server", () => ({ generateAiText: mocks.text }));
+vi.mock("@/lib/ai-engine.server", () => ({
+  generateAiText: mocks.text,
+  streamAiText: mocks.stream,
+}));
 vi.mock("@/lib/recipe-image-request.server", () => ({ requestRecipeImage: mocks.image }));
 
 type Handler = (context: { request: Request }) => Promise<Response>;
@@ -148,4 +152,31 @@ it.each([miaPost, imagePost])("rejects unauthenticated AI calls", async (handler
   expect(response.status).toBe(401);
   expect(mocks.text).not.toHaveBeenCalled();
   expect(mocks.image).not.toHaveBeenCalled();
+});
+
+it("streams authenticated Mia replies and keeps errors private", async () => {
+  mocks.stream.mockImplementation(async function* () {
+    yield "Try ";
+    yield "rice.";
+  });
+  const response = await miaPost(request({ message: "Dinner?", stream: true }));
+  expect(response.headers.get("content-type")).toContain("application/x-ndjson");
+  expect(response.headers.get("cache-control")).toContain("no-store");
+  expect(
+    (await response.text())
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line)),
+  ).toEqual([{ type: "text", text: "Try " }, { type: "text", text: "rice." }, { type: "done" }]);
+  expect(mocks.credit).toHaveBeenCalledOnce();
+  expect(mocks.rateLimit).toHaveBeenCalledOnce();
+  mocks.stream.mockImplementation(async function* () {
+    yield "Try ";
+    throw new Error("private-provider-secret");
+  });
+  const failure = await miaPost(request({ message: "Dinner?", stream: true }));
+  const body = await failure.text();
+  expect(body).toContain('"type":"error"');
+  expect(body).not.toContain("private-provider-secret");
+  expect(body).not.toContain('"type":"done"');
 });

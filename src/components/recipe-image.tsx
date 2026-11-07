@@ -104,7 +104,7 @@ function RecipePhoto({
                 setUseCurated(true);
               else setFailed(true);
             }}
-            className={`h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none ${loaded === src ? "opacity-100" : "opacity-0"}`}
+            className={`h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none ${priority || loaded === src ? "opacity-100" : "opacity-0"}`}
           />
         </>
       )}

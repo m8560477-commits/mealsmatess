@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { firebaseData } from "@/lib/firebase-data";
 import { useSession } from "@/hooks/use-session";
 import {
   THEME_STORAGE_KEY,
@@ -25,6 +24,7 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
   const { user } = useSession();
   const [themeId, setThemeId] = useState<MascotThemeId>("classic");
   const [saving, setSaving] = useState(false);
+  const userId = user?.id;
 
   // Local theme first (works signed out).
   useEffect(() => {
@@ -38,33 +38,37 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
 
   // Account theme wins when signed in, so it follows the user across devices.
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     let active = true;
-    firebaseData
-      .from("profiles")
-      .select("theme")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[theme] load failed", error);
-          return;
-        }
-        const remote = (data as { theme?: string } | null)?.theme;
-        if (active && remote) {
-          const id = getTheme(remote).id;
-          setThemeId(id);
-          try {
-            window.localStorage.setItem(THEME_STORAGE_KEY, id);
-          } catch {
-            /* ignore */
-          }
-        }
-      });
+    import("@/lib/firebase-data")
+      .then(({ firebaseData }) =>
+        firebaseData
+          .from("profiles")
+          .select("theme")
+          .eq("id", userId)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("[theme] load failed", error);
+              return;
+            }
+            const remote = (data as { theme?: string } | null)?.theme;
+            if (active && remote) {
+              const id = getTheme(remote).id;
+              setThemeId(id);
+              try {
+                window.localStorage.setItem(THEME_STORAGE_KEY, id);
+              } catch {
+                /* ignore */
+              }
+            }
+          }),
+      )
+      .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     applyTheme(themeId);
@@ -82,16 +86,24 @@ export function MascotThemeProvider({ children }: { children: ReactNode }) {
       }
       if (!user) return;
       setSaving(true);
-      const { error } = await firebaseData
-        .from("profiles")
-        .update({ theme: id } as never)
-        .eq("id", user.id);
-      setSaving(false);
-      if (error) {
-        console.error("[theme] save failed", error);
-        toast.error("Couldn't save your theme to your account. Please try again.");
+      try {
+        const { firebaseData } = await import("@/lib/firebase-data");
+        const { error } = await firebaseData
+          .from("profiles")
+          .update({ theme: id } as never)
+          .eq("id", user.id);
+        if (error) throw error;
+      } catch {
+        toast.error("Couldn't save your theme. Please try again.");
         applyTheme(previous, true);
         setThemeId(previous);
+        try {
+          window.localStorage.setItem(THEME_STORAGE_KEY, previous);
+        } catch {
+          /* Optional cache. */
+        }
+      } finally {
+        setSaving(false);
       }
     },
     [themeId, user],

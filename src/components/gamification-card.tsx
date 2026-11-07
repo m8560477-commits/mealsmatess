@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
 export function GamificationCard() {
   const { user } = useSession();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
-    queryKey: ["gamification"],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["gamification", user?.id],
     queryFn: () => getGamification(),
     enabled: !!user,
     staleTime: 60_000,
@@ -38,6 +38,13 @@ export function GamificationCard() {
   });
 
   if (!user) return null;
+
+  if (isError)
+    return (
+      <p role="alert">
+        Could not load achievements. <button onClick={() => void refetch()}>Try again</button>
+      </p>
+    );
 
   if (isLoading || !data) {
     return (
@@ -70,7 +77,14 @@ export function GamificationCard() {
               {formatXp(data.totalXp)} XP
             </span>
           </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            role="progressbar"
+            aria-label="Level progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(level.progress * 100)}
+            className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+          >
             <div
               className="h-full rounded-full bg-primary transition-all duration-700"
               style={{ width: `${Math.round(level.progress * 100)}%` }}
@@ -190,7 +204,7 @@ export function GamificationCard() {
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           Achievements
         </h3>
-        <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
+        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {data.achievements.map((a) => (
             <div
               key={a.code}
@@ -199,7 +213,7 @@ export function GamificationCard() {
                 "flex flex-col items-center gap-1 rounded-xl border p-2 text-center",
                 a.unlockedAt
                   ? "border-primary/30 bg-primary/5"
-                  : "border-border opacity-40 grayscale",
+                  : "border-border text-muted-foreground",
               )}
             >
               {a.unlockedAt ? (
@@ -207,7 +221,8 @@ export function GamificationCard() {
               ) : (
                 <Lock className="h-4 w-4 text-muted-foreground" />
               )}
-              <span className="line-clamp-2 text-[9px] font-semibold leading-tight">{a.title}</span>
+              <span className="line-clamp-2 text-[11px] font-medium leading-tight">{a.title}</span>
+              <span className="text-[10px]">{a.unlockedAt ? "Unlocked" : "Locked"}</span>
             </div>
           ))}
         </div>

@@ -16,7 +16,7 @@ export const MASCOT_THEMES: MascotTheme[] = [
   {
     id: "classic",
     name: "Classic",
-    image: "/mascots/mascot-classic.png",
+    image: "/mascots/mascot-classic-ui.webp",
     accent: "oklch(0.12 0 0)",
     accentDark: "#7894ff",
     accentForeground: "oklch(0.99 0 0)",

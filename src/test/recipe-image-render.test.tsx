@@ -28,6 +28,7 @@ describe("recipe photo lifecycle", () => {
     expect(img.tagName).toBe("IMG");
     expect(img).toHaveAttribute("loading", "eager");
     expect(img).toHaveAttribute("sizes", "160px");
+    expect(img).toHaveClass("opacity-100");
     fireEvent.load(img);
     expect(img).toHaveClass("opacity-100");
   });

@@ -10,6 +10,7 @@ import {
 import { getDownloadURL, getStorage } from "firebase-admin/storage";
 import { getMessaging } from "firebase-admin/messaging";
 import { randomBytes, randomUUID } from "node:crypto";
+import { invalidateRecipeCatalogCache } from "@/lib/recipe-catalog-cache.server";
 
 type Filter = { field: string; operator: string; value: unknown };
 type DbResult<T = unknown> = { data: T; error: Error | null; count?: number | null };
@@ -380,16 +381,54 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
         const { requireActivePremium } = await import("@/server/revenuecat");
         await requireActivePremium(this.userId);
       }
-      const collectionRef = collectionFor(db, this.table);
+      const collectionRef =
+        this.userId && USER_SUBCOLLECTIONS[this.table]
+          ? userCollectionFor(db, this.table, this.userId)
+          : collectionFor(db, this.table);
       if (this.action === "insert") return await this.insertRows(db);
       if (this.action === "upsert") return await this.upsertRows(collectionRef);
 
       this.assertUserAccess([]);
-      const snapshot = await collectionRef.get();
-      let entries = snapshot.docs.map((item) => ({
-        ref: item.ref,
-        row: { id: item.id, ...item.data() } as Row,
-      }));
+      // Push exact, non-null filters into Firestore. Keep legacy null/substring
+      // matching in memory so missing fields retain their previous semantics.
+      let readQuery: Query<DocumentData> = collectionRef;
+      for (const filter of this.scopedFilters) {
+        if (filter.operator === "eq" && filter.value != null && filter.field !== "id")
+          readQuery = readQuery.where(filter.field, "==", filter.value);
+      }
+      const fullyFiltered = this.scopedFilters.every(
+        (filter) => filter.operator === "eq" && filter.value != null && filter.field !== "id",
+      );
+      if (
+        this.action === "select" &&
+        !this.countMode &&
+        !this.rowRange &&
+        !this.sort.length &&
+        fullyFiltered &&
+        this.maxRows != null
+      ) {
+        if (this.maxRows === 0) return this.rowResult([]);
+        readQuery = readQuery.limit(this.maxRows);
+      }
+      const exactId = this.scopedFilters.find(
+        (filter) =>
+          filter.field === "id" && filter.operator === "eq" && typeof filter.value === "string",
+      );
+      const directCollection = !USER_SUBCOLLECTIONS[this.table] || !!this.userId;
+      const snapshot =
+        exactId && directCollection
+          ? {
+              docs: await db.getAll(
+                documentForRow(db, this.table, {}, String(exactId.value), this.userId),
+              ),
+            }
+          : await readQuery.get();
+      let entries = snapshot.docs
+        .filter((item) => item.exists)
+        .map((item) => ({
+          ref: item.ref,
+          row: { id: item.id, ...item.data() } as Row,
+        }));
       entries = entries.filter(({ row }) =>
         this.scopedFilters.every((filter) => matches(row, filter)),
       );
@@ -429,6 +468,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
           else batch.set(entry.ref, this.values as DocumentData, { merge: true });
         }
         await batch.commit();
+        if (this.table === "recipes") invalidateRecipeCatalogCache();
         const rows = entries.map(({ row }) =>
           this.action === "update" ? ({ ...row, ...this.values } as Row) : row,
         );
@@ -486,6 +526,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
       return value as Row;
     });
     await batch.commit();
+    if (this.table === "recipes") invalidateRecipeCatalogCache();
     return this.selected ? this.rowResult(rows) : { data: null, error: null };
   }
 
@@ -515,6 +556,7 @@ class FirestoreTableQuery implements PromiseLike<DbResult<any>> {
       });
       results.push({ ...(existing?.data() ?? {}), ...input, id } as Row);
     }
+    if (this.table === "recipes") invalidateRecipeCatalogCache();
     return this.selected ? this.rowResult(results) : { data: null, error: null };
   }
 }
