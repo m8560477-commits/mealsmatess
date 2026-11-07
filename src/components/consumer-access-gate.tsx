@@ -1,3 +1,4 @@
+import { WelcomeGuide } from "@/components/welcome-guide";
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -55,11 +56,10 @@ export function ConsumerAccessGate({ children }: { children: ReactNode }) {
     if (userId && access.error) return;
     if (userId && access.isPremium) return;
     if (userId && preferences.isPending) return;
-    // Entry sequence: auth → onboarding → paywall → app (strict).
-    // Only server-backed onboarding completion counts so local flags cannot skip the flow.
-    const onboardingDone = !!preferences.data;
+    // Intro flags only choose presentation; RevenueCat still gates every protected screen.
+    const onboardingDone = !!preferences.data || hasSeenTour();
     if (onboardingDone) markTourSeen();
-    void navigate({ to: onboardingDone ? "/premium" : "/onboarding", replace: true });
+    void navigate({ to: onboardingDone || userId ? "/premium" : "/welcome", replace: true });
   }, [
     loading,
     online,
@@ -100,5 +100,6 @@ export function ConsumerAccessGate({ children }: { children: ReactNode }) {
         <p>Checking your access…</p>
       </main>
     );
-  return <>{children}</>;
+  if (user.emailVerified === false) return <>{children}</>;
+  return <WelcomeGuide key={user.id}>{children}</WelcomeGuide>;
 }

@@ -46,7 +46,7 @@ export function ExpiringStrip() {
               <Utensils className="h-8 w-8" />
             </div>
             <div className="flex flex-col gap-0.5 p-3">
-              <span className="truncate font-display text-lg leading-tight">{item.name}</span>
+              <span className="truncate font-recipe text-lg leading-tight">{item.name}</span>
               <span
                 className={`text-xs font-medium ${
                   item.days <= 1 ? "text-destructive" : "text-muted-foreground"

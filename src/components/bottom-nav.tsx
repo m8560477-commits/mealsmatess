@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, UtensilsCrossed, CalendarDays, User } from "lucide-react";
+import { Home, Search, CalendarDays, User } from "lucide-react";
 import { ChefMascot } from "@/components/chef-mascot";
 import { cn } from "@/lib/utils";
 
@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
  */
 const LEFT_TABS = [
   { to: "/", icon: Home, label: "Home" },
-  { to: "/restaurants", icon: UtensilsCrossed, label: "Dining" },
+  { to: "/recipes", icon: Search, label: "Search" },
 ] as const;
 
 const RIGHT_TABS = [
-  { to: "/planner", icon: CalendarDays, label: "Planner" },
+  { to: "/planner", icon: CalendarDays, label: "Meal Plans" },
   { to: "/profile", icon: User, label: "Profile" },
 ] as const;
 
@@ -81,7 +81,7 @@ export function BottomNav() {
               aria-hidden="true"
             />
           )}
-          AI Chef
+          Mia / Cook
         </Link>
         {RIGHT_TABS.map((t) => (
           <Tab key={t.to} {...t} active={isActive(t.to)} />

@@ -81,7 +81,7 @@ function DiningComingSoon() {
       <span className="mb-3 rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
         Not yet available
       </span>
-      <h1 className="font-sans text-2xl font-bold text-foreground">Dining is coming soon</h1>
+      <h1 className="font-display text-2xl font-bold text-foreground">Dining is coming soon</h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
         We're still getting restaurants and food delivery ready. Check back soon — in the meantime,
         explore recipes and plan your meals.
@@ -117,7 +117,7 @@ function sectionTitle(title: string, subtitle?: string) {
   return (
     <div className="mb-3 flex items-end justify-between gap-4 px-4">
       <div className="min-w-0">
-        <h2 className="font-sans text-xl font-bold text-foreground">{title}</h2>
+        <h2 className="font-display text-xl font-bold text-foreground">{title}</h2>
         {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -294,7 +294,9 @@ function RestaurantsPage() {
               className="marketplace-dark rounded-t-3xl border-border bg-card pb-[max(1.5rem,env(safe-area-inset-bottom))]"
             >
               <SheetHeader className="text-left">
-                <SheetTitle className="font-sans text-xl font-bold">Delivery location</SheetTitle>
+                <SheetTitle className="font-display text-xl font-bold">
+                  Delivery location
+                </SheetTitle>
                 <SheetDescription>
                   Use your position or enter an area to personalise nearby restaurants.
                 </SheetDescription>
@@ -425,7 +427,7 @@ function RestaurantsPage() {
         ) : isError ? (
           <div className="mx-4 rounded-2xl border border-destructive/40 bg-card p-6 text-center">
             <Store className="mx-auto h-8 w-8 text-muted-foreground" />
-            <h2 className="mt-3 font-sans text-lg font-bold">Restaurants didn't load</h2>
+            <h2 className="mt-3 font-display text-lg font-bold">Restaurants didn't load</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Check your connection and try again.
             </p>
@@ -604,7 +606,9 @@ function PromoCarousel({
                   <span className="mb-2 text-xs font-bold uppercase text-primary">
                     {promoHeadline(promo, restaurant?.currency)}
                   </span>
-                  <h2 className="font-sans text-2xl font-black text-market-hero">{promo.title}</h2>
+                  <h2 className="font-display text-2xl font-black text-market-hero">
+                    {promo.title}
+                  </h2>
                   <p className="mt-1 line-clamp-2 text-sm text-market-hero/75">
                     {promo.description || restaurant?.name || "Fresh flavour, delivered."}
                   </p>
@@ -805,7 +809,7 @@ function RestaurantSection({
               <Link to="/restaurant/$slug" params={{ slug: restaurant.slug }} className="block p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate font-sans text-base font-bold">{restaurant.name}</h3>
+                    <h3 className="truncate font-display text-base font-bold">{restaurant.name}</h3>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {restaurant.cuisine || "Local favourites"}
                     </p>
@@ -880,7 +884,7 @@ function EmptyResults({ clear }: { clear: () => void }) {
   return (
     <div className="mx-4 rounded-2xl border border-dashed border-border bg-card p-8 text-center">
       <Search className="mx-auto h-9 w-9 text-muted-foreground" />
-      <h2 className="mt-3 font-sans text-lg font-bold">Nothing matches yet</h2>
+      <h2 className="mt-3 font-display text-lg font-bold">Nothing matches yet</h2>
       <p className="mt-1 text-sm text-muted-foreground">Try another dish, cuisine or filter.</p>
       <Button className="mt-4 rounded-full" onClick={clear}>
         Clear filters

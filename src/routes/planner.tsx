@@ -283,12 +283,12 @@ function PlannerPage() {
                           <Link
                             to="/recipe/$slug"
                             params={{ slug: p.recipes.slug ?? p.recipe_id ?? "" }}
-                            className="hover:underline"
+                            className="font-recipe hover:underline"
                           >
                             {p.recipes?.name ?? p.custom_name}
                           </Link>
                         ) : (
-                          p.custom_name
+                          <span className="font-recipe">{p.custom_name}</span>
                         )}
                       </span>
                       <button
@@ -323,7 +323,7 @@ function PlannerPage() {
                     <SelectContent>
                       {favorites?.map((f) => (
                         <SelectItem key={f.recipe_id} value={f.recipe_id}>
-                          {f.recipes?.name}
+                          <span className="font-recipe">{f.recipes?.name}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>

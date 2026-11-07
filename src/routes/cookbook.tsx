@@ -47,6 +47,9 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/cookbook")({
+  validateSearch: (search: Record<string, unknown>): { view?: "mine" | "favourites" } => ({
+    view: search.view === "mine" || search.view === "favourites" ? search.view : undefined,
+  }),
   head: () => ({
     meta: [
       { property: "og:title", content: "Cookbook \u2014 MealMate" },
@@ -83,6 +86,7 @@ type CookbookItem = {
 };
 
 function CookbookPage() {
+  const { view } = Route.useSearch();
   const { user, loading } = useSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -130,6 +134,11 @@ function CookbookPage() {
     for (const it of items) map.set(it.id, it);
     for (const it of owned ?? []) map.set(it.id, it);
     let arr = Array.from(map.values());
+    if (view === "mine") arr = arr.filter((recipe) => recipe.created_by === user?.id);
+    if (view === "favourites") {
+      const saved = new Set(items.map((recipe) => recipe.id));
+      arr = arr.filter((recipe) => saved.has(recipe.id));
+    }
     if (query.trim()) {
       const q = query.toLowerCase();
       arr = arr.filter(
@@ -140,7 +149,7 @@ function CookbookPage() {
       );
     }
     return arr;
-  }, [items, owned, query]);
+  }, [items, owned, query, view, user?.id]);
 
   async function handleImport() {
     const url = importUrl.trim();
@@ -323,7 +332,7 @@ function CookbookPage() {
                 </Link>
                 <div className="min-w-0 flex-1">
                   <Link to="/recipe/$slug" params={{ slug: item.slug }} className="block">
-                    <h3 className="line-clamp-2 font-display text-base leading-tight">
+                    <h3 className="line-clamp-2 font-recipe text-base leading-tight">
                       {item.name}
                     </h3>
                   </Link>
@@ -633,7 +642,7 @@ function PlanDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add to meal planner</DialogTitle>
-          <DialogDescription>{item.name}</DialogDescription>
+          <DialogDescription className="font-recipe">{item.name}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">

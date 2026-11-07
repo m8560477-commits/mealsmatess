@@ -61,3 +61,13 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Native Google sign-in requires the Firebase Android app configuration.
+// Fail at build time rather than shipping a plugin that cannot initialize.
+tasks.named("preBuild").configure {
+    doFirst {
+        if (!file("google-services.json").exists()) {
+            throw new GradleException("Add the Firebase Android google-services.json for com.taztechnologies.mealmate, including the release and Play signing fingerprints, before building MealMate.")
+        }
+    }
+}

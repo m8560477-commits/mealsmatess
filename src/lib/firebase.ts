@@ -4,6 +4,7 @@ import {
   GoogleAuthProvider,
   getRedirectResult,
   signInWithPopup,
+  signInWithCredential,
   signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -68,6 +69,7 @@ export const db = getFirestore(
 export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 let authStateReady: Promise<void> | null = null;
 
@@ -147,6 +149,15 @@ export async function testFirestoreConnection() {
 }
 
 export async function signInWithGoogle() {
+  const { Capacitor } = await import("@capacitor/core");
+  if (Capacitor.getPlatform() === "android") {
+    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+    const result = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true });
+    const token = result.credential?.idToken;
+    if (!token) throw new Error("Google did not return a sign-in token. Please try again.");
+    // Keep the existing Firebase JS session, profile and API token handling.
+    return signInWithCredential(auth, GoogleAuthProvider.credential(token));
+  }
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error) {

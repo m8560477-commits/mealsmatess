@@ -34,6 +34,9 @@ vi.mock("@/lib/billing.functions", () => ({
   verifyCheckout: mocks.verify,
   getIntroCompletion: mocks.intro,
   completeIntro: mocks.complete,
+  getWelcomeGuideCompletion: async () => true,
+  completeWelcomeGuide: async () => true,
+  getSocialIntroCompletion: async () => true,
 }));
 vi.mock("@/lib/preferences.functions", () => ({ getMyPreferences: async () => null }));
 vi.mock("@/lib/billing-client", async (original) => ({
@@ -84,10 +87,32 @@ describe("onboarding and mandatory paywall", () => {
     mount(<Welcome />);
     for (let step = 1; step <= 4; step++) {
       expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", String(step));
-      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+      fireEvent.click(screen.getByRole("button", { name: step === 4 ? "Get Started" : "Next" }));
     }
     expect(mocks.navigate).toHaveBeenCalledWith({ to: "/premium", replace: true });
     expect(localStorage.getItem("mealmate.tour-seen.v1")).toBe("1");
+  });
+  it("supports intro back and skip without granting access", async () => {
+    mount(<Welcome />);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: "/premium", replace: true });
+    expect(mocks.verify).not.toHaveBeenCalled();
+  });
+  it("returns an anonymous user who finished onboarding to the paywall", async () => {
+    localStorage.setItem("mealmate.tour-seen.v1", "1");
+    mount(
+      <ConsumerAccessGate>
+        <p>Protected app</p>
+      </ConsumerAccessGate>,
+    );
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/premium", replace: true }),
+    );
+    expect(screen.queryByText("Protected app")).not.toBeInTheDocument();
   });
   it("resumes a confirmed purchase without offering another checkout", async () => {
     mocks.create.mockResolvedValueOnce({ appUserId: "existing", isActive: true });
@@ -127,7 +152,7 @@ describe("onboarding and mandatory paywall", () => {
   it("restores an existing account without another purchase", async () => {
     mocks.session.user = { id: "subscriber" };
     mount(<PremiumPaywall />);
-    const restore = await screen.findByRole("button", { name: "Restore Purchases" });
+    const restore = await screen.findByRole("button", { name: /Restore purchases/i });
     await waitFor(() => expect(restore).not.toBeDisabled());
     fireEvent.click(restore);
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith({ to: "/", replace: true }));
@@ -145,7 +170,7 @@ describe("onboarding and mandatory paywall", () => {
   it("keeps an inactive restored purchase on the paywall", async () => {
     mocks.verify.mockResolvedValue({ isPremium: false });
     mount(<PremiumPaywall />);
-    const restore = await screen.findByRole("button", { name: "Restore Purchases" });
+    const restore = await screen.findByRole("button", { name: /Restore purchases/i });
     await waitFor(() => expect(restore).not.toBeDisabled());
     fireEvent.click(restore);
     await screen.findByText(/subscription isn’t confirmed/, {}, { timeout: 4000 });
@@ -233,7 +258,7 @@ describe("Consumer route enforcement", () => {
         <div>Protected app</div>
       </ConsumerAccessGate>,
     );
-    expect(screen.getByText("Protected app")).toBeInTheDocument();
+    expect(await screen.findByText("Protected app")).toBeInTheDocument();
   });
   it("keeps legal and sign-in recovery available without exposing the app", () => {
     mocks.path = "/legal/terms";

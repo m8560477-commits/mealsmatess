@@ -1,3 +1,4 @@
+import { UserAvatar } from "@/components/user-avatar";
 import { HubHome } from "@/components/hub/hub-home";
 import { loadRecipeSearchImages } from "@/lib/recipe-search-images";
 import { RecipeImage } from "@/components/recipe-image";
@@ -9,7 +10,6 @@ import {
   SlidersHorizontal,
   Camera,
   Loader2,
-  User as UserIcon,
   MessageCircleQuestion,
   ShoppingCart,
   Calendar,
@@ -182,6 +182,16 @@ function Index() {
 
   return (
     <main className="flex-1">
+      <div className="home-collection-links">
+        <Link to="/premium">MealMate Premium</Link>
+        <Link to="/restaurants">Explore dining</Link>
+        <Link to="/recipes" search={{ c: "Vegan" }}>
+          Vegan inspiration
+        </Link>
+        <Link to="/recipes" search={{ c: "High Protein" }}>
+          Healthy ideas
+        </Link>
+      </div>
       {/* Greeting header */}
       <div className="flex items-center justify-between px-4 pt-6">
         <div>
@@ -198,7 +208,7 @@ function Index() {
             className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80"
             aria-label="Profile"
           >
-            <UserIcon className="h-4 w-4" />
+            <UserAvatar />
           </Link>
         </div>
       </div>
@@ -427,7 +437,9 @@ function Index() {
                 <div className="aspect-square w-24 overflow-hidden rounded-2xl bg-muted">
                   <RecipeImage recipe={r} size="thumb" className="h-full w-full object-cover" />
                 </div>
-                <p className="mt-1.5 line-clamp-2 text-xs font-medium leading-tight">{r.name}</p>
+                <p className="mt-1.5 line-clamp-2 font-recipe text-xs font-medium leading-tight">
+                  {r.name}
+                </p>
               </Link>
             ))}
           </div>
@@ -470,7 +482,7 @@ function Index() {
               />
             </div>
             <div className="flex-1">
-              <p className="font-display text-lg leading-tight">{continueCooking.name}</p>
+              <p className="font-recipe text-lg leading-tight">{continueCooking.name}</p>
               <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary"

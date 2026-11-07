@@ -1,3 +1,4 @@
+import { UserAvatar } from "@/components/user-avatar";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -118,9 +119,12 @@ function ChatPage() {
 
         {turns.map((t) => (
           <div key={t.id} className="space-y-3">
-            <p className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-              {t.question}
-            </p>
+            <div className="flex items-start justify-end gap-2">
+              <UserAvatar className="size-8" />
+              <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+                {t.question}
+              </p>
+            </div>
             {t.answer && (
               <p className="mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-card px-4 py-2.5 text-sm">
                 {t.answer}

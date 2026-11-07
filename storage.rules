@@ -2,8 +2,21 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Uploads and downloads use authenticated Vercel server functions with the
-    // Firebase Admin SDK. Browser access remains denied.
+    // Private avatars: compressed JPEG at a single owned path. All other
+    // application uploads continue through existing authenticated Admin functions.
+    match /users/{uid}/profile/avatar.jpg {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      function validAvatar() {
+        return request.resource.size > 0
+          && request.resource.size <= 5 * 1024 * 1024
+          && request.resource.contentType == 'image/jpeg';
+      }
+      allow get: if isOwner();
+      allow create, update: if isOwner() && validAvatar();
+      allow delete: if isOwner();
+    }
     match /{allPaths=**} {
       allow read, write: if false;
     }

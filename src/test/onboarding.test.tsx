@@ -62,10 +62,12 @@ describe("onboarding account flow", () => {
 
   it("walks through discovery, planner, Mia, optional preferences, notifications and completion", async () => {
     render(<Page />);
+    await screen.findByRole("heading", { name: "Discover. Plan. Eat. Enjoy." });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("heading", { name: "Find your next favourite." });
     for (const title of [
       "Make every meal count.",
-      "Your food assistant, Mia.",
+      "Meet Mia, your kitchen companion.",
       "Make MealMate yours.",
     ]) {
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -108,6 +110,8 @@ describe("onboarding account flow", () => {
   it("resumes only the current account's draft", async () => {
     saveOnboardingDraft("account-b", 5, { ...EMPTY_PREFERENCES, allergies: ["Milk"] });
     render(<Page />);
+    await screen.findByRole("heading", { name: "Discover. Plan. Eat. Enjoy." });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("heading", { name: "Find your next favourite." });
     expect(readOnboardingDraft("account-a")?.preferences.allergies).toEqual([]);
   });
@@ -121,6 +125,8 @@ describe("onboarding account flow", () => {
     mocks.get.mockRejectedValueOnce(new Error("offline"));
     render(<Page />);
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    await screen.findByRole("heading", { name: "Discover. Plan. Eat. Enjoy." });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("heading", { name: "Find your next favourite." });
     expect(mocks.save).not.toHaveBeenCalled();
   });

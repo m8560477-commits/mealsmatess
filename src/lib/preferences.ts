@@ -180,11 +180,11 @@ export function preferenceSummary(prefs: FoodPreferences): string {
 const TOUR_KEY = "mealmate.tour-seen.v1";
 /** Welcome + app tour shown once per device before sign-up. */
 export function hasSeenTour(): boolean {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   try {
     return window.localStorage.getItem(TOUR_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 export function markTourSeen(): void {

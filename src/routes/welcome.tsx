@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarDays, Carrot, Sparkles, Utensils } from "lucide-react";
+import { ArrowRight, CalendarDays, ScanLine, Sparkles, Utensils } from "lucide-react";
 import { RecipeImage } from "@/components/recipe-image";
 import { completeIntro } from "@/lib/billing.functions";
 import { useSession } from "@/hooks/use-session";
-import { markTourSeen } from "@/lib/preferences";
+import { hasSeenTour, markTourSeen } from "@/lib/preferences";
 
 export const Route = createFileRoute("/welcome")({
   head: () => ({ meta: [{ title: "Welcome to MealMate" }] }),
@@ -13,37 +13,40 @@ export const Route = createFileRoute("/welcome")({
 
 const steps = [
   {
-    label: "Discover",
-    title: "Your next favourite meal starts here.",
-    description: "Explore recipes you will actually cook — everyday favourites and something new when you want it.",
+    label: "Welcome",
+    title: "Welcome to MealMate.",
+    description:
+      "Discover recipes, plan your meals and enjoy better dining. Your next great meal starts here.",
     dish: "Greek chicken salad",
     icon: Utensils,
-    detail: "Fresh inspiration, every day",
+    detail: "Good food. Every day.",
   },
   {
-    label: "Plan",
-    title: "A delicious week, already planned.",
-    description: "Meals, recipes and groceries in one place so dinner is one less thing to think about.",
+    label: "Scan",
+    title: "Scan your ingredients.",
+    description:
+      "Point your camera at what’s in your kitchen. Find delicious recipes using the ingredients you already have.",
+    dish: "Rainbow buddha bowl",
+    icon: ScanLine,
+    detail: "Your kitchen, full of possibilities",
+  },
+  {
+    label: "Meet Mia",
+    title: "A friendly face in your kitchen.",
+    description:
+      "Ask Mia to generate recipes, answer your cooking questions and guide you from the first chop to the final bite.",
+    dish: "Smoky beef tacos",
+    icon: Sparkles,
+    detail: "Your personal AI cooking companion",
+  },
+  {
+    label: "Made for you",
+    title: "Your personal food companion.",
+    description:
+      "Meal plans, grocery lists, saved recipes and recommendations that make everyday cooking feel effortless.",
     dish: "Creamy chicken alfredo",
     icon: CalendarDays,
-    detail: "Make space for what matters",
-  },
-  {
-    label: "Pantry",
-    title: "Cook with what you already have.",
-    description: "Turn ingredients on hand into dinner ideas and waste less of every shop.",
-    dish: "Greek chicken salad",
-    icon: Carrot,
-    detail: "Less waste. More possibility",
-  },
-  {
-    label: "Mia",
-    title: "A little help from Mia.",
-    description:
-      "Say “Hey Mia” for hands-free cooking help. Microphone is optional; audio stays on your device.",
-    dish: "Creamy chicken alfredo",
-    icon: Sparkles,
-    detail: "Good company in the kitchen",
+    detail: "A delicious week starts here",
   },
 ];
 
@@ -52,33 +55,40 @@ function WelcomePage() {
   const { user } = useSession();
   const [step, setStep] = useState(0);
   useEffect(() => {
+    if (hasSeenTour()) {
+      void navigate({ to: user ? "/" : "/premium", replace: true });
+      return;
+    }
     try {
       const saved = Number(localStorage.getItem("mealmate.intro-step.v2"));
       if (Number.isInteger(saved) && saved >= 0 && saved < steps.length) setStep(saved);
     } catch {
       /* Storage is optional; access never depends on it. */
     }
-  }, []);
+  }, [navigate, user]);
   const current = steps[step]!;
   const Icon = current.icon;
-  function next() {
-    if (step === steps.length - 1) {
-      markTourSeen();
-      if (user) void completeIntro().catch(() => undefined);
-      try {
-        localStorage.removeItem("mealmate.intro-step.v2");
-      } catch {
-        /* optional */
-      }
-      void navigate({ to: "/premium", replace: true });
-    } else {
-      setStep(step + 1);
-      try {
-        localStorage.setItem("mealmate.intro-step.v2", String(step + 1));
-      } catch {
-        /* optional */
-      }
+  function finish() {
+    markTourSeen();
+    if (user) void completeIntro().catch(() => undefined);
+    try {
+      localStorage.removeItem("mealmate.intro-step.v2");
+    } catch {
+      /* Optional cache. */
     }
+    void navigate({ to: "/premium", replace: true });
+  }
+  function move(next: number) {
+    setStep(next);
+    try {
+      localStorage.setItem("mealmate.intro-step.v2", String(next));
+    } catch {
+      /* Optional cache. */
+    }
+  }
+  function next() {
+    if (step === steps.length - 1) finish();
+    else move(step + 1);
   }
   return (
     <main className="premium-flow premium-intro">
@@ -86,6 +96,9 @@ function WelcomePage() {
         <span>
           MealMate<span className="intro-brand-dot">.</span>
         </span>
+        <button onClick={finish} className="intro-skip">
+          Skip
+        </button>
         <span className="intro-count">
           {step + 1} / {steps.length}
         </span>
@@ -93,6 +106,12 @@ function WelcomePage() {
       <section key={step} className="intro-step">
         <div className="intro-photo">
           <RecipeImage recipe={{ name: current.dish }} size="hero" priority />
+          {step === 1 && (
+            <div className="scan-illustration" aria-label="Ingredient scanner illustration">
+              <ScanLine size={64} />
+              <span>Tomatoes · Greens · Chickpeas</span>
+            </div>
+          )}
           <div className="intro-photo-caption">
             <Icon size={16} aria-hidden="true" />
             <span>{current.detail}</span>
@@ -117,10 +136,19 @@ function WelcomePage() {
             <span key={i} className={i <= step ? "complete" : ""} />
           ))}
         </div>
-        <button type="button" className="premium-primary" onClick={next}>
-          {step === steps.length - 1 ? "Choose Premium" : "Continue"}
-          <ArrowRight size={18} aria-hidden="true" />
-        </button>
+        <div className="intro-controls">
+          <button
+            className="premium-secondary"
+            disabled={step === 0}
+            onClick={() => move(step - 1)}
+          >
+            Back
+          </button>
+          <button type="button" className="premium-primary" onClick={next}>
+            {step === steps.length - 1 ? "Get Started" : "Next"}
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        </div>
         <p className="premium-terms">
           {step === steps.length - 1
             ? "Next: pick a plan. Subscription required to use MealMate."

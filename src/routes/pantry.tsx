@@ -173,9 +173,9 @@ function PantryPage() {
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-4"
               >
                 <div className="min-w-0">
-                  <p className="break-words font-medium">{item.name}</p>
+                  <p className="break-words font-recipe font-medium">{item.name}</p>
                   {item.quantity && (
-                    <p className="text-sm text-muted-foreground">{item.quantity}</p>
+                    <p className="font-recipe text-sm text-muted-foreground">{item.quantity}</p>
                   )}
                 </div>
                 <Button

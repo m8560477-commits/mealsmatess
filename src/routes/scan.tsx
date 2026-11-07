@@ -303,8 +303,8 @@ function ScanPage() {
         <section className="mt-6 rounded-3xl border border-border bg-card p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl">{dish.name}</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="font-recipe text-2xl">{dish.name}</h2>
+              <p className="font-recipe text-sm text-muted-foreground">
                 {[dish.cuisine, dish.portion].filter(Boolean).join(" · ")}
               </p>
             </div>
@@ -312,12 +312,12 @@ function ScanPage() {
               {Math.round(dish.confidence * 100)}% match
             </span>
           </div>
-          {dish.description && <p className="mt-2 text-sm">{dish.description}</p>}
+          {dish.description && <p className="mt-2 font-recipe text-sm">{dish.description}</p>}
 
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
             <Flame className="h-6 w-6" />
             <div>
-              <div className="font-display text-2xl leading-none">{dish.calories ?? "–"}</div>
+              <div className="font-recipe text-2xl leading-none">{dish.calories ?? "–"}</div>
               <div className="text-xs opacity-80">kcal per portion</div>
             </div>
           </div>
@@ -328,7 +328,7 @@ function ScanPage() {
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {m.label}
                 </dt>
-                <dd className="font-display text-lg">
+                <dd className="font-recipe text-lg">
                   {m.value ?? "–"}
                   <span className="text-xs font-normal">{m.value != null ? m.unit : ""}</span>
                 </dd>
@@ -337,7 +337,7 @@ function ScanPage() {
           </dl>
 
           {dish.ingredients.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-2">
+            <ul className="mt-4 flex flex-wrap gap-2 font-recipe">
               {dish.ingredients.map((ing, i) => (
                 <li
                   key={`${ing}-${i}`}

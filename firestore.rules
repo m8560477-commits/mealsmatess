@@ -34,12 +34,13 @@ service cloud.firestore {
     function validUserProfile(uid, data) {
       return data.keys().hasOnly([
           'id', 'email', 'displayName', 'photoURL', 'goal', 'createdAt',
-          'onboarding_completed', 'currency', 'locale', 'theme'
+          'onboarding_completed', 'currency', 'locale', 'theme', 'photoUpdatedAt'
         ])
         && data.id == uid
         && data.email is string && data.email.size() <= 254
         && validOptionalString(data, 'displayName', 100)
         && validOptionalString(data, 'photoURL', 2048)
+        && (!('photoUpdatedAt' in data) || data.photoUpdatedAt is timestamp)
         && validOptionalString(data, 'goal', 80)
         && validOptionalString(data, 'createdAt', 40)
         && validOptionalString(data, 'currency', 3)
@@ -115,10 +116,14 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if isOwner(uid);
       allow list: if false;
-      allow create: if isOwner(uid) && validUserProfile(uid, request.resource.data);
+      allow create: if isOwner(uid) && validUserProfile(uid, request.resource.data)
+        && (!('photoUpdatedAt' in request.resource.data)
+          || request.resource.data.photoUpdatedAt == request.time);
       allow update: if isOwner(uid)
         && validUserProfile(uid, request.resource.data)
         && request.resource.data.id == resource.data.id
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photoURL', 'photoUpdatedAt'])
+          || request.resource.data.photoUpdatedAt == request.time)
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
 

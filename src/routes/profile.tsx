@@ -1,3 +1,5 @@
+import { SocialLinks } from "@/components/follow-mealmate";
+import { ProfileDashboard } from "@/components/profile-dashboard";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +19,6 @@ import {
   Shield,
   Star,
   Sun,
-  User as UserIcon,
   UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -53,7 +54,7 @@ export const Route = createFileRoute("/profile")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Settings — MealMate" },
+      { title: "Profile — MealMate" },
       {
         name: "description",
         content: "Manage your MealMate account, currency, language, notifications, and privacy.",
@@ -253,7 +254,7 @@ function SettingsPage() {
   }
 
   async function share() {
-    const url = "https://mealmate.app";
+    const url = "https://mealsmates.site";
     const shareData = {
       title: "MealMate",
       text: "Cook smarter with MealMate — recipes, planner, and AI in your kitchen.",
@@ -344,15 +345,15 @@ function SettingsPage() {
     { label: "About MealMate", description: "Version and credits", icon: Info, to: "/about" },
     {
       label: "Follow on Instagram",
-      description: "@mealmate.sp",
+      description: "@mealsmates.app",
       icon: Share2,
-      href: "https://www.instagram.com/mealmate.sp",
+      href: "https://www.instagram.com/mealsmates.app/",
     },
     {
       label: "Follow on TikTok",
-      description: "@mealmate.sp",
+      description: "@mealsmates.app",
       icon: Share2,
-      href: "https://www.tiktok.com/@mealmate.sp",
+      href: "https://www.tiktok.com/@mealsmates.app",
     },
   ];
 
@@ -373,24 +374,28 @@ function SettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-8">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/15 via-primary/5 to-background p-5">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-            <UserIcon className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display text-2xl leading-tight">Settings</h1>
-            <p className="truncate text-sm text-muted-foreground">
-              {user?.email ?? "Sign in to sync your recipes"}
-            </p>
-          </div>
-        </div>
-      </div>
+      <ProfileDashboard />
+      <section className="my-6">
+        <h2 className="text-xl font-semibold mb-4">Follow MealMate</h2>
+        <SocialLinks />
+      </section>
 
       {/* XP, levels, streaks & challenges */}
       <GamificationCard />
 
       <ThemePicker />
+      <Section
+        title="Privacy controls"
+        items={[
+          {
+            label: "Request account deletion",
+            description:
+              "Contact support to delete your account and personal data. Deleting your account does not cancel a store subscription.",
+            icon: Shield,
+            href: "mailto:support@mealmate.app?subject=Delete%20my%20MealMate%20account",
+          },
+        ]}
+      />
       <Section title="Profile" items={profileItems} />
       <Section title="Account" items={accountItems} />
 

@@ -58,7 +58,7 @@ export function CookingMode({
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Cooking</p>
-          <h2 className="truncate font-display text-lg">{name}</h2>
+          <h2 className="truncate font-recipe text-lg">{name}</h2>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close cooking mode">
           <X className="h-5 w-5" />
@@ -73,7 +73,7 @@ export function CookingMode({
         <p className="text-sm text-muted-foreground">
           Step {i + 1} of {steps.length}
         </p>
-        <p className="mt-6 max-w-2xl text-2xl leading-relaxed md:text-3xl">{step}</p>
+        <p className="mt-6 max-w-2xl font-recipe text-2xl leading-relaxed md:text-3xl">{step}</p>
 
         <div className="mt-8 flex items-center gap-2">
           <Timer className="h-4 w-4 text-muted-foreground" />

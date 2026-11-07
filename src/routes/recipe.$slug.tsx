@@ -2,6 +2,7 @@ import { createFileRoute, notFound, useNavigate, Link } from "@tanstack/react-ro
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
+  Share2,
   Clock,
   Users,
   Flame,
@@ -196,6 +197,21 @@ function RecipePage() {
     }
   }
 
+  async function shareRecipe() {
+    if (!r) return;
+    const url = new URL(`/recipe/${encodeURIComponent(r.slug)}`, "https://mealsmates.site").href;
+    try {
+      if (navigator.share)
+        await navigator.share({ title: r.name, text: `Cook ${r.name} with MealMate`, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Recipe link copied");
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError"))
+        toast.error("Couldn’t share the recipe. Please try again.");
+    }
+  }
   async function addToGrocery() {
     if (!user || !r) {
       navigate({ to: "/auth" });
@@ -250,13 +266,21 @@ function RecipePage() {
           </div>
 
           <div className="flex flex-col">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 font-recipe text-sm text-muted-foreground">
               {r.cuisine && <span>{r.cuisine}</span>}
               {r.country && <span>· {r.country}</span>}
               {r.category && <span>· {r.category}</span>}
             </div>
-            <h1 className="mt-2 font-display text-4xl md:text-5xl">{r.name}</h1>
-            {r.description && <p className="mt-3 text-lg text-muted-foreground">{r.description}</p>}
+            <button
+              onClick={() => void shareRecipe()}
+              className="mb-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm"
+            >
+              <Share2 size={16} /> Share recipe
+            </button>
+            <h1 className="mt-2 font-recipe text-4xl md:text-5xl">{r.name}</h1>
+            {r.description && (
+              <p className="mt-3 font-recipe text-lg text-muted-foreground">{r.description}</p>
+            )}
 
             {r.diet_tags && r.diet_tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -278,7 +302,7 @@ function RecipePage() {
                   className="flex flex-col items-center gap-1 rounded-xl border border-border bg-card p-3 text-center"
                 >
                   <s.icon className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-medium">{s.label}</span>
+                  <span className="font-recipe text-xs font-medium">{s.label}</span>
                 </div>
               ))}
             </div>
@@ -330,8 +354,8 @@ function RecipePage() {
               { label: "Fat (est.)", value: r.fat_g },
             ].map((m) => (
               <div key={m.label} className="text-center">
-                <div className="font-display text-2xl">{m.value ?? "–"}g</div>
-                <div className="text-xs text-muted-foreground">{m.label}</div>
+                <div className="font-recipe text-2xl">{m.value ?? "–"}g</div>
+                <div className="font-recipe text-xs text-muted-foreground">{m.label}</div>
               </div>
             ))}
           </div>
@@ -340,7 +364,7 @@ function RecipePage() {
         <div className="mt-10 grid gap-10 md:grid-cols-[1fr_1.5fr]">
           <section>
             <h2 className="font-display text-2xl">Ingredients</h2>
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-4 space-y-2 font-recipe">
               {ingredients.map((ing, i) => (
                 <li
                   key={i}
@@ -366,7 +390,7 @@ function RecipePage() {
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
                     {i + 1}
                   </span>
-                  <p className="pt-0.5 text-sm leading-relaxed">{step}</p>
+                  <p className="pt-0.5 font-recipe text-sm leading-relaxed">{step}</p>
                 </li>
               ))}
             </ol>
@@ -376,7 +400,7 @@ function RecipePage() {
         {r.fun_fact && (
           <div className="mt-10 flex gap-3 rounded-2xl bg-secondary p-5">
             <Lightbulb className="h-5 w-5 shrink-0 text-primary" />
-            <p className="text-sm text-secondary-foreground">
+            <p className="font-recipe text-sm text-secondary-foreground">
               <strong>Did you know?</strong> {r.fun_fact}
             </p>
           </div>

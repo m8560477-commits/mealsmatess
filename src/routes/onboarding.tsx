@@ -9,6 +9,7 @@ import { useSession } from "@/hooks/use-session";
 import {
   EMPTY_PREFERENCES,
   markTourSeen,
+  normalizePreferences,
   writeLocalPreferences,
   type FoodPreferences,
 } from "@/lib/preferences";
@@ -39,7 +40,8 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [prefs, setPrefs] = useState<FoodPreferences>(EMPTY_PREFERENCES);
-  const [notifyEnabled, setNotifyEnabled] = useState(true);
+  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
@@ -48,30 +50,20 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const draft = readOnboardingDraft();
+      setLoading(true);
+      setLoadError(false);
+      const draft = readOnboardingDraft(userId);
       try {
         const remote = await getMyPreferences();
         if (!active) return;
         if (remote?.onboarding_completed) {
-          void navigate({ to: "/premium", replace: true });
+          void navigate({ to: "/", replace: true });
           return;
         }
-        if (remote) {
-          setPrefs({
-            cuisines: remote.cuisines ?? EMPTY_PREFERENCES.cuisines,
-            diets: remote.diets ?? EMPTY_PREFERENCES.diets,
-            allergens: remote.allergens ?? EMPTY_PREFERENCES.allergens,
-            skill_level: remote.skill_level ?? EMPTY_PREFERENCES.skill_level,
-            household_size: remote.household_size ?? EMPTY_PREFERENCES.household_size,
-            cooking_time: remote.cooking_time ?? EMPTY_PREFERENCES.cooking_time,
-          });
-        } else if (draft?.preferences) {
-          setPrefs({ ...EMPTY_PREFERENCES, ...draft.preferences });
-        }
+        setPrefs(normalizePreferences(draft?.preferences ?? remote ?? EMPTY_PREFERENCES));
         if (typeof draft?.step === "number") setStep(draft.step);
       } catch {
-        if (draft?.preferences) setPrefs({ ...EMPTY_PREFERENCES, ...draft.preferences });
-        if (typeof draft?.step === "number") setStep(draft.step);
+        if (active) setLoadError(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -82,9 +74,9 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   }, [userId, navigate, retry]);
 
   useEffect(() => {
-    if (loading) return;
-    saveOnboardingDraft({ step, preferences: prefs });
-  }, [step, prefs, loading]);
+    if (loading || loadError) return;
+    saveOnboardingDraft(userId, step, prefs);
+  }, [step, prefs, loading, loadError, userId]);
 
   function next() {
     setStep((s) => Math.min(LAST_STEP, s + 1));
@@ -104,27 +96,65 @@ function PersonalOnboarding({ userId }: { userId: string }) {
       } catch {
         /* local cache optional */
       }
-      if (notifyEnabled) {
-        try {
-          await saveMyNotificationPreferences({ data: { meal_reminders: true, tips: true } });
-          if (!Capacitor.isNativePlatform()) {
-            const token = await requestBrowserPushToken();
-            if (token) await registerMyPushToken({ data: { token, platform: "web" } });
-          }
-        } catch {
-          /* notifications optional during onboarding */
-        }
-      }
       markTourSeen();
-      clearOnboardingDraft();
-      await navigate({ to: "/premium", replace: true });
+      clearOnboardingDraft(userId);
+      await navigate({ to: "/", replace: true });
     } catch (error) {
       started.current = false;
       setBusy(false);
       toast.error(error instanceof Error ? error.message : "Could not finish setup.");
-      setRetry((n) => n + 1);
+      setError("Could not save your preferences. Please try again.");
     }
   }
+
+  async function saveAndContinue() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await saveMyPreferences({ data: { ...prefs, onboarding_completed: false } });
+      next();
+    } catch {
+      setError("Could not save your preferences. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function enableNotifications() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await saveMyNotificationPreferences({
+          data: { productUpdatesEnabled: true, pushEnabled: false },
+        });
+      } else {
+        const token = await requestBrowserPushToken();
+        if (!token)
+          throw new Error("Notifications were not enabled. You can try again or choose Not now.");
+        await saveMyNotificationPreferences({
+          data: { productUpdatesEnabled: true, pushEnabled: true },
+        });
+        await registerMyPushToken({ data: { token } });
+      }
+      next();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not enable notifications.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (loadError)
+    return (
+      <main className="premium-gate">
+        <h1>Let’s pick up where you left off.</h1>
+        <p>We couldn’t load your account preferences.</p>
+        <button className="premium-primary" onClick={() => setRetry((n) => n + 1)}>
+          Try again
+        </button>
+      </main>
+    );
 
   if (loading) {
     return (
@@ -137,18 +167,46 @@ function PersonalOnboarding({ userId }: { userId: string }) {
   return (
     <OnboardingLayout
       step={step}
-      total={LAST_STEP + 1}
+      busy={busy}
       onBack={step > 0 && !busy ? back : undefined}
-      footer={
-        <button
-          type="button"
-          className="onboarding-cta"
-          disabled={busy}
-          onClick={() => void (step === LAST_STEP ? finish() : next())}
-        >
-          {busy ? <Loader2 className="animate-spin" size={18} /> : null}
-          {step === LAST_STEP ? "Get started" : step === PREFS_STEP ? "Continue" : "Next"}
-        </button>
+      actions={
+        step === NOTIFY_STEP ? (
+          <>
+            <button
+              className="onboarding-primary"
+              disabled={busy}
+              onClick={() => void enableNotifications()}
+            >
+              {Capacitor.isNativePlatform() ? "Enable product updates" : "Enable notifications"}
+            </button>
+            <button
+              className="onboarding-secondary"
+              disabled={busy}
+              onClick={() => {
+                setError("");
+                next();
+              }}
+            >
+              Not now
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="onboarding-primary"
+            disabled={busy}
+            onClick={() =>
+              void (step === LAST_STEP
+                ? finish()
+                : step === PREFS_STEP
+                  ? saveAndContinue()
+                  : next())
+            }
+          >
+            {busy ? <Loader2 className="animate-spin" size={18} /> : null}
+            {step === LAST_STEP ? "Get started" : step === PREFS_STEP ? "Continue" : "Next"}
+          </button>
+        )
       }
     >
       {step === 1 && (
@@ -157,17 +215,10 @@ function PersonalOnboarding({ userId }: { userId: string }) {
       {step === 3 && (
         <p className="onboarding-copy">We will personalise recipes around your household.</p>
       )}
-      {step === PREFS_STEP && <PreferenceChoices value={prefs} onChange={setPrefs} />}
-      {step === NOTIFY_STEP && (
-        <label className="onboarding-notify">
-          <input
-            type="checkbox"
-            checked={notifyEnabled}
-            onChange={(e) => setNotifyEnabled(e.target.checked)}
-          />
-          <span>Send me meal reminders and cooking tips</span>
-        </label>
+      {step === PREFS_STEP && (
+        <PreferenceChoices preferences={prefs} onChange={setPrefs} disabled={busy} />
       )}
+      {error && <p role="alert">{error}</p>}
     </OnboardingLayout>
   );
 }

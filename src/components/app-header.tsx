@@ -1,3 +1,4 @@
+import { UserAvatar } from "@/components/user-avatar";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { MealMateLogo } from "@/components/mealmate-logo";
@@ -11,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOutUnified } from "@/hooks/use-session";
-import { ArrowLeft, UserRound } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { getMyUnreadNotificationCount } from "@/lib/notifications.functions";
@@ -110,7 +111,7 @@ export function AppHeader() {
                   className="size-11 rounded-full"
                   aria-label="Account menu"
                 >
-                  <UserRound />
+                  <UserAvatar />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

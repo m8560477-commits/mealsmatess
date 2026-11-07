@@ -82,8 +82,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
     }
 
     const isVipEmail = !!email && service.FREE_PREMIUM_EMAILS.has(email);
-    const codeOk =
-      service.LIFETIME_PROMO_CODES.has(code) || service.FREE_PREMIUM_EMAILS.has(code);
+    const codeOk = service.LIFETIME_PROMO_CODES.has(code) || service.FREE_PREMIUM_EMAILS.has(code);
 
     // VIP account: signed-in VIP always gets free access.
     if (isVipEmail) {
@@ -111,6 +110,52 @@ export const completeIntro = createServerFn({ method: "POST" })
     await getFirebaseAdminFirestore()
       .collection("intro_completion")
       .doc(context.userId)
-      .set({ completed: true });
+      .set({ completed: true }, { merge: true });
+    return true;
+  });
+
+// Separate from pre-purchase onboarding; completion is tied to the authenticated account.
+export const getWelcomeGuideCompletion = createServerFn({ method: "GET" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const { getFirebaseAdminFirestore } = await loadFirebaseAdmin();
+    const record = await getFirebaseAdminFirestore()
+      .collection("intro_completion")
+      .doc(context.userId)
+      .get();
+    return record.data()?.welcomeGuideCompleted === true;
+  });
+export const completeWelcomeGuide = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const service = await billing();
+    const access = await service.verifyAccountAccess(context.userId, getCookie(COOKIE));
+    if (!access.isPremium) throw new Response("Subscription required", { status: 403 });
+    const { getFirebaseAdminFirestore } = await loadFirebaseAdmin();
+    await getFirebaseAdminFirestore()
+      .collection("intro_completion")
+      .doc(context.userId)
+      .set({ welcomeGuideCompleted: true }, { merge: true });
+    return true;
+  });
+
+export const getSocialIntroCompletion = createServerFn({ method: "GET" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const { getFirebaseAdminFirestore } = await loadFirebaseAdmin();
+    return (
+      (
+        await getFirebaseAdminFirestore().collection("intro_completion").doc(context.userId).get()
+      ).data()?.socialIntroCompleted === true
+    );
+  });
+export const completeSocialIntro = createServerFn({ method: "POST" })
+  .middleware([requireFirebaseAuth])
+  .handler(async ({ context }) => {
+    const { getFirebaseAdminFirestore } = await loadFirebaseAdmin();
+    await getFirebaseAdminFirestore()
+      .collection("intro_completion")
+      .doc(context.userId)
+      .set({ socialIntroCompleted: true }, { merge: true });
     return true;
   });

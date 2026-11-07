@@ -18,10 +18,12 @@ import {
 import { RecipeImage } from "@/components/recipe-image";
 
 const BENEFITS = [
-  "Recipes you’ll actually cook",
-  "A calmer week of meal plans",
-  "Dinner ideas from what’s in the pantry",
-  "Mia — hands-free help in the kitchen",
+  "AI recipes personalised to your tastes",
+  "Personalised meal planning",
+  "Ingredient scanning",
+  "Mia — your AI cooking companion",
+  "Saved recipes and favourites",
+  "Organised grocery lists",
 ] as const;
 
 export function PremiumPaywall() {
@@ -72,10 +74,11 @@ export function PremiumPaywall() {
       })
       .catch((error) => {
         if (!active) return;
-        const raw =
-          error instanceof Error ? error.message : typeof error === "string" ? error : "";
+        const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
         if (/unavailable|temporarily|not available|plans|not configured|REVENUECAT/i.test(raw))
-          setMessage(raw);
+          setMessage(
+            "Subscription plans are temporarily unavailable. Please try again or contact support.",
+          );
         else if (/forbidden|401|403|unauthorized/i.test(raw))
           setMessage("We couldn’t start checkout from this page. Refresh and try again.");
         else if (!navigator.onLine)
@@ -331,7 +334,11 @@ export function PremiumPaywall() {
           )}
         </div>
         <div className="premium-recovery">
-          <button type="button" onClick={() => void perform("restore")} disabled={busy || loading || !online}>
+          <button
+            type="button"
+            onClick={() => void perform("restore")}
+            disabled={busy || loading || !online}
+          >
             Restore purchases
           </button>
           {!userId && (

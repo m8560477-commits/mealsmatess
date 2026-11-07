@@ -8,9 +8,10 @@ import { reload, sendEmailVerification } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-// MealMate entry: auth → onboarding → paywall → app.
+// Consumer entry: onboarding → paywall → authentication → guide → app.
 // Only these routes are reachable without a signed-in, verified user.
 const PUBLIC_PREFIXES = [
+  "/welcome",
   "/auth",
   "/premium",
   "/reset-password",

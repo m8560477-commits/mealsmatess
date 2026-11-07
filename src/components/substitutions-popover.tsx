@@ -59,7 +59,7 @@ export function SubstitutionsButton({
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Substitutes
                 </p>
-                <h3 className="font-display text-xl">{ingredient}</h3>
+                <h3 className="font-recipe text-xl">{ingredient}</h3>
               </div>
               <button
                 aria-label="Close"
@@ -82,7 +82,7 @@ export function SubstitutionsButton({
                 {subs.map((s, i) => (
                   <li key={i} className="rounded-2xl border border-border p-3">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="font-semibold">{s.name}</p>
+                      <p className="font-recipe font-semibold">{s.name}</p>
                       {s.ratio && <span className="text-xs text-muted-foreground">{s.ratio}</span>}
                     </div>
                     {s.notes && <p className="mt-1 text-sm text-muted-foreground">{s.notes}</p>}

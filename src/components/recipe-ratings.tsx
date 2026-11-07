@@ -123,3 +123,27 @@ export function RecipeRatings({ recipeId }: { recipeId: string }) {
     </section>
   );
 }
+
+/** Shows only ratings actually submitted; no seeded/default stars. */
+export function RecipeRatingSummary({ recipeId }: { recipeId: string }) {
+  const load = useServerFn(listRecipeRatings);
+  const { data } = useQuery({
+    queryKey: ["ratings", recipeId],
+    queryFn: async () => (await load({ data: { recipeId } })).slice(0, 20) as Rating[],
+    staleTime: 60_000,
+  });
+  const ratings = data?.filter(
+    (item) => Number.isFinite(item.rating) && item.rating >= 1 && item.rating <= 5,
+  );
+  if (!ratings?.length) return null;
+  const average = ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+      aria-label={`${average.toFixed(1)} out of 5 from ${ratings.length} recent reviews`}
+    >
+      <Star size={12} aria-hidden="true" className="text-primary" />
+      {average.toFixed(1)} · {ratings.length} recent reviews
+    </span>
+  );
+}

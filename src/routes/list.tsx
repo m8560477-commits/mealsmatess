@@ -144,12 +144,14 @@ function ListPage() {
               />
               <div className="flex-1">
                 <span
-                  className={`text-sm ${item.checked ? "text-muted-foreground line-through" : ""}`}
+                  className={`font-recipe text-sm ${item.checked ? "text-muted-foreground line-through" : ""}`}
                 >
                   {item.name}
                 </span>
                 {item.quantity && (
-                  <span className="ml-2 text-xs text-muted-foreground">{item.quantity}</span>
+                  <span className="ml-2 font-recipe text-xs text-muted-foreground">
+                    {item.quantity}
+                  </span>
                 )}
               </div>
               <button
